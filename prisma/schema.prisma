@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  admin
+  client
+}
+
+enum GuestControlType {
+  none
+  limited
+  full
+}
+
+enum UserPackageStatus {
+  active
+  expired
+  revoked
+}
+
+enum ContactType {
+  email
+  phone
+  whatsapp
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  passwordHash String        @map("password_hash")
+  role         Role          @default(client)
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  events       Event[]
+  userPackages UserPackage[] @relation("UserToPackage")
+  grantedPackages UserPackage[] @relation("GrantedByAdmin")
+
+  @@map("users")
+}
+
+model Package {
+  id               String           @id @default(cuid())
+  name             String
+  slug             String           @unique
+  priceUsd         Decimal          @map("price_usd") @db.Decimal(10, 2)
+  maxSections      Int              @map("max_sections")
+  maxPhotos        Int              @map("max_photos")
+  maxGuests        Int              @map("max_guests")
+  hasMusic         Boolean          @default(false) @map("has_music")
+  hasVideo         Boolean          @default(false) @map("has_video")
+  hasKhqr          Boolean          @default(false) @map("has_khqr")
+  hasWishing       Boolean          @default(false) @map("has_wishing")
+  hasHosting       Boolean          @default(false) @map("has_hosting")
+  hasCustomThumb   Boolean          @default(false) @map("has_custom_thumb")
+  hasGuestControl  Boolean          @default(false) @map("has_guest_control")
+  guestControlType GuestControlType @default(none) @map("guest_control_type")
+  guestEditLimit   Int?             @map("guest_edit_limit")
+  hasLogo          Boolean          @default(false) @map("has_logo")
+  galleryType      String?          @map("gallery_type")
+  themeCount       Int              @default(0) @map("theme_count")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  packageThemes    PackageTheme[]
+  userPackages     UserPackage[]
+
+  @@map("packages")
+}
+
+model Theme {
+  id           String         @id @default(cuid())
+  name         String
+  previewUrl   String?        @map("preview_url")
+  thumbnailUrl String?        @map("thumbnail_url")
+  isAnimated   Boolean        @default(false) @map("is_animated")
+  isActive     Boolean        @default(true) @map("is_active")
+  sortOrder    Int            @default(0) @map("sort_order")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  packageThemes PackageTheme[]
+  invitations   Invitation[]
+
+  @@map("themes")
+}
+
+model PackageTheme {
+  id        String  @id @default(cuid())
+  packageId String  @map("package_id")
+  themeId   String  @map("theme_id")
+
+  package   Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  theme     Theme   @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, themeId])
+  @@map("package_themes")
+}
+
+model UserPackage {
+  id          String            @id @default(cuid())
+  userId      String            @map("user_id")
+  packageId   String            @map("package_id")
+  createdBy   String            @map("created_by")
+  grantedAt   DateTime          @default(now()) @map("granted_at")
+  expiresAt   DateTime?         @map("expires_at")
+  status      UserPackageStatus @default(active)
+  notes       String?
+
+  user        User              @relation("UserToPackage", fields: [userId], references: [id], onDelete: Cascade)
+  package     Package           @relation(fields: [packageId], references: [id])
+  grantedBy   User              @relation("GrantedByAdmin", fields: [createdBy], references: [id])
+
+  @@map("user_packages")
+}
+
+model Event {
+  id           String      @id @default(cuid())
+  userId       String      @map("user_id")
+  title        String
+  eventType    String      @map("event_type")
+  eventDate    DateTime    @map("event_date")
+  venueName    String?     @map("venue_name")
+  venueMapUrl  String?     @map("venue_map_url")
+  slug         String      @unique
+  status       String      @default("draft")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitation   Invitation?
+  guests       Guest[]
+
+  @@map("events")
+}
+
+model Invitation {
+  id             String    @id @default(cuid())
+  eventId        String    @unique @map("event_id")
+  themeId        String    @map("theme_id")
+  thumbnailUrl   String?   @map("thumbnail_url")
+  musicUrl       String?   @map("music_url")
+  shareLink      String?   @map("share_link")
+  showWatermark  Boolean   @default(true) @map("show_watermark")
+  isPublished    Boolean   @default(false) @map("is_published")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  event          Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  theme          Theme     @relation(fields: [themeId], references: [id])
+  sections       Section[]
+  photos         Photo[]
+
+  @@map("invitations")
+}
+
+model Section {
+  id           String     @id @default(cuid())
+  invitationId String     @map("invitation_id")
+  type         String
+  sortOrder    Int        @default(0) @map("sort_order")
+  content      Json
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@map("sections")
+}
+
+model Photo {
+  id           String     @id @default(cuid())
+  invitationId String     @map("invitation_id")
+  url          String
+  sortOrder    Int        @default(0) @map("sort_order")
+
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@map("photos")
+}
+
+model Guest {
+  id          String      @id @default(cuid())
+  eventId     String      @map("event_id")
+  name        String
+  contact     String?
+  contactType ContactType? @map("contact_type")
+  rsvpStatus  String?     @map("rsvp_status")
+  mealPref    String?     @map("meal_pref")
+  rsvpAt      DateTime?   @map("rsvp_at")
+
+  event       Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("guests")
+}
