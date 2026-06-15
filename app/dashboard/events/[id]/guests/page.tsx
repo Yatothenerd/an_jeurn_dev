@@ -72,9 +72,11 @@ export default async function GuestListPage({ params }: { params: Promise<{ id: 
 
       <GuestListClient
         eventId={id}
+        inviteBaseUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/invite/${event.slug}`}
         initialGuests={guests.map((g) => ({
           id: g.id,
           name: g.name,
+          token: g.token,
           contact: g.contact,
           contactType: g.contactType,
           rsvpStatus: g.rsvpStatus,

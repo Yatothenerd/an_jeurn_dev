@@ -22,6 +22,7 @@ const SECTION_TYPES: SectionTypeDef[] = [
   { type: "cover", label: "Cover", emoji: "🖼", defaultContent: { heading: "", subheading: "" } },
   { type: "countdown", label: "Countdown", emoji: "⏱", defaultContent: { targetDate: "", label: "Days to go" } },
   { type: "details", label: "Details", emoji: "📋", defaultContent: { items: [{ icon: "📅", label: "Date", value: "" }] } },
+  { type: "agenda", label: "Agenda", emoji: "🗓", defaultContent: { title: "Order of Ceremony", subtitle: "Agenda", items: [{ time: "", title: "", icon: 1 }] } },
   { type: "gallery", label: "Gallery", emoji: "🖼", defaultContent: { layout: "grid" } },
   { type: "video", label: "Video", emoji: "🎬", requires: "hasVideo", defaultContent: { url: "", caption: "" } },
   { type: "wishing", label: "Wishing Wall", emoji: "💌", requires: "hasWishing", defaultContent: { placeholder: "Leave your wishes here…" } },
@@ -208,6 +209,30 @@ function SectionEditor({
         {items.length < 10 && (
           <button onClick={() => set("items", [...items, { icon: "📌", label: "", value: "" }])} style={{ fontSize: "0.8125rem", color: "#7c3aed", background: "none", border: "1px dashed #c4b5fd", borderRadius: "6px", padding: "0.375rem 0.75rem", cursor: "pointer" }}>
             + Add row
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (type === "agenda") {
+    const items = (content.items as Array<{ time?: string; timeEn?: string; title?: string; icon?: number | string }>) ?? [];
+    return (
+      <div style={eg}>
+        <F label="Title"><input value={(content.title as string) ?? ""} onChange={(e) => set("title", e.target.value)} style={inp} placeholder="Order of Ceremony" /></F>
+        <F label="Subtitle"><input value={(content.subtitle as string) ?? ""} onChange={(e) => set("subtitle", e.target.value)} style={inp} placeholder="Agenda" /></F>
+        {items.map((item, i) => (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: "64px 1fr 1.4fr auto", gap: "0.5rem", alignItems: "center" }}>
+            <select value={String(item.icon ?? 1)} onChange={(e) => { const n = [...items]; n[i] = { ...item, icon: Number(e.target.value) }; set("items", n); }} style={inp} title="Icon">
+              {[1,2,3,4,5,6,7,8,9].map((n) => <option key={n} value={n}>#{n}</option>)}
+            </select>
+            <input value={item.time ?? ""} onChange={(e) => { const n = [...items]; n[i] = { ...item, time: e.target.value }; set("items", n); }} style={inp} placeholder="Time" />
+            <input value={item.title ?? ""} onChange={(e) => { const n = [...items]; n[i] = { ...item, title: e.target.value }; set("items", n); }} style={inp} placeholder="Activity" />
+            <button onClick={() => set("items", items.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "1rem" }}>✕</button>
+          </div>
+        ))}
+        {items.length < 12 && (
+          <button onClick={() => set("items", [...items, { time: "", title: "", icon: ((items.length % 9) + 1) }])} style={{ fontSize: "0.8125rem", color: "#7c3aed", background: "none", border: "1px dashed #c4b5fd", borderRadius: "6px", padding: "0.375rem 0.75rem", cursor: "pointer" }}>
+            + Add agenda item
           </button>
         )}
       </div>

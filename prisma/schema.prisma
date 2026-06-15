@@ -196,6 +196,7 @@ model Wish {
 model Guest {
   id          String      @id @default(cuid())
   eventId     String      @map("event_id")
+  token       String?     @unique
   name        String
   contact     String?
   contactType ContactType? @map("contact_type")

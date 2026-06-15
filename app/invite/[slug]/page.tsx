@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCachedInvite, setCachedInvite, type InviteData } from "@/lib/utils/invite-cache";
 import { CoverSection } from "./_components/sections/CoverSection";
 import { CountdownSection } from "./_components/sections/CountdownSection";
+import { AgendaSection } from "./_components/sections/AgendaSection";
 import { DetailsSection } from "./_components/sections/DetailsSection";
 import { GallerySection } from "./_components/sections/GallerySection";
 import { VideoSection } from "./_components/sections/VideoSection";
@@ -57,8 +58,8 @@ const THEME_STYLES: Record<string, ThemeStyle> = {
     font: "Georgia, 'Times New Roman', serif",
   },
   "theme-royal-khmer": {
-    bg: "#5A0016", cardBg: "#6E0A22", primary: "#F5E6C8", accent: "#D4AF37",
-    text: "#F3E3C6", muted: "#C9A98A", border: "#7A1A30", btnBg: "#D4AF37", btnText: "#5A0016",
+    bg: "#f9f7f4", cardBg: "#ffffff", primary: "#b76e79", accent: "#d4af37",
+    text: "#4a3728", muted: "#8a7560", border: "#e6d9bf", btnBg: "#800020", btnText: "#f9f7f4",
     font: "Georgia, 'Times New Roman', serif",
   },
 };
@@ -151,7 +152,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function InvitePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ g?: string }>;
+}) {
   const { slug } = await params;
   const data = await loadInviteData(slug);
 
@@ -159,86 +166,120 @@ export default async function InvitePage({ params }: { params: Promise<{ slug: s
 
   const theme = getTheme(data.invitation.themeId);
 
+  // Personalized guest name from the per-guest link (?g=<token>). Looked up
+  // outside the cached invite payload so it's always fresh per visitor.
+  const { g } = await searchParams;
+  let guestName: string | null = null;
+  if (g) {
+    const guest = await prisma.guest.findFirst({
+      where: { token: g, eventId: data.event.id },
+      select: { name: true },
+    });
+    guestName = guest?.name ?? null;
+  }
+
+  // Royal Khmer renders ornate gold corner frames on every section.
+  const ornate = data.invitation.themeId === "theme-royal-khmer";
+
   return (
     <>
       <style>{`
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; background: ${theme.bg}; }
+        html, body { margin: 0; padding: 0; background: #e7e3dc; }
         img { max-width: 100%; }
+        .invite-shell {
+          background: ${theme.bg};
+          min-height: 100vh;
+          max-width: 430px;
+          margin: 0 auto;
+          padding-bottom: 7rem;
+          position: relative;
+          box-shadow: 0 0 40px rgba(0,0,0,0.18);
+        }
+        .sec-frame { position: relative; }
+        .sec-frame > .sec-corner {
+          position: absolute;
+          width: 46px; height: 58px;
+          background: ${theme.accent};
+          -webkit-mask: url('/themes/khmer/corner.png') center / contain no-repeat;
+          mask: url('/themes/khmer/corner.png') center / contain no-repeat;
+          pointer-events: none; opacity: 0.9; z-index: 5;
+        }
+        .sec-corner.tl { top: 8px; left: 8px; }
+        .sec-corner.tr { top: 8px; right: 8px; transform: scaleX(-1); }
+        .sec-corner.bl { bottom: 8px; left: 8px; transform: scaleY(-1); }
+        .sec-corner.br { bottom: 8px; right: 8px; transform: scale(-1); }
         @media (max-width: 480px) {
           body { font-size: 16px; }
         }
       `}</style>
 
-      <div style={{ background: theme.bg, minHeight: "100vh", maxWidth: "480px", margin: "0 auto", paddingBottom: "7rem" }}>
+      <div className="invite-shell">
         {/* Sections */}
         {data.sections.map((sec) => {
           const c = sec.content as Record<string, unknown>;
+          let node: React.ReactNode = null;
+
           if (sec.type === "cover") {
-            return (
+            node = (
               <CoverSection
-                key={sec.id}
-                content={c as { heading?: string; subheading?: string }}
+                content={c as { heading?: string; subheading?: string; guestLabel?: string }}
                 eventTitle={data.event.title}
                 eventDate={data.event.eventDate}
+                guestName={guestName}
                 theme={theme}
               />
             );
-          }
-          if (sec.type === "countdown") {
-            return (
+          } else if (sec.type === "countdown") {
+            node = (
               <CountdownSection
-                key={sec.id}
                 targetDate={(c.targetDate as string) ?? ""}
                 label={c.label as string | undefined}
                 eventDate={data.event.eventDate}
                 theme={theme}
               />
             );
-          }
-          if (sec.type === "details") {
-            return (
+          } else if (sec.type === "agenda") {
+            node = (
+              <AgendaSection
+                content={c as { title?: string; subtitle?: string; items?: { time?: string; timeEn?: string; title?: string; icon?: number | string }[] }}
+                theme={theme}
+              />
+            );
+          } else if (sec.type === "details") {
+            node = (
               <DetailsSection
-                key={sec.id}
                 content={c as { items?: { icon: string; label: string; value: string }[] }}
                 venueName={data.event.venueName}
                 venueMapUrl={data.event.venueMapUrl}
                 theme={theme}
               />
             );
-          }
-          if (sec.type === "gallery") {
-            return (
+          } else if (sec.type === "gallery") {
+            node = (
               <GallerySection
-                key={sec.id}
                 content={c as { layout?: string }}
                 photos={data.photos}
                 theme={theme}
               />
             );
-          }
-          if (sec.type === "video") {
-            return (
+          } else if (sec.type === "video") {
+            node = (
               <VideoSection
-                key={sec.id}
                 content={c as { url?: string; caption?: string }}
                 theme={theme}
               />
             );
-          }
-          if (sec.type === "khqr") {
-            return (
+          } else if (sec.type === "khqr") {
+            node = (
               <KhqrSection
-                key={sec.id}
                 content={c as { recipientName?: string; amount?: string; currency?: string; qrImageUrl?: string }}
                 theme={theme}
               />
             );
-          }
-          if (sec.type === "wishing" && data.pkg?.hasWishing) {
-            return (
+          } else if (sec.type === "wishing" && data.pkg?.hasWishing) {
+            node = (
               <WishingSection
-                key={sec.id}
                 invitationId={data.invitation.id}
                 initialWishes={data.wishes}
                 content={c as { placeholder?: string }}
@@ -246,7 +287,18 @@ export default async function InvitePage({ params }: { params: Promise<{ slug: s
               />
             );
           }
-          return null;
+
+          if (!node) return null;
+          if (!ornate) return <div key={sec.id}>{node}</div>;
+          return (
+            <div key={sec.id} className="sec-frame">
+              {node}
+              <span className="sec-corner tl" />
+              <span className="sec-corner tr" />
+              <span className="sec-corner bl" />
+              <span className="sec-corner br" />
+            </div>
+          );
         })}
 
         {/* RSVP button + modal */}

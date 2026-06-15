@@ -5,7 +5,12 @@ function createPrismaClient() {
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
   return new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    // Query logging is very chatty and adds per-request overhead; opt in with
+    // PRISMA_LOG_QUERIES=1 when debugging. Errors/warnings always logged.
+    log:
+      process.env.PRISMA_LOG_QUERIES === "1"
+        ? ["query", "error", "warn"]
+        : ["error", "warn"],
   });
 }
 

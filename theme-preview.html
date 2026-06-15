@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Anjeurn — Theme Showcase</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Great+Vibes&family=Montserrat:wght@300;400;500;600&family=Cinzel:wght@400;500&family=Koulen&family=Moulpali&family=Kantumruy+Pro:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -530,6 +532,115 @@
     .inv-deco-band.blend-screen { mix-blend-mode: screen; }
     .deco-floral { background-image: url('public/themes/patterns/gold-floral-damask.jpg'); }
     .deco-lace { background-image: url('public/themes/patterns/thai-lace-border.jpg'); }
+
+    /* ════════ Royal Khmer Gold — godyato-style ════════ */
+    .rk-invite {
+      font-family: 'Kantumruy Pro', sans-serif;
+      color: #4a3728;
+      background-color: #f9f7f4;
+      background-image: radial-gradient(#b89f8a 0.5px, transparent 0.5px);
+      background-size: 16px 16px;
+    }
+    .rk-khm { font-family: 'Koulen', serif; }
+
+    /* Cover */
+    .rk-cover {
+      position: relative;
+      min-height: 86%;
+      padding: 2.2rem 1.1rem;
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+      text-align: center; gap: 1rem;
+      color: #dcb287;
+      background:
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.38) 0px, rgba(0,0,0,0.08) 14px, transparent 28px, rgba(0,0,0,0.08) 42px, rgba(0,0,0,0.38) 56px),
+        radial-gradient(circle at 50% 16%, #800020 58%, #5a0016 100%);
+      background-size: 56px 100%, auto;
+      box-shadow: inset 0 0 90px rgba(0,0,0,0.6);
+    }
+    .rk-cover::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 34px;
+      background: radial-gradient(circle at 50% -40%, #800020 70%, #5a0016 100%);
+      border-bottom: 2px solid #d4af37; border-radius: 0 0 100% 100% / 0 0 22% 22%;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5); z-index: 1;
+    }
+    .rk-frame { position: absolute; pointer-events: none; z-index: 1; }
+    .rk-frame.f1 { inset: 9px; border: 1px solid rgba(212,175,55,0.45); }
+    .rk-frame.f2 { inset: 13px; border: 1px solid rgba(212,175,55,0.22); }
+    .rk-monogram { width: 60px; height: auto; position: relative; z-index: 2; }
+    .rk-cover-mid { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+    .rk-cover-kh { font-size: 0.66rem; color: #dcb287; letter-spacing: 0.03em; }
+    .rk-cover-en { font-size: 0.5rem; color: rgba(249,247,244,0.8); letter-spacing: 0.08em; margin-top: 0.1rem; }
+    .rk-nameplate { position: relative; display: flex; align-items: center; justify-content: center; margin: 0.5rem 0; min-height: 44px; width: 100%; }
+    .rk-nameplate img { position: absolute; width: 100%; max-width: 190px; opacity: 0.6; }
+    .rk-guest { position: relative; z-index: 2; font-family: 'Moulpali', serif; font-style: italic; font-size: 1.1rem; color: #fff; }
+    .rk-cdiv { width: 34px; height: 1px; background: rgba(212,175,55,0.5); margin: 0.5rem auto; }
+    .rk-openbtn {
+      position: relative; z-index: 2; font-family: 'Koulen', serif; color: #dcb287;
+      border: 1px solid rgba(220,178,135,0.4); border-radius: 999px;
+      padding: 0.45rem 1.3rem; font-size: 0.72rem; letter-spacing: 0.04em; background: rgba(0,0,0,0.18);
+    }
+    .rk-openbtn small { display: block; font-family: 'Kantumruy Pro', sans-serif; font-size: 0.45rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(220,178,135,0.85); }
+
+    /* Sections */
+    .rk-section { position: relative; padding: 2rem 1rem; }
+    .rk-section.cream { background-color: #f9f7f4; background-image: radial-gradient(#b89f8a 0.5px, transparent 0.5px); background-size: 16px 16px; }
+    .rk-section.red { background: #800020; color: #f9f7f4; }
+    .rk-section.reddark { background: #5a0016; color: #f9f7f4; padding: 2.4rem 1rem; }
+    .rk-fr1 { position: absolute; inset: 7px; border: 1px solid rgba(212,175,55,0.2); pointer-events: none; }
+    .rk-fr2 { position: absolute; inset: 11px; border: 1px solid rgba(212,175,55,0.1); pointer-events: none; }
+    .rk-corner { position: absolute; width: 32px; height: 32px; background: url('public/themes/khmer/corner.png') center/contain no-repeat; pointer-events: none; opacity: 0.85; z-index: 1; }
+    .rk-corner.tl { top: 5px; left: 5px; } .rk-corner.tr { top: 5px; right: 5px; transform: scaleX(-1); }
+    .rk-corner.bl { bottom: 5px; left: 5px; transform: scaleY(-1); } .rk-corner.br { bottom: 5px; right: 5px; transform: scale(-1); }
+    .rk-inner { position: relative; z-index: 2; }
+
+    .rk-title { font-family: 'Moulpali', serif; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.1em; text-align: center; color: #b76e79; position: relative; padding-bottom: 0.55rem; margin-bottom: 0.3rem; }
+    .rk-title::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 50px; height: 1px; background: rgba(212,175,55,0.5); }
+    .rk-title.cream-on-red { color: #d4af37; }
+    .rk-sub { text-align: center; font-size: 0.5rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(74,55,40,0.75); margin-bottom: 1rem; }
+    .rk-sub.on-red { color: rgba(212,175,55,0.8); }
+
+    .rk-pattern { background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M60 10 C65 30 85 35 110 30 C90 50 85 70 90 95 C70 85 50 85 30 95 C35 70 30 50 10 30 C35 35 55 30 60 10 Z' fill='none' stroke='%23d4af37' stroke-width='0.25' opacity='0.12'/%3E%3Ccircle cx='60' cy='60' r='2' fill='%23d4af37' opacity='0.08'/%3E%3C/svg%3E"); background-size: 120px 120px; }
+
+    /* Formal invitation */
+    .rk-cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; text-align: center; }
+    .rk-cols3 { display: grid; grid-template-columns: 1fr auto 1fr; gap: 0.3rem; align-items: center; text-align: center; margin: 1rem 0; }
+    .rk-label { font-size: 0.46rem; text-transform: uppercase; color: #d4af37; font-weight: 700; margin-bottom: 0.2rem; letter-spacing: 0.04em; }
+    .rk-khname { font-family: 'Koulen', serif; color: #b76e79; font-size: 0.85rem; line-height: 1.2; }
+    .rk-ensmall { font-size: 0.44rem; text-transform: uppercase; color: rgba(74,55,40,0.7); margin-top: 0.15rem; letter-spacing: 0.05em; }
+    .rk-body { font-size: 0.58rem; line-height: 1.6; color: rgba(74,55,40,0.85); text-align: center; }
+    .rk-body.en { font-size: 0.5rem; color: rgba(74,55,40,0.5); margin-top: 0.4rem; }
+    .rk-datebox { border-top: 1px solid rgba(212,175,55,0.35); border-bottom: 1px solid rgba(212,175,55,0.35); padding: 0.5rem 0.9rem; text-align: center; display: inline-block; margin: 0.6rem 0; }
+    .rk-heart { color: rgba(184,159,138,0.5); font-size: 0.9rem; }
+
+    /* Agenda */
+    .rk-agenda-row { display: grid; grid-template-columns: 42px 1fr; gap: 0.6rem; align-items: center; padding: 0.5rem 0.55rem; border: 1px solid rgba(212,175,55,0.2); border-radius: 3px; margin-bottom: 0.45rem; }
+    .rk-agenda-ic { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(184,159,138,0.3); background: rgba(184,159,138,0.12); display: flex; align-items: center; justify-content: center; }
+    .rk-agenda-ic img { width: 26px; height: 26px; object-fit: contain; }
+    .rk-agenda-time { font-size: 0.46rem; font-weight: 700; text-transform: uppercase; color: #b76e79; margin-bottom: 0.1rem; }
+    .rk-agenda-time small { display: block; font-weight: 400; color: rgba(74,55,40,0.65); }
+    .rk-agenda-kh { font-family: 'Kantumruy Pro', sans-serif; font-weight: 700; font-size: 0.56rem; color: #d4af37; line-height: 1.3; }
+    .rk-agenda-en { font-size: 0.48rem; color: rgba(74,55,40,0.8); margin-top: 0.1rem; }
+
+    /* Location / Gallery / Support / Wishing */
+    .rk-venue-img { width: 100%; height: 84px; object-fit: cover; border: 1px solid rgba(212,175,55,0.2); border-radius: 3px; }
+    .rk-gal { display: grid; gap: 0.35rem; }
+    .rk-gal img { width: 100%; display: block; border-radius: 2px; border: 1px solid rgba(212,175,55,0.12); }
+    .rk-gal .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; }
+    .rk-input { width: 100%; background: #800020; border: 1px solid rgba(212,175,55,0.25); border-radius: 2px; padding: 0.45rem 0.5rem; color: #f9f7f4; font-family: 'Kantumruy Pro', sans-serif; font-size: 0.56rem; margin-bottom: 0.45rem; box-sizing: border-box; }
+    .rk-send { width: 100%; background: #d4af37; color: #5a0016; border: none; border-radius: 2px; padding: 0.55rem; font-weight: 700; font-size: 0.56rem; text-transform: uppercase; letter-spacing: 0.05em; cursor: pointer; }
+    .rk-toggle { display: flex; gap: 0.3rem; justify-content: center; margin: 0.6rem 0; }
+    .rk-toggle span { font-size: 0.48rem; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid rgba(184,159,138,0.6); color: #4a3728; }
+    .rk-toggle .on { background: #b76e79; color: #fff; border-color: #b76e79; }
+    .rk-qr { width: 58%; max-width: 130px; display: block; margin: 0.4rem auto 0; }
+
+    .rk-btn { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; width: 100%; justify-content: center; padding: 0.55rem; border: 1px solid #d4af37; color: #d4af37; border-radius: 3px; font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.1em; background: transparent; margin-top: 0.7rem; }
+
+    .rk-foot { text-align: center; }
+    .rk-foot .thx { font-family: 'Moulpali', serif; font-size: 1.4rem; color: #b76e79; }
+    .rk-foot .thx-en { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.15em; color: rgba(249,247,244,0.7); margin-top: 0.2rem; }
+    .rk-foot .names { font-size: 0.5rem; text-transform: uppercase; font-weight: 700; color: rgba(212,175,55,0.5); margin-top: 0.7rem; }
+    .rk-dots { display: flex; gap: 0.25rem; justify-content: center; margin-top: 0.6rem; }
+    .rk-dots i { width: 3px; height: 3px; border-radius: 50%; background: #d4af37; display: block; }
 
     /* ── Page footer ── */
     .page-footer {
@@ -1120,95 +1231,147 @@
 <div class="theme-card">
   <div class="theme-meta">
     <p class="theme-label">Theme 07 · New</p>
-    <h2 class="theme-title">Royal Khmer Gold</h2>
+    <h2 class="theme-title">Red Royal Khmer</h2>
     <div class="palette">
-      <div class="swatch" style="background:#5A0016;"></div>
-      <div class="swatch" style="background:#D4AF37;"></div>
-      <div class="swatch" style="background:#F5E6C8;"></div>
-      <div class="swatch" style="background:#6E0A22;"></div>
+      <div class="swatch" style="background:#f9f7f4;"></div>
+      <div class="swatch" style="background:#d4af37;"></div>
+      <div class="swatch" style="background:#800020;"></div>
+      <div class="swatch" style="background:#b76e79;"></div>
     </div>
   </div>
   <div class="phone">
-    <div class="phone-screen" style="background:#5A0016;">
-      <div class="invite" style="font-family:'Kantumruy Pro','Cormorant Garamond',serif; background:#5A0016;">
+    <div class="phone-screen" style="background:#f9f7f4;">
+      <div class="invite rk-invite">
         <div class="inv-watermark">Made with Anjeurn</div>
-        <div class="inv-music" style="background:#D4AF37; color:#5A0016;">♪</div>
+        <div class="inv-music" style="background:#5a0016; color:#d4af37;">♪</div>
 
-        <div class="inv-cover" style="background:linear-gradient(170deg,#5A0016 30%,#3A000E);">
-          <div class="inv-corner-orn orn-tl" style="color:#D4AF37;"></div>
-          <div class="inv-corner-orn orn-tr" style="color:#D4AF37;"></div>
-          <div class="inv-corner-orn orn-bl" style="color:#D4AF37;"></div>
-          <div class="inv-corner-orn orn-br" style="color:#D4AF37;"></div>
-          <p class="inv-pretitle" style="color:#D4AF37;">You are warmly invited</p>
-          <div class="inv-script" style="color:#F5E6C8; font-family:'Koulen',serif; font-size:2rem; letter-spacing:0.04em; line-height:1.25;">SOPHEA</div>
-          <div class="inv-amp" style="color:#D4AF37;">&amp;</div>
-          <div class="inv-script" style="color:#F5E6C8; font-family:'Koulen',serif; font-size:2rem; letter-spacing:0.04em; line-height:1.25;">DARA</div>
-          <div class="inv-ornament-line" style="color:#D4AF37;"><div class="line"></div><span class="gem">✦</span><div class="line"></div></div>
-          <p class="inv-date" style="color:#D4AF37;">Saturday · 14 February 2026</p>
-          <p class="inv-venue-snippet" style="color:#C9A98A;">Sofitel Phnom Penh Phokeethra</p>
-        </div>
-
-        <div class="inv-section" style="background:#6E0A22;">
-          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Details</span><div class="line"></div></div>
-          <div class="inv-detail-card" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);">
-            <div class="inv-detail-row" style="border-bottom:1px solid rgba(212,175,55,0.15);">
-              <span class="inv-detail-icon">📅</span>
-              <div><p class="inv-detail-label" style="color:#D4AF37;">Date & Time</p><p class="inv-detail-value" style="color:#F5E6C8;">14 February 2026 · 5:00 PM</p></div>
+        <!-- Cover -->
+        <div class="rk-cover">
+          <div class="rk-frame f1"></div><div class="rk-frame f2"></div>
+          <img class="rk-monogram" src="public/themes/khmer/monogram.png" alt="">
+          <div class="rk-cover-mid">
+            <p class="rk-cover-kh">សូមគោរពអញ្ជើញ</p>
+            <p class="rk-cover-en">We are honored to invite</p>
+            <div class="rk-nameplate">
+              <img src="public/themes/khmer/name-placeholder.png" alt="">
+              <span class="rk-guest">Respected Guest</span>
             </div>
-            <div class="inv-detail-row" style="border-bottom:1px solid rgba(212,175,55,0.15);">
-              <span class="inv-detail-icon">📍</span>
-              <div><p class="inv-detail-label" style="color:#D4AF37;">Venue</p><p class="inv-detail-value" style="color:#F5E6C8;">Sofitel Phnom Penh Phokeethra</p></div>
+            <div class="rk-cdiv"></div>
+            <p class="rk-cover-kh">ចូលរួមជាអធិបតីក្នុងពិធីមង្គលការ</p>
+            <p class="rk-cover-en">to grace us with your presence</p>
+          </div>
+          <button class="rk-openbtn">បើកសំបុត្រអញ្ជើញ<small>Open Invitation</small></button>
+        </div>
+
+        <!-- Formal Invitation -->
+        <div class="rk-section cream rk-pattern">
+          <div class="rk-fr1"></div><div class="rk-fr2"></div>
+          <div class="rk-corner tl"></div><div class="rk-corner tr"></div><div class="rk-corner bl"></div><div class="rk-corner br"></div>
+          <div class="rk-inner">
+            <h3 class="rk-title">អាវាហវិវាហមង្គល</h3>
+            <p class="rk-sub">Wedding Ceremony Invitation</p>
+            <div class="rk-cols2">
+              <div><p class="rk-label">ខាងកូនប្រុស</p><p class="rk-khname">គង់ សុផានី</p><p class="rk-khname">យស់ សារ៉ាន</p><p class="rk-ensmall">Parents of the Groom</p></div>
+              <div><p class="rk-label">ខាងកូនស្រី</p><p class="rk-khname">ហ៊ុន ហន</p><p class="rk-khname">លន់ ចន្ថា</p><p class="rk-ensmall">Parents of the Bride</p></div>
             </div>
-            <div class="inv-detail-row">
-              <span class="inv-detail-icon">👑</span>
-              <div><p class="inv-detail-label" style="color:#D4AF37;">Dress Code</p><p class="inv-detail-value" style="color:#F5E6C8;">Traditional — Gold & Maroon</p></div>
+            <p class="rk-body">យើងខ្ញុំមានកិត្តិយសសូមគោរពអញ្ជើញចូលរួមជាសាក្សី ក្នុងពិធីវិវាហមង្គល</p>
+            <p class="rk-body en">We respectfully invite you to witness the joyful traditional Khmer wedding of our beloved son and daughter.</p>
+            <div class="rk-cols3">
+              <div><p class="rk-label">កូនប្រុស</p><p class="rk-khname">ស៊ុន សុក្រឹតវីរៈ</p><p class="rk-ensmall">Groom</p></div>
+              <div class="rk-heart">♥</div>
+              <div><p class="rk-label">កូនស្រី</p><p class="rk-khname">ផៃ ណាវ៉េត</p><p class="rk-ensmall">Bride</p></div>
+            </div>
+            <div style="text-align:center;">
+              <div class="rk-datebox">
+                <p class="rk-khname" style="font-size:0.74rem;">ថ្ងៃអាទិត្យ ទី១៥ ខែមីនា ឆ្នាំ២០២៦</p>
+                <p class="rk-ensmall">Sunday, March 15, 2026</p>
+              </div>
+            </div>
+            <p class="rk-body en">Somnang Restaurant, Poipet City, Banteay Meanchey.</p>
+          </div>
+        </div>
+
+        <!-- Agenda -->
+        <div class="rk-section cream rk-pattern">
+          <div class="rk-fr1"></div><div class="rk-fr2"></div>
+          <div class="rk-corner tl"></div><div class="rk-corner tr"></div><div class="rk-corner bl"></div><div class="rk-corner br"></div>
+          <div class="rk-inner">
+            <h3 class="rk-title">ពិធីមង្គលការ</h3>
+            <p class="rk-sub">Agenda</p>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/1.png" alt=""></div><div><p class="rk-agenda-time">០៦:៣០ ព្រឹក<small>06:30 AM</small></p><p class="rk-agenda-kh">ជួបជុំភ្ញៀវកិត្តិយស</p><p class="rk-agenda-en">Gathering & procession preparation</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/2.png" alt=""></div><div><p class="rk-agenda-time">០៧:០០ ព្រឹក<small>07:00 AM</small></p><p class="rk-agenda-kh">ពិធីហែជំនូន ចូលរោងជ័យ</p><p class="rk-agenda-en">Procession entering the hall</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/3.png" alt=""></div><div><p class="rk-agenda-time">០៧:៣០ ព្រឹក<small>07:30 AM</small></p><p class="rk-agenda-kh">ពិធីពិសាស្លាកំណត់</p><p class="rk-agenda-en">Traditional offering ceremony</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/4.png" alt=""></div><div><p class="rk-agenda-time">០៨:៣០ ព្រឹក<small>08:30 AM</small></p><p class="rk-agenda-kh">ពិធីបំពាក់ចិញ្ចៀន</p><p class="rk-agenda-en">Ring exchange ceremony</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/5.png" alt=""></div><div><p class="rk-agenda-time">០៩:០០ ព្រឹក<small>09:00 AM</small></p><p class="rk-agenda-kh">ពិធីសូត្រមន្តចម្រើនព្រះបរិត្ត</p><p class="rk-agenda-en">Monk blessing ceremony</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/6.png" alt=""></div><div><p class="rk-agenda-time">១០:០០ ព្រឹក<small>10:00 AM</small></p><p class="rk-agenda-kh">ពិធីកាត់សក់បង្កក់សិរី</p><p class="rk-agenda-en">Hair-cut & blessing ritual</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/7.png" alt=""></div><div><p class="rk-agenda-time">១១:០០ ព្រឹក<small>11:00 AM</small></p><p class="rk-agenda-kh">ពិធីបង្វិលពពិល សែនចងដៃ</p><p class="rk-agenda-en">Blessing & tying of wrists</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/8.png" alt=""></div><div><p class="rk-agenda-time">១២:០០ ថ្ងៃត្រង់<small>12:00 PM</small></p><p class="rk-agenda-kh">អញ្ជើញពិសាភោជនាហារថ្ងៃត្រង់</p><p class="rk-agenda-en">Luncheon for honored guests</p></div></div>
+            <div class="rk-agenda-row"><div class="rk-agenda-ic"><img src="public/themes/agenda/9.png" alt=""></div><div><p class="rk-agenda-time">០៥:០០ រសៀល<small>05:00 PM</small></p><p class="rk-agenda-kh">ទទួលបដិសណ្ឋារកិច្ច ពេលល្ងាច</p><p class="rk-agenda-en">Evening reception & dinner</p></div></div>
+            <p class="rk-body en" style="text-align:center;">Kindly note the schedule may be subject to change.</p>
+          </div>
+        </div>
+
+        <!-- Location -->
+        <div class="rk-section cream rk-pattern">
+          <div class="rk-fr1"></div><div class="rk-fr2"></div>
+          <div class="rk-corner tl"></div><div class="rk-corner tr"></div><div class="rk-corner bl"></div><div class="rk-corner br"></div>
+          <div class="rk-inner">
+            <h3 class="rk-title">ទីតាំងកម្មវិធី</h3>
+            <p class="rk-sub">Wedding's Venue</p>
+            <img class="rk-venue-img" src="public/themes/khmer/venue.png" alt="">
+            <p class="rk-body" style="margin-top:0.5rem;">ភោជនីយដ្ឋាន សំណាង ប៉ោយប៉ែត</p>
+            <p class="rk-body en">Somnang Restaurant, Poipet City, Cambodia</p>
+            <button class="rk-btn">មើលលើផែនទី<small style="opacity:0.8;">View on Map</small></button>
+          </div>
+        </div>
+
+        <!-- Gallery -->
+        <div class="rk-section cream rk-pattern">
+          <div class="rk-fr1"></div><div class="rk-fr2"></div>
+          <div class="rk-corner tl"></div><div class="rk-corner tr"></div><div class="rk-corner bl"></div><div class="rk-corner br"></div>
+          <div class="rk-inner">
+            <h3 class="rk-title">រូបភាពអនុស្សាវរីយ៍</h3>
+            <p class="rk-sub">Memories Gallery</p>
+            <div class="rk-gal">
+              <img src="public/themes/khmer/g1.jpg" alt="">
+              <div class="two"><img src="public/themes/khmer/g2.jpg" alt=""><img src="public/themes/khmer/g3.jpg" alt=""></div>
             </div>
           </div>
         </div>
 
-        <div class="inv-section" style="background:#5A0016;">
-          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
-          <div class="inv-countdown">
-            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">244</span><span class="inv-cd-lbl" style="color:#D4AF37;">Days</span></div>
-            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">08</span><span class="inv-cd-lbl" style="color:#D4AF37;">Hours</span></div>
-            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">35</span><span class="inv-cd-lbl" style="color:#D4AF37;">Mins</span></div>
-            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">12</span><span class="inv-cd-lbl" style="color:#D4AF37;">Secs</span></div>
+        <!-- Wishing -->
+        <div class="rk-section red">
+          <div class="rk-fr1"></div><div class="rk-fr2"></div>
+          <div class="rk-corner tl"></div><div class="rk-corner tr"></div><div class="rk-corner bl"></div><div class="rk-corner br"></div>
+          <div class="rk-inner">
+            <h3 class="rk-title cream-on-red">សៀវភៅជូនពរ</h3>
+            <p class="rk-sub on-red">Wishing Book</p>
+            <input class="rk-input" placeholder="ឈ្មោះរបស់អ្នក / Your Name" readonly>
+            <input class="rk-input" style="padding-bottom:1.4rem;" placeholder="សារជូនពរ / Your wishes…" readonly>
+            <button class="rk-send">ផ្ញើសារជូនពរ / Send Wishes</button>
           </div>
         </div>
 
-        <div class="inv-section" style="background:#5A0016;">
-          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Order of Ceremony</span><div class="line"></div></div>
-          <div class="inv-detail-card" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);">
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/1.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">08:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Groom's Procession</span></div>
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/2.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">08:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Welcoming the Guests</span></div>
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/3.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">09:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Offering of Fruits &amp; Gifts</span></div>
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/4.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">09:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Joining of Hands</span></div>
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/5.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">10:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Bridal Preparation</span></div>
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/6.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">10:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Hair-Cutting Ceremony</span></div>
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/7.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">11:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Paying Respects</span></div>
-            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/8.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">17:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Reception Banquet</span></div>
-            <div class="inv-agenda-row"><img class="inv-agenda-icon" src="public/themes/agenda/9.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">18:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Celebration Toast</span></div>
+        <!-- Support -->
+        <div class="rk-section cream rk-pattern">
+          <div class="rk-fr1"></div><div class="rk-fr2"></div>
+          <div class="rk-corner tl"></div><div class="rk-corner tr"></div><div class="rk-corner bl"></div><div class="rk-corner br"></div>
+          <div class="rk-inner">
+            <h3 class="rk-title">ចូលរួមចំណងដៃ</h3>
+            <p class="rk-sub">Support Us Building Our Family</p>
+            <div class="rk-toggle"><span>QR KH ៛</span><span class="on">QR USD $</span></div>
+            <img class="rk-qr" src="public/themes/khmer/qr.png" alt="">
           </div>
         </div>
 
-        <div class="inv-section" style="background:#6E0A22;">
-          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
-          <div class="inv-photos">
-            <div class="inv-photo" style="background:#4A0012;">👑</div><div class="inv-photo" style="background:#7A1A30;">🪷</div><div class="inv-photo" style="background:#4A0012;">💍</div>
-            <div class="inv-photo" style="background:#7A1A30;">🕊</div><div class="inv-photo" style="background:#4A0012;">🥂</div><div class="inv-photo" style="background:#7A1A30;">✨</div>
+        <!-- Footer -->
+        <div class="rk-section reddark">
+          <div class="rk-foot">
+            <p class="thx">សូមអរគុណ</p>
+            <p class="thx-en">Thank You</p>
+            <p class="names">ស៊ុន សុក្រឹតវីរៈ &amp; ផៃ ណាវ៉េត • ២០២៦</p>
+            <div class="rk-dots"><i></i><i></i><i></i></div>
           </div>
-        </div>
-
-        <div class="inv-section" style="background:#5A0016;">
-          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
-          <div class="inv-wish" style="background:#6E0A22; border:1px solid rgba(212,175,55,0.3);">
-            <p class="inv-wish-msg" style="color:#F5E6C8;">"May your union shine as bright as gold and endure for a thousand years. Congratulations!"</p>
-            <p class="inv-wish-from" style="color:#D4AF37;">— Chanda &amp; Family</p>
-          </div>
-        </div>
-
-        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#5A0016 40%);">
-          <button class="inv-rsvp-btn" style="background:#D4AF37; color:#5A0016;">RSVP Now</button>
         </div>
       </div>
     </div>
@@ -1391,6 +1554,36 @@
   });
   window.addEventListener('resize', fit);
 })();
+</script>
+
+<!-- GSAP animation for the Red Royal Khmer theme -->
+<script>
+window.addEventListener('load', function () {
+  var inv = document.querySelector('.rk-invite');
+  if (!inv || !window.gsap) return;
+  var hasST = !!window.ScrollTrigger;
+  if (hasST) gsap.registerPlugin(ScrollTrigger);
+
+  // Cover intro
+  gsap.timeline({ defaults: { ease: 'power2.out' } })
+    .from(inv.querySelector('.rk-monogram'), { opacity: 0, scale: 0.7, duration: 0.9 })
+    .from(inv.querySelectorAll('.rk-cover-mid > *'), { opacity: 0, y: 14, stagger: 0.12, duration: 0.55 }, '-=0.4')
+    .from(inv.querySelector('.rk-openbtn'), { opacity: 0, y: 10, duration: 0.55 }, '-=0.2');
+
+  // Section reveals as they scroll into the phone viewport
+  inv.querySelectorAll('.rk-section').forEach(function (sec) {
+    var targets = sec.querySelectorAll('.rk-inner > *, .rk-foot > *');
+    if (!targets.length) return;
+    if (hasST) {
+      gsap.from(targets, {
+        opacity: 0, y: 18, duration: 0.55, stagger: 0.06,
+        scrollTrigger: { trigger: sec, scroller: inv, start: 'top 90%', once: true }
+      });
+    } else {
+      gsap.from(targets, { opacity: 0, y: 18, duration: 0.55, stagger: 0.05, delay: 0.25 });
+    }
+  });
+});
 </script>
 
 </body>

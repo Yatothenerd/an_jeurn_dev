@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { shortToken } from "@/lib/utils/token";
 
 interface RsvpData {
   name: string;
@@ -48,6 +49,7 @@ export class GuestService {
     return prisma.guest.create({
       data: {
         eventId,
+        token: shortToken(),
         name: data.name,
         contact: data.contact,
         contactType: data.contactType as "email" | "phone" | "whatsapp" | undefined,
@@ -124,6 +126,7 @@ export class GuestService {
     return prisma.guest.create({
       data: {
         eventId,
+        token: shortToken(),
         name: data.name,
         contact: data.contact,
         contactType: data.contactType as "email" | "phone" | "whatsapp" | undefined,

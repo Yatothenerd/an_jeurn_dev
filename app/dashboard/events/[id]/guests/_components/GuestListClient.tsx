@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 interface Guest {
   id: string;
   name: string;
+  token: string | null;
   contact: string | null;
   contactType: string | null;
   rsvpStatus: string | null;
@@ -15,6 +16,7 @@ interface Guest {
 
 interface Props {
   eventId: string;
+  inviteBaseUrl: string;
   initialGuests: Guest[];
   maxGuests: number;
   hasGuestControl: boolean;
@@ -26,7 +28,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   pending: { bg: "#f3f4f6", text: "#6b7280" },
 };
 
-export function GuestListClient({ eventId, initialGuests, maxGuests, hasGuestControl }: Props) {
+export function GuestListClient({ eventId, inviteBaseUrl, initialGuests, maxGuests, hasGuestControl }: Props) {
   const router = useRouter();
   const [guests, setGuests] = useState(initialGuests);
   const [showAdd, setShowAdd] = useState(false);
@@ -36,6 +38,21 @@ export function GuestListClient({ eventId, initialGuests, maxGuests, hasGuestCon
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function guestLink(token: string | null): string {
+    return token ? `${inviteBaseUrl}?g=${token}` : inviteBaseUrl;
+  }
+
+  async function copyLink(guest: Guest) {
+    try {
+      await navigator.clipboard.writeText(guestLink(guest.token));
+      setCopied(guest.id);
+      setTimeout(() => setCopied((c) => (c === guest.id ? null : c)), 1500);
+    } catch {
+      window.prompt("Copy this guest's invite link:", guestLink(guest.token));
+    }
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -114,7 +131,7 @@ export function GuestListClient({ eventId, initialGuests, maxGuests, hasGuestCon
           <table style={s.table}>
             <thead>
               <tr>
-                {["Name", "Contact", "RSVP", "Meal", "Responded", ""].map((h) => (
+                {["Name", "Contact", "RSVP", "Meal", "Responded", "Invite Link", ""].map((h) => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -137,6 +154,11 @@ export function GuestListClient({ eventId, initialGuests, maxGuests, hasGuestCon
                     <td style={{ ...s.td, color: "#6b7280" }}>{g.mealPref ?? "—"}</td>
                     <td style={{ ...s.td, color: "#6b7280", fontSize: "0.75rem" }}>
                       {g.rsvpAt ? new Date(g.rsvpAt).toLocaleDateString() : "—"}
+                    </td>
+                    <td style={s.td}>
+                      <button onClick={() => copyLink(g)} style={s.copyBtn} title={guestLink(g.token)}>
+                        {copied === g.id ? "✓ Copied" : "🔗 Copy"}
+                      </button>
                     </td>
                     <td style={s.td}>
                       <button
@@ -174,4 +196,5 @@ const s = {
   td: { padding: "0.875rem 1rem", fontSize: "0.9375rem", color: "#0f172a", verticalAlign: "middle" as const },
   statusBadge: { padding: "0.2rem 0.625rem", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 600 },
   deleteBtn: { background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "0.25rem", fontSize: "0.875rem" },
+  copyBtn: { background: "#f5f3ff", border: "1px solid #ede9fe", color: "#7c3aed", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, padding: "0.3rem 0.6rem", whiteSpace: "nowrap" as const },
 } as const;

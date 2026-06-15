@@ -53,10 +53,10 @@ async function main() {
     }),
     prisma.theme.upsert({
       where: { id: "theme-royal-khmer" },
-      update: {},
+      update: { name: "Red Royal Khmer" },
       create: {
         id: "theme-royal-khmer",
-        name: "Royal Khmer Gold",
+        name: "Red Royal Khmer",
         previewUrl: null,
         thumbnailUrl: null,
         isAnimated: true,
