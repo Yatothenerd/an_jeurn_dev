@@ -39,7 +39,11 @@ export function PhotosTab({ invitationId, photos, maxPhotos, galleryType }: Prop
       fd.append("folder", "invitations/photos");
 
       const upRes = await fetch("/api/dashboard/upload", { method: "POST", body: fd });
-      if (!upRes.ok) { setError("Upload failed"); break; }
+      if (!upRes.ok) {
+        const d = await upRes.json().catch(() => ({}));
+        setError(d.error ?? "Upload failed");
+        break;
+      }
       const { url } = await upRes.json();
 
       const saveRes = await fetch(`/api/dashboard/invitation/${invitationId}/photos`, {
