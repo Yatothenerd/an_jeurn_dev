@@ -183,7 +183,7 @@ export default async function InvitePage({
 
   return (
     <>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background: #e7e3dc; }
         img { max-width: 100%; }
@@ -212,7 +212,7 @@ export default async function InvitePage({
         @media (max-width: 480px) {
           body { font-size: 16px; }
         }
-      `}</style>
+      ` }} />
 
       <div className="invite-shell">
         {/* Sections */}
