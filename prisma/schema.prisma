@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../app/generated/prisma"
 }
 
@@ -152,6 +152,7 @@ model Invitation {
   theme          Theme     @relation(fields: [themeId], references: [id])
   sections       Section[]
   photos         Photo[]
+  wishes         Wish[]
 
   @@map("invitations")
 }
@@ -178,6 +179,18 @@ model Photo {
   invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 
   @@map("photos")
+}
+
+model Wish {
+  id           String     @id @default(cuid())
+  invitationId String     @map("invitation_id")
+  guestName    String     @map("guest_name")
+  message      String
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@map("wishes")
 }
 
 model Guest {

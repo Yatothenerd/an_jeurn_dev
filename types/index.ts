@@ -1,4 +1,4 @@
-export type { User, Package, Theme, PackageTheme, UserPackage, Event, Invitation, Section, Photo, Guest } from "../app/generated/prisma";
+export type { User, Package, Theme, PackageTheme, UserPackage, Event, Invitation, Section, Photo, Guest, Wish } from "../app/generated/prisma";
 export { Role, GuestControlType, UserPackageStatus, ContactType } from "../app/generated/prisma";
 
 // Auth

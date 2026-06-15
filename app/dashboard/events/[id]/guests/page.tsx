@@ -1,0 +1,110 @@
+import { notFound, redirect } from "next/navigation";
+import { getSession } from "@/lib/services/auth.service";
+import { prisma } from "@/lib/db/prisma";
+import { GuestListClient } from "./_components/GuestListClient";
+
+export const metadata = { title: "Guest List" };
+
+export default async function GuestListPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session || session.role !== "client") redirect("/login");
+
+  const { id } = await params;
+
+  const event = await prisma.event.findFirst({
+    where: { id, userId: session.sub },
+  });
+  if (!event) notFound();
+
+  const [guests, userPkg] = await Promise.all([
+    prisma.guest.findMany({
+      where: { eventId: id },
+      orderBy: [{ rsvpStatus: "asc" }, { name: "asc" }],
+    }),
+    prisma.userPackage.findFirst({
+      where: { userId: session.sub, status: "active" },
+      include: { package: { select: { maxGuests: true, hasGuestControl: true } } },
+      orderBy: { grantedAt: "desc" },
+    }),
+  ]);
+
+  const counts = {
+    attending: guests.filter((g) => g.rsvpStatus === "attending").length,
+    declined: guests.filter((g) => g.rsvpStatus === "declined").length,
+    pending: guests.filter((g) => !g.rsvpStatus).length,
+  };
+
+  return (
+    <div style={s.page}>
+      <div style={s.header}>
+        <div>
+          <a href="/dashboard" style={s.back}>← Dashboard</a>
+          <h1 style={s.title}>{event.title} — Guests</h1>
+        </div>
+        <a
+          href={`/api/dashboard/events/${id}/guests/export`}
+          download
+          style={s.exportBtn}
+        >
+          Export CSV
+        </a>
+      </div>
+
+      {/* Summary counts */}
+      <div style={s.stats}>
+        <div style={{ ...s.stat, background: "#dcfce7", color: "#166534" }}>
+          <span style={s.statNum}>{counts.attending}</span>
+          <span style={s.statLabel}>Attending</span>
+        </div>
+        <div style={{ ...s.stat, background: "#fee2e2", color: "#991b1b" }}>
+          <span style={s.statNum}>{counts.declined}</span>
+          <span style={s.statLabel}>Declined</span>
+        </div>
+        <div style={{ ...s.stat, background: "#f3f4f6", color: "#374151" }}>
+          <span style={s.statNum}>{counts.pending}</span>
+          <span style={s.statLabel}>Pending</span>
+        </div>
+        <div style={{ ...s.stat, background: "#ede9fe", color: "#5b21b6" }}>
+          <span style={s.statNum}>{guests.length} / {userPkg?.package.maxGuests ?? "∞"}</span>
+          <span style={s.statLabel}>Total</span>
+        </div>
+      </div>
+
+      <GuestListClient
+        eventId={id}
+        initialGuests={guests.map((g) => ({
+          id: g.id,
+          name: g.name,
+          contact: g.contact,
+          contactType: g.contactType,
+          rsvpStatus: g.rsvpStatus,
+          mealPref: g.mealPref,
+          rsvpAt: g.rsvpAt?.toISOString() ?? null,
+        }))}
+        maxGuests={userPkg?.package.maxGuests ?? 0}
+        hasGuestControl={userPkg?.package.hasGuestControl ?? false}
+      />
+    </div>
+  );
+}
+
+const s = {
+  page: { maxWidth: "860px" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1.5rem" },
+  back: { color: "#64748b", textDecoration: "none", fontSize: "0.8125rem", display: "block", marginBottom: "0.25rem" },
+  title: { margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#111" },
+  exportBtn: {
+    padding: "0.5rem 1rem",
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "7px",
+    color: "#374151",
+    textDecoration: "none",
+    fontSize: "0.875rem",
+    fontWeight: 500,
+  },
+  stats: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", marginBottom: "1.5rem" },
+  stat: { borderRadius: "10px", padding: "1rem 1.25rem", display: "flex", flexDirection: "column" as const, gap: "0.25rem" },
+  statNum: { fontSize: "1.625rem", fontWeight: 700, lineHeight: 1 },
+  statLabel: { fontSize: "0.8125rem", fontWeight: 500 },
+} as const;

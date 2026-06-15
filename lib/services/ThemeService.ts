@@ -19,6 +19,6 @@ export class ThemeService {
       include: { theme: true },
       orderBy: { theme: { sortOrder: "asc" } },
     });
-    return rows.map((r) => r.theme);
+    return rows.map((r: { theme: Theme }) => r.theme);
   }
 }

@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anjeurn — Theme Showcase</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Great+Vibes&family=Montserrat:wght@300;400;500;600&family=Cinzel:wght@400;500&family=Koulen&family=Moulpali&family=Kantumruy+Pro:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #080808;
+      color: #fff;
+      font-family: 'Montserrat', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 3rem 1.5rem 5rem;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+    .page-logo {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      letter-spacing: 0.35em;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    .page-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 300;
+      font-style: italic;
+      color: #f9fafb;
+      line-height: 1.15;
+      margin-bottom: 0.75rem;
+    }
+    .page-sub {
+      font-size: 0.8125rem;
+      color: #4b5563;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── Themes grid ── */
+    .themes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 3rem 2rem;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* ── Theme card ── */
+    .theme-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .theme-meta {
+      text-align: center;
+      width: 100%;
+    }
+    .theme-label {
+      font-size: 0.6875rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 0.375rem;
+    }
+    .theme-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      color: #e5e7eb;
+      margin-bottom: 0.75rem;
+    }
+    .palette {
+      display: flex;
+      gap: 0.375rem;
+      justify-content: center;
+    }
+    .swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* ── Phone frame ── */
+    .phone {
+      width: 260px;
+      background: #1c1c1e;
+      border-radius: 44px;
+      padding: 10px;
+      box-shadow:
+        0 60px 120px rgba(0,0,0,0.7),
+        inset 0 0 0 1px rgba(255,255,255,0.12),
+        0 0 0 1px #000,
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      position: relative;
+    }
+    /* Side buttons */
+    .phone::before {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 90px;
+      width: 3px;
+      height: 32px;
+      background: #2a2a2c;
+      border-radius: 2px 0 0 2px;
+      box-shadow: 0 40px 0 #2a2a2c, 0 72px 0 #2a2a2c;
+    }
+    .phone::after {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: 120px;
+      width: 3px;
+      height: 56px;
+      background: #2a2a2c;
+      border-radius: 0 2px 2px 0;
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 520px;
+      border-radius: 36px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Dynamic island */
+    .phone-screen::before {
+      content: '';
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90px;
+      height: 26px;
+      background: #1c1c1e;
+      border-radius: 999px;
+      z-index: 100;
+    }
+
+    /* ── Scrollable invite inside screen ── */
+    .invite {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .invite::-webkit-scrollbar { display: none; }
+
+    /* ── Invite common pieces ── */
+    .inv-cover {
+      padding: 3.5rem 1.5rem 2.5rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.875rem;
+      min-height: 58%;
+      position: relative;
+    }
+
+    .inv-pretitle {
+      font-size: 0.55rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      opacity: 0.65;
+    }
+
+    .inv-script {
+      font-family: 'Great Vibes', cursive;
+      font-size: 3rem;
+      line-height: 1.1;
+    }
+
+    .inv-amp {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.375rem;
+      font-weight: 300;
+      font-style: italic;
+      opacity: 0.5;
+      margin: -0.5rem 0;
+    }
+
+    .inv-ornament-line {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      width: 80%;
+    }
+    .inv-ornament-line .line {
+      flex: 1;
+      height: 1px;
+      background: currentColor;
+      opacity: 0.2;
+    }
+    .inv-ornament-line .gem {
+      font-size: 0.5rem;
+      opacity: 0.5;
+    }
+
+    .inv-date {
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .inv-venue-snippet {
+      font-size: 0.65rem;
+      letter-spacing: 0.05em;
+      opacity: 0.55;
+      font-style: italic;
+    }
+
+    /* Decorative corner frames on cover */
+    .corner-tl, .corner-tr, .corner-bl, .corner-br {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      opacity: 0.2;
+    }
+    .corner-tl { top: 14px; left: 14px; border-top: 1px solid currentColor; border-left: 1px solid currentColor; }
+    .corner-tr { top: 14px; right: 14px; border-top: 1px solid currentColor; border-right: 1px solid currentColor; }
+    .corner-bl { bottom: 12px; left: 14px; border-bottom: 1px solid currentColor; border-left: 1px solid currentColor; }
+    .corner-br { bottom: 12px; right: 14px; border-bottom: 1px solid currentColor; border-right: 1px solid currentColor; }
+
+    /* Sections */
+    .inv-section {
+      padding: 1.5rem 1.25rem;
+    }
+
+    .inv-section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      margin-bottom: 1rem;
+    }
+    .inv-section-title .line { flex: 1; height: 1px; background: currentColor; opacity: 0.12; }
+    .inv-section-title span {
+      font-size: 0.55rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.5;
+      white-space: nowrap;
+    }
+
+    .inv-detail-card {
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .inv-detail-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.875rem;
+      padding: 0.875rem 1rem;
+    }
+    .inv-detail-icon { font-size: 0.9375rem; margin-top: 1px; flex-shrink: 0; }
+    .inv-detail-label {
+      font-size: 0.5rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.5;
+      margin-bottom: 0.2rem;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .inv-detail-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.875rem;
+      font-weight: 400;
+    }
+
+    /* Countdown */
+    .inv-countdown {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.375rem;
+      margin-top: 0.875rem;
+    }
+    .inv-cd-unit {
+      border-radius: 10px;
+      padding: 0.75rem 0.25rem;
+      text-align: center;
+    }
+    .inv-cd-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.625rem;
+      font-weight: 500;
+      line-height: 1;
+      display: block;
+    }
+    .inv-cd-lbl {
+      font-size: 0.45rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.5;
+      font-family: 'Montserrat', sans-serif;
+      margin-top: 0.25rem;
+      display: block;
+    }
+
+    /* Photo grid */
+    .inv-photos {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.25rem;
+      margin-top: 0.875rem;
+    }
+    .inv-photo {
+      aspect-ratio: 1;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+    }
+
+    /* Wish */
+    .inv-wish {
+      border-radius: 14px;
+      padding: 1rem 1.125rem;
+      margin-top: 0.875rem;
+    }
+    .inv-wish-msg {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: 0.8125rem;
+      line-height: 1.65;
+      margin-bottom: 0.5rem;
+    }
+    .inv-wish-from {
+      font-size: 0.55rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      opacity: 0.5;
+    }
+
+    /* RSVP sticky */
+    .inv-rsvp {
+      padding: 1.25rem;
+      text-align: center;
+      position: sticky;
+      bottom: 0;
+    }
+    .inv-rsvp-btn {
+      display: inline-block;
+      padding: 0.75rem 2.25rem;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+    }
+
+    /* Watermark */
+    .inv-watermark {
+      position: absolute;
+      top: 40px;
+      right: 10px;
+      padding: 0.2rem 0.5rem;
+      background: rgba(0,0,0,0.35);
+      color: rgba(255,255,255,0.7);
+      border-radius: 999px;
+      font-size: 0.45rem;
+      font-family: 'Montserrat', sans-serif;
+      letter-spacing: 0.05em;
+      backdrop-filter: blur(6px);
+      z-index: 50;
+    }
+
+    /* Music button */
+    .inv-music {
+      position: absolute;
+      bottom: 68px;
+      right: 10px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.3);
+      z-index: 50;
+      cursor: pointer;
+    }
+
+    /* ── Full-screen button ── */
+    .fs-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-top: 0.25rem;
+      padding: 0.5rem 1.1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color: #9ca3af;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.625rem;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+    .fs-btn:hover {
+      background: rgba(255,255,255,0.09);
+      border-color: rgba(255,255,255,0.22);
+      color: #f3f4f6;
+    }
+    .fs-btn .ico { font-size: 0.8125rem; }
+
+    /* ── Full-screen overlay ── */
+    .fs-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6,6,8,0.9);
+      backdrop-filter: blur(12px);
+      z-index: 1000;
+      cursor: zoom-out;
+    }
+    .fs-overlay.open { display: flex; }
+    .fs-stage {
+      cursor: default;
+    }
+    .fs-stage .phone { transform-origin: center center; }
+    .fs-close {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 1.05rem;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 1001;
+      transition: background 0.2s ease;
+    }
+    .fs-close:hover { background: rgba(255,255,255,0.16); }
+    .fs-hint {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.625rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      z-index: 1001;
+    }
+
+    /* ── Agenda / order of ceremony ── */
+    .inv-agenda-row {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      padding: 0.5rem 0.8rem;
+    }
+    .inv-agenda-icon {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      object-fit: contain;
+    }
+    .inv-agenda-time {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      width: 38px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+    .inv-agenda-label {
+      font-size: 0.7rem;
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Decorative corner ornament (single-tone PNG recolored via CSS mask) ── */
+    .inv-corner-orn {
+      position: absolute;
+      width: 48px;
+      height: 62px;
+      background: currentColor;
+      -webkit-mask: url('public/themes/borders/corner-damask.png') center / contain no-repeat;
+      mask: url('public/themes/borders/corner-damask.png') center / contain no-repeat;
+      pointer-events: none;
+      opacity: 0.92;
+      z-index: 3;
+    }
+    .orn-tl { top: 12px; left: 12px; }
+    .orn-tr { top: 12px; right: 12px; transform: scaleX(-1); }
+    .orn-bl { bottom: 10px; left: 12px; transform: scaleY(-1); }
+    .orn-br { bottom: 10px; right: 12px; transform: scale(-1, -1); }
+
+    /* ── Floral / retro decorative band ── */
+    .inv-deco-band {
+      height: 40px;
+      background-repeat: repeat-x;
+      background-position: center;
+      background-size: auto 130%;
+      opacity: 0.6;
+    }
+    .inv-deco-band.blend-mul { mix-blend-mode: multiply; }
+    .inv-deco-band.blend-screen { mix-blend-mode: screen; }
+    .deco-floral { background-image: url('public/themes/patterns/gold-floral-damask.jpg'); }
+    .deco-lace { background-image: url('public/themes/patterns/thai-lace-border.jpg'); }
+
+    /* ── Page footer ── */
+    .page-footer {
+      text-align: center;
+      margin-top: 5rem;
+      color: #374151;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+    }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <p class="page-logo">Anjeurn</p>
+  <h1 class="page-title">Theme Showcase</h1>
+  <p class="page-sub">8 premium themes · scroll inside each card · tap ⤢ to view full screen</p>
+</header>
+
+<div class="themes-grid">
+
+<!-- ══════════════════════════════════════════════════════════════
+     1. CLASSIC IVORY
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 01</p>
+    <h2 class="theme-title">Classic Ivory</h2>
+    <div class="palette">
+      <div class="swatch" title="Background" style="background:#FAF8F2;"></div>
+      <div class="swatch" title="Primary" style="background:#1a1a1a;"></div>
+      <div class="swatch" title="Accent" style="background:#B8943F;"></div>
+      <div class="swatch" title="Card" style="background:#F0EBE0;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#FAF8F2;">
+      <div class="invite" style="font-family:'Cormorant Garamond',Georgia,serif; background:#FAF8F2;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#1a1a1a; color:#FAF8F2;">♪</div>
+
+        <!-- Cover -->
+        <div class="inv-cover" style="background:linear-gradient(170deg,#FAF8F2 60%,#EDE5D5);">
+          <div class="corner-tl" style="color:#B8943F;"></div>
+          <div class="corner-tr" style="color:#B8943F;"></div>
+          <div class="corner-bl" style="color:#B8943F;"></div>
+          <div class="corner-br" style="color:#B8943F;"></div>
+          <p class="inv-pretitle" style="color:#B8943F;">You are cordially invited</p>
+          <div class="inv-script" style="color:#1a1a1a;">Sophea</div>
+          <div class="inv-amp" style="color:#B8943F;">&amp;</div>
+          <div class="inv-script" style="color:#1a1a1a;">Dara</div>
+          <div class="inv-ornament-line" style="color:#B8943F;">
+            <div class="line"></div>
+            <span class="gem">◆</span>
+            <div class="line"></div>
+          </div>
+          <p class="inv-date" style="color:#B8943F;">Saturday · 14 February 2026</p>
+          <p class="inv-venue-snippet" style="color:#6B5B3E;">Sofitel Phnom Penh Phokeethra</p>
+        </div>
+
+        <!-- Details -->
+        <div class="inv-section" style="background:#F0EBE0;">
+          <div class="inv-section-title" style="color:#1a1a1a;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#FAF8F2; border:1px solid rgba(184,148,63,0.2);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(184,148,63,0.12);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#9C7C2E;">Date & Time</p><p class="inv-detail-value" style="color:#1a1a1a;">14 February 2026 · 4:00 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(184,148,63,0.12);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#9C7C2E;">Venue</p><p class="inv-detail-value" style="color:#1a1a1a;">Sofitel Phnom Penh Phokeethra</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">👗</span>
+              <div><p class="inv-detail-label" style="color:#9C7C2E;">Dress Code</p><p class="inv-detail-value" style="color:#1a1a1a;">Smart Casual — Earth Tones</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Countdown -->
+        <div class="inv-section" style="background:#FAF8F2;">
+          <div class="inv-section-title" style="color:#1a1a1a;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#F0EBE0; border:1px solid rgba(184,148,63,0.2);"><span class="inv-cd-num" style="color:#1a1a1a;">244</span><span class="inv-cd-lbl" style="color:#B8943F;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#F0EBE0; border:1px solid rgba(184,148,63,0.2);"><span class="inv-cd-num" style="color:#1a1a1a;">08</span><span class="inv-cd-lbl" style="color:#B8943F;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#F0EBE0; border:1px solid rgba(184,148,63,0.2);"><span class="inv-cd-num" style="color:#1a1a1a;">35</span><span class="inv-cd-lbl" style="color:#B8943F;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#F0EBE0; border:1px solid rgba(184,148,63,0.2);"><span class="inv-cd-num" style="color:#1a1a1a;">12</span><span class="inv-cd-lbl" style="color:#B8943F;">Secs</span></div>
+          </div>
+        </div>
+
+        <!-- Agenda -->
+        <div class="inv-section" style="background:#FAF8F2;">
+          <div class="inv-section-title" style="color:#1a1a1a;"><div class="line"></div><span>Order of Ceremony</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#F0EBE0; border:1px solid rgba(184,148,63,0.2);">
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/1.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">08:00</span><span class="inv-agenda-label" style="color:#1a1a1a;">Groom's Procession</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/2.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">08:30</span><span class="inv-agenda-label" style="color:#1a1a1a;">Welcoming the Guests</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/3.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">09:00</span><span class="inv-agenda-label" style="color:#1a1a1a;">Offering of Fruits &amp; Gifts</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/4.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">09:30</span><span class="inv-agenda-label" style="color:#1a1a1a;">Joining of Hands</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/5.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">10:00</span><span class="inv-agenda-label" style="color:#1a1a1a;">Bridal Preparation</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/6.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">10:30</span><span class="inv-agenda-label" style="color:#1a1a1a;">Hair-Cutting Ceremony</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/7.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">11:00</span><span class="inv-agenda-label" style="color:#1a1a1a;">Paying Respects</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(184,148,63,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/8.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">17:00</span><span class="inv-agenda-label" style="color:#1a1a1a;">Reception Banquet</span></div>
+            <div class="inv-agenda-row"><img class="inv-agenda-icon" src="public/themes/agenda/9.png" alt=""><span class="inv-agenda-time" style="color:#B8943F;">18:00</span><span class="inv-agenda-label" style="color:#1a1a1a;">Celebration Toast</span></div>
+          </div>
+        </div>
+
+        <!-- Gallery -->
+        <div class="inv-section" style="background:#F0EBE0;">
+          <div class="inv-section-title" style="color:#1a1a1a;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#DDD0BB;">🌸</div><div class="inv-photo" style="background:#E2D5C3;">💍</div><div class="inv-photo" style="background:#DDD0BB;">🥂</div>
+            <div class="inv-photo" style="background:#E2D5C3;">🌹</div><div class="inv-photo" style="background:#DDD0BB;">💐</div><div class="inv-photo" style="background:#E2D5C3;">🕊</div>
+          </div>
+        </div>
+
+        <!-- Wish -->
+        <div class="inv-section" style="background:#FAF8F2;">
+          <div class="inv-section-title" style="color:#1a1a1a;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#F0EBE0; border:1px solid rgba(184,148,63,0.2);">
+            <p class="inv-wish-msg" style="color:#2a2a2a;">"Wishing you both a lifetime of love, laughter, and endless happiness together."</p>
+            <p class="inv-wish-from" style="color:#B8943F;">— Chanda &amp; Family</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#FAF8F2 40%);">
+          <button class="inv-rsvp-btn" style="background:#1a1a1a; color:#FAF8F2;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     2. NAVY TOILE
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 02 · New</p>
+    <h2 class="theme-title">Navy Toile</h2>
+    <div class="palette">
+      <div class="swatch" style="background:#F5F1E8;"></div>
+      <div class="swatch" style="background:#1F3A5F;"></div>
+      <div class="swatch" style="background:#2C4A6E;"></div>
+      <div class="swatch" style="background:#ECE5D6;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#F5F1E8;">
+      <div class="invite" style="font-family:'Playfair Display',Georgia,serif; background:#F5F1E8;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#1F3A5F; color:#fff;">♪</div>
+
+        <div class="inv-cover" style="background:linear-gradient(170deg,#F7F3EB 50%,#D8E0EC);">
+          <div class="corner-tl" style="color:#1F3A5F;"></div>
+          <div class="corner-tr" style="color:#1F3A5F;"></div>
+          <div class="corner-bl" style="color:#1F3A5F;"></div>
+          <div class="corner-br" style="color:#1F3A5F;"></div>
+          <p class="inv-pretitle" style="color:#2C4A6E;">Save the date</p>
+          <div class="inv-script" style="color:#1F3A5F;">Aleksandr</div>
+          <div class="inv-amp" style="color:#2C4A6E;">&amp;</div>
+          <div class="inv-script" style="color:#1F3A5F;">Viktoria</div>
+          <div class="inv-ornament-line" style="color:#2C4A6E;"><div class="line"></div><span class="gem">❖</span><div class="line"></div></div>
+          <p class="inv-date" style="color:#2C4A6E;">Saturday · 16 August 2026</p>
+          <p class="inv-venue-snippet" style="color:#5A6B82;">Yurt by the River Banquet Hall</p>
+        </div>
+
+        <div style="background:#F5F1E8;"><div class="inv-deco-band deco-lace blend-mul"></div></div>
+
+        <div class="inv-section" style="background:#ECE5D6;">
+          <div class="inv-section-title" style="color:#1F3A5F;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#F7F3EB; border:1px solid rgba(31,58,95,0.2);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(31,58,95,0.12);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#2C4A6E;">Date & Time</p><p class="inv-detail-value" style="color:#1F3A5F;">16 August 2026 · 3:00 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(31,58,95,0.12);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#2C4A6E;">Venue</p><p class="inv-detail-value" style="color:#1F3A5F;">Yurt by the River, Ulan-Ude</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">👗</span>
+              <div><p class="inv-detail-label" style="color:#2C4A6E;">Dress Code</p><p class="inv-detail-value" style="color:#1F3A5F;">Navy & Champagne Tones</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F5F1E8;">
+          <div class="inv-section-title" style="color:#1F3A5F;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#ECE5D6; border:1px solid rgba(31,58,95,0.2);"><span class="inv-cd-num" style="color:#1F3A5F;">427</span><span class="inv-cd-lbl" style="color:#2C4A6E;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#ECE5D6; border:1px solid rgba(31,58,95,0.2);"><span class="inv-cd-num" style="color:#1F3A5F;">06</span><span class="inv-cd-lbl" style="color:#2C4A6E;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#ECE5D6; border:1px solid rgba(31,58,95,0.2);"><span class="inv-cd-num" style="color:#1F3A5F;">14</span><span class="inv-cd-lbl" style="color:#2C4A6E;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#ECE5D6; border:1px solid rgba(31,58,95,0.2);"><span class="inv-cd-num" style="color:#1F3A5F;">52</span><span class="inv-cd-lbl" style="color:#2C4A6E;">Secs</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#ECE5D6;">
+          <div class="inv-section-title" style="color:#1F3A5F;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#D4DCE6;">🌿</div><div class="inv-photo" style="background:#E0E6EE;">🕊</div><div class="inv-photo" style="background:#D4DCE6;">💍</div>
+            <div class="inv-photo" style="background:#E0E6EE;">🌸</div><div class="inv-photo" style="background:#D4DCE6;">🥂</div><div class="inv-photo" style="background:#E0E6EE;">🌾</div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F5F1E8;">
+          <div class="inv-section-title" style="color:#1F3A5F;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#F7F3EB; border:1px solid rgba(31,58,95,0.2);">
+            <p class="inv-wish-msg" style="color:#22324A;">"May your love story be as timeless and elegant as the day it begins. Congratulations!"</p>
+            <p class="inv-wish-from" style="color:#2C4A6E;">— The Petrov Family</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#F5F1E8 40%);">
+          <button class="inv-rsvp-btn" style="background:#1F3A5F; color:#F5F1E8;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     3. ROSE GARDEN
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 03 · New</p>
+    <h2 class="theme-title">Rose Garden</h2>
+    <div class="palette">
+      <div class="swatch" style="background:#F8E9EC;"></div>
+      <div class="swatch" style="background:#5A1A2E;"></div>
+      <div class="swatch" style="background:#A8455E;"></div>
+      <div class="swatch" style="background:#FBEEF0;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#F8E9EC;">
+      <div class="invite" style="font-family:'Playfair Display',Georgia,serif; background:#F8E9EC;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#A8455E; color:#fff;">♪</div>
+
+        <div class="inv-cover" style="background:linear-gradient(160deg,#FBEFF1 45%,#F2CDD6);">
+          <div class="corner-tl" style="color:#A8455E;"></div>
+          <div class="corner-tr" style="color:#A8455E;"></div>
+          <div class="corner-bl" style="color:#A8455E;"></div>
+          <div class="corner-br" style="color:#A8455E;"></div>
+          <p class="inv-pretitle" style="color:#A8455E;">The wedding of</p>
+          <div class="inv-script" style="color:#5A1A2E;">Sophea</div>
+          <div class="inv-amp" style="color:#A8455E;">&amp;</div>
+          <div class="inv-script" style="color:#5A1A2E;">Dara</div>
+          <div class="inv-ornament-line" style="color:#A8455E;"><div class="line"></div><span class="gem">❀</span><div class="line"></div></div>
+          <p class="inv-date" style="color:#A8455E;">Monday · 11 September 2026</p>
+          <p class="inv-venue-snippet" style="color:#8A5566;">St. Mary's Cathedral, Marine Drive</p>
+        </div>
+
+        <div style="background:#F8E9EC;"><div class="inv-deco-band deco-floral blend-mul"></div></div>
+
+        <div class="inv-section" style="background:#FBEEF0;">
+          <div class="inv-section-title" style="color:#5A1A2E;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#FFF6F8; border:1px solid rgba(168,69,94,0.2);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(168,69,94,0.12);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#A8455E;">Date & Time</p><p class="inv-detail-value" style="color:#5A1A2E;">11 September 2026 · 3:00 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(168,69,94,0.12);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#A8455E;">Venue</p><p class="inv-detail-value" style="color:#5A1A2E;">St. Mary's Cathedral, Kochi</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">👗</span>
+              <div><p class="inv-detail-label" style="color:#A8455E;">Dress Code</p><p class="inv-detail-value" style="color:#5A1A2E;">Wedding Formals — Blush</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F8E9EC;">
+          <div class="inv-section-title" style="color:#5A1A2E;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#FBEEF0; border:1px solid rgba(168,69,94,0.2);"><span class="inv-cd-num" style="color:#5A1A2E;">453</span><span class="inv-cd-lbl" style="color:#A8455E;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#FBEEF0; border:1px solid rgba(168,69,94,0.2);"><span class="inv-cd-num" style="color:#5A1A2E;">11</span><span class="inv-cd-lbl" style="color:#A8455E;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#FBEEF0; border:1px solid rgba(168,69,94,0.2);"><span class="inv-cd-num" style="color:#5A1A2E;">27</span><span class="inv-cd-lbl" style="color:#A8455E;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#FBEEF0; border:1px solid rgba(168,69,94,0.2);"><span class="inv-cd-num" style="color:#5A1A2E;">09</span><span class="inv-cd-lbl" style="color:#A8455E;">Secs</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#FBEEF0;">
+          <div class="inv-section-title" style="color:#5A1A2E;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#F0CDD6;">🌹</div><div class="inv-photo" style="background:#F6DCE2;">🌷</div><div class="inv-photo" style="background:#F0CDD6;">💐</div>
+            <div class="inv-photo" style="background:#F6DCE2;">🕊</div><div class="inv-photo" style="background:#F0CDD6;">💍</div><div class="inv-photo" style="background:#F6DCE2;">🥂</div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F8E9EC;">
+          <div class="inv-section-title" style="color:#5A1A2E;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#FFF6F8; border:1px solid rgba(168,69,94,0.2);">
+            <p class="inv-wish-msg" style="color:#3D1320;">"May your blessings cascade upon you as you join your lives in solemn vows of love."</p>
+            <p class="inv-wish-from" style="color:#A8455E;">— Chanda &amp; Family</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#F8E9EC 40%);">
+          <button class="inv-rsvp-btn" style="background:#6E1F3A; color:#FBEEF0;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     4. VINTAGE LACE
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 04 · New</p>
+    <h2 class="theme-title">Vintage Lace</h2>
+    <div class="palette">
+      <div class="swatch" style="background:#34251B;"></div>
+      <div class="swatch" style="background:#F3E9D6;"></div>
+      <div class="swatch" style="background:#C9A86A;"></div>
+      <div class="swatch" style="background:#3C2A1E;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#34251B;">
+      <div class="invite" style="font-family:'Cormorant Garamond',Georgia,serif; background:#34251B;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#C9A86A; color:#2A1E16;">♪</div>
+
+        <div class="inv-cover" style="background:linear-gradient(170deg,#3A2A20 35%,#241910);">
+          <div class="corner-tl" style="color:#C9A86A;"></div>
+          <div class="corner-tr" style="color:#C9A86A;"></div>
+          <div class="corner-bl" style="color:#C9A86A;"></div>
+          <div class="corner-br" style="color:#C9A86A;"></div>
+          <p class="inv-pretitle" style="color:#C9A86A;">We invite you to our wedding</p>
+          <div class="inv-script" style="color:#F3E9D6;">Marina</div>
+          <div class="inv-amp" style="color:#C9A86A;">&amp;</div>
+          <div class="inv-script" style="color:#F3E9D6;">Aleksey</div>
+          <div class="inv-ornament-line" style="color:#C9A86A;"><div class="line"></div><span class="gem">❧</span><div class="line"></div></div>
+          <p class="inv-date" style="color:#C9A86A;">Sunday · 26 July 2026</p>
+          <p class="inv-venue-snippet" style="color:#B89C7A;">Lakeside Manor Estate</p>
+        </div>
+
+        <div style="background:#34251B;"><div class="inv-deco-band deco-floral blend-screen"></div></div>
+
+        <div class="inv-section" style="background:#2E2018;">
+          <div class="inv-section-title" style="color:#F3E9D6;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#3C2A1E; border:1px solid rgba(201,168,106,0.25);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(201,168,106,0.15);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#C9A86A;">Date & Time</p><p class="inv-detail-value" style="color:#F3E9D6;">26 July 2026 · 4:30 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(201,168,106,0.15);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#C9A86A;">Venue</p><p class="inv-detail-value" style="color:#F3E9D6;">Lakeside Manor Estate</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">🥂</span>
+              <div><p class="inv-detail-label" style="color:#C9A86A;">Dress Code</p><p class="inv-detail-value" style="color:#F3E9D6;">Pastel & Natural Palette</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#34251B;">
+          <div class="inv-section-title" style="color:#F3E9D6;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#3C2A1E; border:1px solid rgba(201,168,106,0.25);"><span class="inv-cd-num" style="color:#F3E9D6;">154</span><span class="inv-cd-lbl" style="color:#C9A86A;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#3C2A1E; border:1px solid rgba(201,168,106,0.25);"><span class="inv-cd-num" style="color:#F3E9D6;">06</span><span class="inv-cd-lbl" style="color:#C9A86A;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#3C2A1E; border:1px solid rgba(201,168,106,0.25);"><span class="inv-cd-num" style="color:#F3E9D6;">14</span><span class="inv-cd-lbl" style="color:#C9A86A;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#3C2A1E; border:1px solid rgba(201,168,106,0.25);"><span class="inv-cd-num" style="color:#F3E9D6;">24</span><span class="inv-cd-lbl" style="color:#C9A86A;">Secs</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#2E2018;">
+          <div class="inv-section-title" style="color:#F3E9D6;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#4A3526;">🤍</div><div class="inv-photo" style="background:#2A1D14;">🌿</div><div class="inv-photo" style="background:#4A3526;">💍</div>
+            <div class="inv-photo" style="background:#2A1D14;">🕊</div><div class="inv-photo" style="background:#4A3526;">🥂</div><div class="inv-photo" style="background:#2A1D14;">✨</div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#34251B;">
+          <div class="inv-section-title" style="color:#F3E9D6;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#3C2A1E; border:1px solid rgba(201,168,106,0.25);">
+            <p class="inv-wish-msg" style="color:#F0E6D2;">"We begin a new chapter of our lives — and we want you beside us on this warm, joyful day."</p>
+            <p class="inv-wish-from" style="color:#C9A86A;">— With love, Marina &amp; Aleksey</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#34251B 40%);">
+          <button class="inv-rsvp-btn" style="background:#C9A86A; color:#2A1E16;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     5. COCOA DOILY
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 05 · New</p>
+    <h2 class="theme-title">Cocoa Doily</h2>
+    <div class="palette">
+      <div class="swatch" style="background:#F3EAD6;"></div>
+      <div class="swatch" style="background:#3A2A1E;"></div>
+      <div class="swatch" style="background:#8B6F4E;"></div>
+      <div class="swatch" style="background:#ECE0C8;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#F3EAD6;">
+      <div class="invite" style="font-family:'Cormorant Garamond',Georgia,serif; background:#F3EAD6;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#3A2A1E; color:#F3EAD6;">♪</div>
+
+        <div class="inv-cover" style="background:linear-gradient(170deg,#FBF6EA 55%,#EADBC0);">
+          <div class="corner-tl" style="color:#3A2A1E;"></div>
+          <div class="corner-tr" style="color:#3A2A1E;"></div>
+          <div class="corner-bl" style="color:#3A2A1E;"></div>
+          <div class="corner-br" style="color:#3A2A1E;"></div>
+          <p class="inv-pretitle" style="color:#8B6F4E;">There, where love begins</p>
+          <div class="inv-script" style="color:#3A2A1E;">Marina</div>
+          <div class="inv-amp" style="color:#8B6F4E;">&amp;</div>
+          <div class="inv-script" style="color:#3A2A1E;">Aleksey</div>
+          <div class="inv-ornament-line" style="color:#8B6F4E;"><div class="line"></div><span class="gem">⚜</span><div class="line"></div></div>
+          <p class="inv-date" style="color:#8B6F4E;">Sunday · 26 July 2026</p>
+          <p class="inv-venue-snippet" style="color:#7A6450;">Old Manor on the Lake</p>
+        </div>
+
+        <div style="background:#F3EAD6;"><div class="inv-deco-band deco-floral blend-mul"></div></div>
+
+        <div class="inv-section" style="background:#ECE0C8;">
+          <div class="inv-section-title" style="color:#3A2A1E;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#FBF6EA; border:1px solid rgba(58,42,30,0.18);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(58,42,30,0.1);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#8B6F4E;">Date & Time</p><p class="inv-detail-value" style="color:#3A2A1E;">26 July 2026 · 3:00 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(58,42,30,0.1);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#8B6F4E;">Venue</p><p class="inv-detail-value" style="color:#3A2A1E;">Old Manor on the Lake</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">👗</span>
+              <div><p class="inv-detail-label" style="color:#8B6F4E;">Dress Code</p><p class="inv-detail-value" style="color:#3A2A1E;">Deep Natural Tones</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F3EAD6;">
+          <div class="inv-section-title" style="color:#3A2A1E;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#FBF6EA; border:1px solid rgba(58,42,30,0.18);"><span class="inv-cd-num" style="color:#3A2A1E;">154</span><span class="inv-cd-lbl" style="color:#8B6F4E;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#FBF6EA; border:1px solid rgba(58,42,30,0.18);"><span class="inv-cd-num" style="color:#3A2A1E;">07</span><span class="inv-cd-lbl" style="color:#8B6F4E;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#FBF6EA; border:1px solid rgba(58,42,30,0.18);"><span class="inv-cd-num" style="color:#3A2A1E;">42</span><span class="inv-cd-lbl" style="color:#8B6F4E;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#FBF6EA; border:1px solid rgba(58,42,30,0.18);"><span class="inv-cd-num" style="color:#3A2A1E;">18</span><span class="inv-cd-lbl" style="color:#8B6F4E;">Secs</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#ECE0C8;">
+          <div class="inv-section-title" style="color:#3A2A1E;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#E2D4BC;">🤍</div><div class="inv-photo" style="background:#D8C7A8;">🌷</div><div class="inv-photo" style="background:#E2D4BC;">🕊</div>
+            <div class="inv-photo" style="background:#D8C7A8;">💐</div><div class="inv-photo" style="background:#E2D4BC;">💍</div><div class="inv-photo" style="background:#D8C7A8;">🥂</div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F3EAD6;">
+          <div class="inv-section-title" style="color:#3A2A1E;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#FBF6EA; border:1px solid rgba(58,42,30,0.18);">
+            <p class="inv-wish-msg" style="color:#2E2018;">"This day is not just a celebration — it is the embodiment of a shared view of a beautiful life."</p>
+            <p class="inv-wish-from" style="color:#8B6F4E;">— Marina &amp; Aleksey</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#F3EAD6 40%);">
+          <button class="inv-rsvp-btn" style="background:#3A2A1E; color:#F3EAD6;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     6. OLIVE ARCH
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 06 · New</p>
+    <h2 class="theme-title">Olive Arch</h2>
+    <div class="palette">
+      <div class="swatch" style="background:#F1EEE3;"></div>
+      <div class="swatch" style="background:#404A1C;"></div>
+      <div class="swatch" style="background:#6B7A35;"></div>
+      <div class="swatch" style="background:#E6E1D0;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#F1EEE3;">
+      <div class="invite" style="font-family:'Cormorant Garamond',Georgia,serif; background:#F1EEE3;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#4A5320; color:#fff;">♪</div>
+
+        <div class="inv-cover" style="background:linear-gradient(170deg,#F4F1E7 55%,#DCDCC4);">
+          <div class="corner-tl" style="color:#404A1C;"></div>
+          <div class="corner-tr" style="color:#404A1C;"></div>
+          <div class="corner-bl" style="color:#404A1C;"></div>
+          <div class="corner-br" style="color:#404A1C;"></div>
+          <p class="inv-pretitle" style="color:#6B7A35;">Invitation to our wedding</p>
+          <div class="inv-script" style="color:#404A1C;">Azamat</div>
+          <div class="inv-amp" style="color:#6B7A35;">&amp;</div>
+          <div class="inv-script" style="color:#404A1C;">Anel</div>
+          <div class="inv-ornament-line" style="color:#6B7A35;"><div class="line"></div><span class="gem">🌿</span><div class="line"></div></div>
+          <p class="inv-date" style="color:#6B7A35;">Sunday · 27 July 2026</p>
+          <p class="inv-venue-snippet" style="color:#6E7458;">Grand Hall, Aktobe</p>
+        </div>
+
+        <div style="background:#F1EEE3;"><div class="inv-deco-band deco-lace blend-mul"></div></div>
+
+        <div class="inv-section" style="background:#E6E1D0;">
+          <div class="inv-section-title" style="color:#404A1C;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#F4F1E7; border:1px solid rgba(64,74,28,0.2);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(64,74,28,0.12);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#5F6B2A;">Date & Time</p><p class="inv-detail-value" style="color:#404A1C;">27 July 2026 · 7:00 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(64,74,28,0.12);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#5F6B2A;">Venue</p><p class="inv-detail-value" style="color:#404A1C;">Grand Hall, Sankibai Batyr St 26</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">👗</span>
+              <div><p class="inv-detail-label" style="color:#5F6B2A;">Dress Code</p><p class="inv-detail-value" style="color:#404A1C;">Olive & Ivory</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F1EEE3;">
+          <div class="inv-section-title" style="color:#404A1C;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#E6E1D0; border:1px solid rgba(64,74,28,0.2);"><span class="inv-cd-num" style="color:#404A1C;">111</span><span class="inv-cd-lbl" style="color:#6B7A35;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#E6E1D0; border:1px solid rgba(64,74,28,0.2);"><span class="inv-cd-num" style="color:#404A1C;">00</span><span class="inv-cd-lbl" style="color:#6B7A35;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#E6E1D0; border:1px solid rgba(64,74,28,0.2);"><span class="inv-cd-num" style="color:#404A1C;">05</span><span class="inv-cd-lbl" style="color:#6B7A35;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#E6E1D0; border:1px solid rgba(64,74,28,0.2);"><span class="inv-cd-num" style="color:#404A1C;">27</span><span class="inv-cd-lbl" style="color:#6B7A35;">Secs</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#E6E1D0;">
+          <div class="inv-section-title" style="color:#404A1C;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#D9DBC2;">🌿</div><div class="inv-photo" style="background:#C7CBA8;">🕊</div><div class="inv-photo" style="background:#D9DBC2;">💍</div>
+            <div class="inv-photo" style="background:#C7CBA8;">🌾</div><div class="inv-photo" style="background:#D9DBC2;">🥂</div><div class="inv-photo" style="background:#C7CBA8;">🍃</div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#F1EEE3;">
+          <div class="inv-section-title" style="color:#404A1C;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#F4F1E7; border:1px solid rgba(64,74,28,0.2);">
+            <p class="inv-wish-msg" style="color:#2E3416;">"Your warm words and bright wishes mean the world to us. We wait for you with open hearts."</p>
+            <p class="inv-wish-from" style="color:#6B7A35;">— Azamat &amp; Anel</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#F1EEE3 40%);">
+          <button class="inv-rsvp-btn" style="background:#4A5320; color:#F1EEE3;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     7. ROYAL KHMER GOLD
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 07 · New</p>
+    <h2 class="theme-title">Royal Khmer Gold</h2>
+    <div class="palette">
+      <div class="swatch" style="background:#5A0016;"></div>
+      <div class="swatch" style="background:#D4AF37;"></div>
+      <div class="swatch" style="background:#F5E6C8;"></div>
+      <div class="swatch" style="background:#6E0A22;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#5A0016;">
+      <div class="invite" style="font-family:'Kantumruy Pro','Cormorant Garamond',serif; background:#5A0016;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#D4AF37; color:#5A0016;">♪</div>
+
+        <div class="inv-cover" style="background:linear-gradient(170deg,#5A0016 30%,#3A000E);">
+          <div class="inv-corner-orn orn-tl" style="color:#D4AF37;"></div>
+          <div class="inv-corner-orn orn-tr" style="color:#D4AF37;"></div>
+          <div class="inv-corner-orn orn-bl" style="color:#D4AF37;"></div>
+          <div class="inv-corner-orn orn-br" style="color:#D4AF37;"></div>
+          <p class="inv-pretitle" style="color:#D4AF37;">You are warmly invited</p>
+          <div class="inv-script" style="color:#F5E6C8; font-family:'Koulen',serif; font-size:2rem; letter-spacing:0.04em; line-height:1.25;">SOPHEA</div>
+          <div class="inv-amp" style="color:#D4AF37;">&amp;</div>
+          <div class="inv-script" style="color:#F5E6C8; font-family:'Koulen',serif; font-size:2rem; letter-spacing:0.04em; line-height:1.25;">DARA</div>
+          <div class="inv-ornament-line" style="color:#D4AF37;"><div class="line"></div><span class="gem">✦</span><div class="line"></div></div>
+          <p class="inv-date" style="color:#D4AF37;">Saturday · 14 February 2026</p>
+          <p class="inv-venue-snippet" style="color:#C9A98A;">Sofitel Phnom Penh Phokeethra</p>
+        </div>
+
+        <div class="inv-section" style="background:#6E0A22;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(212,175,55,0.15);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#D4AF37;">Date & Time</p><p class="inv-detail-value" style="color:#F5E6C8;">14 February 2026 · 5:00 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(212,175,55,0.15);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#D4AF37;">Venue</p><p class="inv-detail-value" style="color:#F5E6C8;">Sofitel Phnom Penh Phokeethra</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">👑</span>
+              <div><p class="inv-detail-label" style="color:#D4AF37;">Dress Code</p><p class="inv-detail-value" style="color:#F5E6C8;">Traditional — Gold & Maroon</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#5A0016;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">244</span><span class="inv-cd-lbl" style="color:#D4AF37;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">08</span><span class="inv-cd-lbl" style="color:#D4AF37;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">35</span><span class="inv-cd-lbl" style="color:#D4AF37;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);"><span class="inv-cd-num" style="color:#F5E6C8;">12</span><span class="inv-cd-lbl" style="color:#D4AF37;">Secs</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#5A0016;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Order of Ceremony</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#4A0012; border:1px solid rgba(212,175,55,0.3);">
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/1.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">08:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Groom's Procession</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/2.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">08:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Welcoming the Guests</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/3.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">09:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Offering of Fruits &amp; Gifts</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/4.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">09:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Joining of Hands</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/5.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">10:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Bridal Preparation</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/6.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">10:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Hair-Cutting Ceremony</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/7.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">11:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Paying Respects</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.15);"><img class="inv-agenda-icon" src="public/themes/agenda/8.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">17:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Reception Banquet</span></div>
+            <div class="inv-agenda-row"><img class="inv-agenda-icon" src="public/themes/agenda/9.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">18:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Celebration Toast</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#6E0A22;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#4A0012;">👑</div><div class="inv-photo" style="background:#7A1A30;">🪷</div><div class="inv-photo" style="background:#4A0012;">💍</div>
+            <div class="inv-photo" style="background:#7A1A30;">🕊</div><div class="inv-photo" style="background:#4A0012;">🥂</div><div class="inv-photo" style="background:#7A1A30;">✨</div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#5A0016;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#6E0A22; border:1px solid rgba(212,175,55,0.3);">
+            <p class="inv-wish-msg" style="color:#F5E6C8;">"May your union shine as bright as gold and endure for a thousand years. Congratulations!"</p>
+            <p class="inv-wish-from" style="color:#D4AF37;">— Chanda &amp; Family</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#5A0016 40%);">
+          <button class="inv-rsvp-btn" style="background:#D4AF37; color:#5A0016;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     8. CHAMPAGNE NOIR
+════════════════════════════════════════════════════════════════ -->
+<div class="theme-card">
+  <div class="theme-meta">
+    <p class="theme-label">Theme 08</p>
+    <h2 class="theme-title">Champagne Noir</h2>
+    <div class="palette">
+      <div class="swatch" style="background:#0A0A0A;"></div>
+      <div class="swatch" style="background:#F5E6C8;"></div>
+      <div class="swatch" style="background:#D4AF37;"></div>
+      <div class="swatch" style="background:#1A1A1A;"></div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="phone-screen" style="background:#0A0A0A;">
+      <div class="invite" style="font-family:'Cormorant Garamond',Georgia,serif; background:#0A0A0A;">
+        <div class="inv-watermark">Made with Anjeurn</div>
+        <div class="inv-music" style="background:#D4AF37; color:#0A0A0A;">♪</div>
+
+        <div class="inv-cover" style="background:linear-gradient(170deg,#0A0A0A 30%,#1A1004);">
+          <div class="inv-corner-orn orn-tl" style="color:#D4AF37;"></div>
+          <div class="inv-corner-orn orn-tr" style="color:#D4AF37;"></div>
+          <div class="inv-corner-orn orn-bl" style="color:#D4AF37;"></div>
+          <div class="inv-corner-orn orn-br" style="color:#D4AF37;"></div>
+          <p class="inv-pretitle" style="color:#D4AF37;">You are cordially invited</p>
+          <div class="inv-script" style="color:#F5E6C8;">Sophea</div>
+          <div class="inv-amp" style="color:#D4AF37;">&amp;</div>
+          <div class="inv-script" style="color:#F5E6C8;">Dara</div>
+          <div class="inv-ornament-line" style="color:#D4AF37;"><div class="line"></div><span class="gem">◆</span><div class="line"></div></div>
+          <p class="inv-date" style="color:#D4AF37;">Saturday · 14 February 2026</p>
+          <p class="inv-venue-snippet" style="color:#9A8B6A;">Sofitel Phnom Penh Phokeethra</p>
+        </div>
+
+        <div class="inv-section" style="background:#1A1A1A;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Details</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#0A0A0A; border:1px solid rgba(212,175,55,0.25);">
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(212,175,55,0.12);">
+              <span class="inv-detail-icon">📅</span>
+              <div><p class="inv-detail-label" style="color:#D4AF37;">Date & Time</p><p class="inv-detail-value" style="color:#F5E6C8;">14 February 2026 · 4:00 PM</p></div>
+            </div>
+            <div class="inv-detail-row" style="border-bottom:1px solid rgba(212,175,55,0.12);">
+              <span class="inv-detail-icon">📍</span>
+              <div><p class="inv-detail-label" style="color:#D4AF37;">Venue</p><p class="inv-detail-value" style="color:#F5E6C8;">Sofitel Phnom Penh Phokeethra</p></div>
+            </div>
+            <div class="inv-detail-row">
+              <span class="inv-detail-icon">🎩</span>
+              <div><p class="inv-detail-label" style="color:#D4AF37;">Dress Code</p><p class="inv-detail-value" style="color:#F5E6C8;">Black Tie — Champagne</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#0A0A0A;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Countdown</span><div class="line"></div></div>
+          <div class="inv-countdown">
+            <div class="inv-cd-unit" style="background:#1A1A1A; border:1px solid rgba(212,175,55,0.25);"><span class="inv-cd-num" style="color:#F5E6C8;">244</span><span class="inv-cd-lbl" style="color:#D4AF37;">Days</span></div>
+            <div class="inv-cd-unit" style="background:#1A1A1A; border:1px solid rgba(212,175,55,0.25);"><span class="inv-cd-num" style="color:#F5E6C8;">08</span><span class="inv-cd-lbl" style="color:#D4AF37;">Hours</span></div>
+            <div class="inv-cd-unit" style="background:#1A1A1A; border:1px solid rgba(212,175,55,0.25);"><span class="inv-cd-num" style="color:#F5E6C8;">35</span><span class="inv-cd-lbl" style="color:#D4AF37;">Mins</span></div>
+            <div class="inv-cd-unit" style="background:#1A1A1A; border:1px solid rgba(212,175,55,0.25);"><span class="inv-cd-num" style="color:#F5E6C8;">12</span><span class="inv-cd-lbl" style="color:#D4AF37;">Secs</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#1A1A1A;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Order of Ceremony</span><div class="line"></div></div>
+          <div class="inv-detail-card" style="background:#0A0A0A; border:1px solid rgba(212,175,55,0.25);">
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/1.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">08:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Groom's Procession</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/2.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">08:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Welcoming the Guests</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/3.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">09:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Offering of Fruits &amp; Gifts</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/4.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">09:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Joining of Hands</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/5.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">10:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Bridal Preparation</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/6.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">10:30</span><span class="inv-agenda-label" style="color:#F5E6C8;">Hair-Cutting Ceremony</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/7.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">11:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Paying Respects</span></div>
+            <div class="inv-agenda-row" style="border-bottom:1px solid rgba(212,175,55,0.12);"><img class="inv-agenda-icon" src="public/themes/agenda/8.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">17:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Reception Banquet</span></div>
+            <div class="inv-agenda-row"><img class="inv-agenda-icon" src="public/themes/agenda/9.png" alt=""><span class="inv-agenda-time" style="color:#D4AF37;">18:00</span><span class="inv-agenda-label" style="color:#F5E6C8;">Celebration Toast</span></div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#1A1A1A;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Gallery</span><div class="line"></div></div>
+          <div class="inv-photos">
+            <div class="inv-photo" style="background:#2A2A2A;">🥂</div><div class="inv-photo" style="background:#252005;">💍</div><div class="inv-photo" style="background:#2A2A2A;">✨</div>
+            <div class="inv-photo" style="background:#252005;">🌹</div><div class="inv-photo" style="background:#2A2A2A;">🎊</div><div class="inv-photo" style="background:#252005;">🕯</div>
+          </div>
+        </div>
+
+        <div class="inv-section" style="background:#0A0A0A;">
+          <div class="inv-section-title" style="color:#F5E6C8;"><div class="line"></div><span>Wishes</span><div class="line"></div></div>
+          <div class="inv-wish" style="background:#1A1A1A; border:1px solid rgba(212,175,55,0.25);">
+            <p class="inv-wish-msg" style="color:#F5E6C8;">"To a love as timeless as gold and as pure as champagne — congratulations on your union."</p>
+            <p class="inv-wish-from" style="color:#D4AF37;">— Chanda &amp; Family</p>
+          </div>
+        </div>
+
+        <div class="inv-rsvp" style="background:linear-gradient(180deg,transparent,#0A0A0A 40%);">
+          <button class="inv-rsvp-btn" style="background:#D4AF37; color:#0A0A0A;">RSVP Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="fs-btn"><span class="ico">⤢</span> View full screen</button>
+</div>
+
+</div><!-- end .themes-grid -->
+
+<p class="page-footer">Anjeurn · 8 Premium Themes · theme-preview.html</p>
+
+<!-- ── Full-screen preview overlay ── -->
+<div class="fs-overlay" id="fsOverlay" aria-hidden="true">
+  <button class="fs-close" id="fsClose" aria-label="Close full screen">✕</button>
+  <div class="fs-stage" id="fsStage"></div>
+  <p class="fs-hint">Press Esc or tap the backdrop to close</p>
+</div>
+
+<script>
+(function () {
+  var overlay = document.getElementById('fsOverlay');
+  var stage = document.getElementById('fsStage');
+  var closeBtn = document.getElementById('fsClose');
+  var current = null;
+
+  // Phone footprint (px) including frame padding — used to compute the fit scale.
+  var PHONE_W = 280;
+  var PHONE_H = 560;
+
+  function fit() {
+    if (!current) return;
+    var scale = Math.min(
+      (window.innerHeight * 0.92) / PHONE_H,
+      (window.innerWidth * 0.94) / PHONE_W
+    );
+    if (scale < 0.5) scale = 0.5;
+    current.style.transform = 'scale(' + scale.toFixed(3) + ')';
+  }
+
+  function open(card) {
+    var phone = card.querySelector('.phone');
+    if (!phone) return;
+    var clone = phone.cloneNode(true);
+    clone.style.margin = '0';
+    stage.innerHTML = '';
+    stage.appendChild(clone);
+    current = clone;
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    fit();
+    var inv = clone.querySelector('.invite');
+    if (inv) inv.scrollTop = 0;
+  }
+
+  function close() {
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    stage.innerHTML = '';
+    current = null;
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.fs-btn');
+    if (!btn) return;
+    var card = btn.closest('.theme-card');
+    if (card) open(card);
+  });
+
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) close();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') close();
+  });
+  window.addEventListener('resize', fit);
+})();
+</script>
+
+</body>
+</html>
