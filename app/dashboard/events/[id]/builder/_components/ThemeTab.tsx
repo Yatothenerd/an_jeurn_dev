@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { BuilderTheme } from "./BuilderClient";
+import { ThemeThumbnail, ThemePalette } from "./ThemeThumbnail";
 
 interface Props {
   invitationId: string;
   currentThemeId: string;
   allowedThemes: BuilderTheme[];
+  exclusiveThemeIds: string[];
 }
 
-export function ThemeTab({ invitationId, currentThemeId, allowedThemes }: Props) {
+export function ThemeTab({ invitationId, currentThemeId, allowedThemes, exclusiveThemeIds }: Props) {
+  const exclusive = new Set(exclusiveThemeIds);
   const router = useRouter();
   const [selected, setSelected] = useState(currentThemeId);
   const [saving, setSaving] = useState(false);
@@ -51,12 +54,16 @@ export function ThemeTab({ invitationId, currentThemeId, allowedThemes }: Props)
                 {theme.previewUrl ? (
                   <img src={theme.previewUrl} alt={theme.name} style={s.img} />
                 ) : (
-                  <div style={s.imgFallback}>{theme.name[0]}</div>
+                  <ThemeThumbnail themeId={theme.id} />
                 )}
                 {active && <div style={s.checkmark}>✓</div>}
+                {exclusive.has(theme.id) && <span style={s.exclBadge}>★ Exclusive</span>}
                 {theme.isAnimated && <span style={s.animBadge}>Animated</span>}
               </div>
               <div style={s.themeName}>{theme.name}</div>
+              <div style={{ marginTop: "0.375rem" }}>
+                <ThemePalette themeId={theme.id} size={14} />
+              </div>
             </button>
           );
         })}
@@ -132,6 +139,20 @@ const s = {
     borderRadius: "3px",
     textTransform: "uppercase" as const,
     letterSpacing: "0.04em",
+  },
+  exclBadge: {
+    position: "absolute" as const,
+    top: "6px",
+    left: "6px",
+    background: "linear-gradient(90deg,#7c3aed,#a855f7)",
+    color: "#fff",
+    fontSize: "0.625rem",
+    fontWeight: 700,
+    padding: "0.15rem 0.4rem",
+    borderRadius: "999px",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.04em",
+    boxShadow: "0 1px 4px rgba(124,58,237,0.4)",
   },
   themeName: { marginTop: "0.5rem", fontSize: "0.875rem", fontWeight: 500, color: "#0f172a" },
 } as const;

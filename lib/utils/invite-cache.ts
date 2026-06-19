@@ -24,6 +24,7 @@ export type InviteData = {
   invitation: {
     id: string;
     themeId: string;
+    thumbnailUrl: string | null;
     musicUrl: string | null;
     shareLink: string | null;
     showWatermark: boolean;
@@ -32,7 +33,16 @@ export type InviteData = {
   theme: { id: string; name: string };
   sections: Array<{ id: string; type: string; sortOrder: number; content: unknown }>;
   photos: Array<{ id: string; url: string; sortOrder: number }>;
-  pkg: { hasWishing: boolean; hasGuestControl: boolean; galleryType: string | null } | null;
+  pkg: {
+    hasWishing: boolean;
+    hasGuestControl: boolean;
+    hasMusic: boolean;
+    hasKhqr: boolean;
+    hasLocation: boolean;
+    hasOpeningCover: boolean;
+    hasWatermark: boolean;
+    galleryType: string | null;
+  } | null;
   wishes: InviteWish[];
 };
 

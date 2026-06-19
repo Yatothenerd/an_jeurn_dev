@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ThemeThumbnail } from "@/app/dashboard/events/[id]/builder/_components/ThemeThumbnail";
 import type { Package, Theme } from "@/types";
 
 interface Props {
@@ -101,7 +102,7 @@ export function PackageThemeAssign({ packages, themes, assignmentMap }: Props) {
                   ) : t.previewUrl ? (
                     <img src={t.previewUrl} alt={t.name} style={s.img} />
                   ) : (
-                    <div style={s.imgFallback}>No image</div>
+                    <ThemeThumbnail themeId={t.id} />
                   )}
                   {checked && <div style={s.checkmark}>✓</div>}
                 </div>

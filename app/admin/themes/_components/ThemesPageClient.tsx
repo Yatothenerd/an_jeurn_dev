@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeFormModal } from "./ThemeFormModal";
+import { ThemeThumbnail, ThemePalette } from "@/app/dashboard/events/[id]/builder/_components/ThemeThumbnail";
 import type { Theme } from "@/types";
 
 interface Props {
@@ -46,16 +47,22 @@ export function ThemesPageClient({ themes }: Props) {
                 {t.previewUrl ? (
                   <img src={t.previewUrl} alt={t.name} style={s.img} />
                 ) : (
-                  <div style={s.imgPlaceholder}>No preview</div>
+                  <ThemeThumbnail themeId={t.id} />
                 )}
               </div>
               <div style={s.cardBody}>
                 <div style={s.themeName}>{t.name}</div>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <ThemePalette themeId={t.id} />
+                </div>
                 <div style={s.themeMeta}>
-                  {t.isAnimated && <span style={s.tag}>Animated</span>}
-                  <span style={{ ...s.tag, ...(t.isActive ? s.tagActive : s.tagInactive) }}>
+                  <span style={{ ...s.badge, ...(t.isActive ? s.badgeActive : s.badgeInactive) }}>
+                    <span style={{ ...s.dot, background: t.isActive ? "#16a34a" : "#9ca3af" }} />
                     {t.isActive ? "Active" : "Inactive"}
                   </span>
+                  {t.isAnimated && (
+                    <span style={{ ...s.badge, ...s.badgeAnimated }}>✦ Animated</span>
+                  )}
                   <span style={s.order}>#{t.sortOrder}</span>
                 </div>
                 <div style={s.actions}>
@@ -137,17 +144,23 @@ const s = {
   cardBody: { padding: "0.875rem" },
   themeName: { fontWeight: 600, fontSize: "0.9375rem", color: "#111", marginBottom: "0.5rem" },
   themeMeta: { display: "flex", gap: "0.375rem", flexWrap: "wrap" as const, marginBottom: "0.75rem", alignItems: "center" },
-  tag: {
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.3rem",
     fontSize: "0.6875rem",
-    padding: "0.15rem 0.4rem",
-    borderRadius: "4px",
-    background: "#f3f4f6",
-    color: "#6b7280",
-    fontWeight: 500,
+    fontWeight: 600,
+    letterSpacing: "0.02em",
+    padding: "0.2rem 0.5rem",
+    borderRadius: "999px",
+    border: "1px solid transparent",
+    lineHeight: 1,
   },
-  tagActive: { background: "#dcfce7", color: "#15803d" },
-  tagInactive: { background: "#f3f4f6", color: "#9ca3af" },
-  order: { fontSize: "0.75rem", color: "#9ca3af", marginLeft: "auto" },
+  dot: { width: 6, height: 6, borderRadius: "50%", display: "block", flexShrink: 0 },
+  badgeActive: { background: "#f0fdf4", color: "#15803d", borderColor: "#bbf7d0" },
+  badgeInactive: { background: "#f9fafb", color: "#6b7280", borderColor: "#e5e7eb" },
+  badgeAnimated: { background: "#f5f3ff", color: "#7c3aed", borderColor: "#ddd6fe" },
+  order: { fontSize: "0.75rem", color: "#9ca3af", marginLeft: "auto", fontWeight: 600 },
   actions: { display: "flex", gap: "0.5rem" },
   editBtn: {
     flex: 1,

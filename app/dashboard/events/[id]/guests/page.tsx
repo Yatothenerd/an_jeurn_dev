@@ -72,6 +72,7 @@ export default async function GuestListPage({ params }: { params: Promise<{ id: 
 
       <GuestListClient
         eventId={id}
+        eventTitle={event.title}
         inviteBaseUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? ""}/invite/${event.slug}`}
         initialGuests={guests.map((g) => ({
           id: g.id,
@@ -92,7 +93,7 @@ export default async function GuestListPage({ params }: { params: Promise<{ id: 
 
 const s = {
   page: { maxWidth: "860px" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1.5rem" },
+  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1.5rem", flexWrap: "wrap" as const, gap: "0.75rem" },
   back: { color: "#64748b", textDecoration: "none", fontSize: "0.8125rem", display: "block", marginBottom: "0.25rem" },
   title: { margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#111" },
   exportBtn: {
@@ -105,7 +106,7 @@ const s = {
     fontSize: "0.875rem",
     fontWeight: 500,
   },
-  stats: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", marginBottom: "1.5rem" },
+  stats: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "0.75rem", marginBottom: "1.5rem" },
   stat: { borderRadius: "10px", padding: "1rem 1.25rem", display: "flex", flexDirection: "column" as const, gap: "0.25rem" },
   statNum: { fontSize: "1.625rem", fontWeight: 700, lineHeight: 1 },
   statLabel: { fontSize: "0.8125rem", fontWeight: 500 },

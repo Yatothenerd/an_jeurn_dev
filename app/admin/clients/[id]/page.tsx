@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { ClientActions } from "../_components/ClientActions";
+import { GrantPackage } from "../_components/GrantPackage";
+import { EventThemeManager } from "../_components/EventThemeManager";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -22,7 +24,10 @@ export default async function ClientDetailPage({ params }: PageProps) {
       },
       events: {
         orderBy: { createdAt: "desc" },
-        include: { invitation: { select: { isPublished: true } } },
+        include: {
+          invitation: { select: { isPublished: true } },
+          eventThemes: { include: { theme: { select: { id: true, name: true } } } },
+        },
       },
     },
   });
@@ -30,6 +35,20 @@ export default async function ClientDetailPage({ params }: PageProps) {
   if (!client) notFound();
 
   const up = client.userPackages[0];
+  const activeUp = client.userPackages.find((p) => p.status === "active");
+
+  const [packages, allThemes] = await Promise.all([
+    prisma.package.findMany({
+      orderBy: { priceUsd: "asc" },
+      select: { id: true, name: true, priceUsd: true },
+    }),
+    prisma.theme.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  const packageOptions = packages.map((p) => ({ id: p.id, name: p.name, price: Number(p.priceUsd) }));
 
   return (
     <div>
@@ -65,9 +84,21 @@ export default async function ClientDetailPage({ params }: PageProps) {
               <div style={{ marginTop: "1rem" }}>
                 <ClientActions userPackageId={up.id} status={up.status} />
               </div>
+              <div style={{ marginTop: "0.5rem" }}>
+                <GrantPackage
+                  userId={client.id}
+                  packages={packageOptions}
+                  currentPackageId={activeUp?.packageId}
+                />
+              </div>
             </div>
           ) : (
-            <p style={s.none}>No active package.</p>
+            <div>
+              <p style={s.none}>No active package.</p>
+              <div style={{ marginTop: "0.75rem" }}>
+                <GrantPackage userId={client.id} packages={packageOptions} />
+              </div>
+            </div>
           )}
         </section>
 
@@ -79,21 +110,28 @@ export default async function ClientDetailPage({ params }: PageProps) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {client.events.map((ev: typeof client.events[0]) => (
-                <div key={ev.id} style={s.eventRow}>
-                  <div>
-                    <div style={s.eventTitle}>{ev.title}</div>
-                    <div style={s.eventMeta}>
-                      {ev.eventType} · {new Date(ev.eventDate).toLocaleDateString()}
+                <div key={ev.id} style={s.eventCard}>
+                  <div style={s.eventRow}>
+                    <div>
+                      <div style={s.eventTitle}>{ev.title}</div>
+                      <div style={s.eventMeta}>
+                        {ev.eventType} · {new Date(ev.eventDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                      <span style={s.eventStatus}>{ev.status}</span>
+                      {ev.invitation?.isPublished && (
+                        <span style={{ ...s.eventStatus, background: "#dcfce7", color: "#15803d" }}>
+                          published
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                    <span style={s.eventStatus}>{ev.status}</span>
-                    {ev.invitation?.isPublished && (
-                      <span style={{ ...s.eventStatus, background: "#dcfce7", color: "#15803d" }}>
-                        published
-                      </span>
-                    )}
-                  </div>
+                  <EventThemeManager
+                    eventId={ev.id}
+                    assigned={ev.eventThemes.map((et) => et.theme)}
+                    allThemes={allThemes}
+                  />
                 </div>
               ))}
             </div>
@@ -161,14 +199,16 @@ const s = {
   rowLabel: { fontSize: "0.875rem", color: "#6b7280" },
   rowValue: { fontSize: "0.875rem", color: "#111", fontWeight: 500, textAlign: "right" as const },
   none: { color: "#9ca3af", fontSize: "0.875rem", margin: 0 },
-  eventRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
+  eventCard: {
     padding: "0.625rem",
     background: "#f9fafb",
     borderRadius: "6px",
     border: "1px solid #f3f4f6",
+  },
+  eventRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   eventTitle: { fontSize: "0.875rem", fontWeight: 500, color: "#111" },
   eventMeta: { fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.125rem" },

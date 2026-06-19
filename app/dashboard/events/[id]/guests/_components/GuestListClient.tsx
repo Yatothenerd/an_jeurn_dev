@@ -16,6 +16,7 @@ interface Guest {
 
 interface Props {
   eventId: string;
+  eventTitle: string;
   inviteBaseUrl: string;
   initialGuests: Guest[];
   maxGuests: number;
@@ -28,7 +29,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   pending: { bg: "#f3f4f6", text: "#6b7280" },
 };
 
-export function GuestListClient({ eventId, inviteBaseUrl, initialGuests, maxGuests, hasGuestControl }: Props) {
+export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGuests, maxGuests, hasGuestControl }: Props) {
   const router = useRouter();
   const [guests, setGuests] = useState(initialGuests);
   const [showAdd, setShowAdd] = useState(false);
@@ -40,8 +41,17 @@ export function GuestListClient({ eventId, inviteBaseUrl, initialGuests, maxGues
   const [deleting, setDeleting] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
+  // Inline name editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
   function guestLink(token: string | null): string {
     return token ? `${inviteBaseUrl}?g=${token}` : inviteBaseUrl;
+  }
+
+  function shareText(g: Guest): string {
+    return `${g.name}, you're invited to ${eventTitle} 💌`;
   }
 
   async function copyLink(guest: Guest) {
@@ -51,6 +61,63 @@ export function GuestListClient({ eventId, inviteBaseUrl, initialGuests, maxGues
       setTimeout(() => setCopied((c) => (c === guest.id ? null : c)), 1500);
     } catch {
       window.prompt("Copy this guest's invite link:", guestLink(guest.token));
+    }
+  }
+
+  // Open the guest's personalized invite in a new tab (to test the name view).
+  function openInvite(guest: Guest) {
+    window.open(guestLink(guest.token), "_blank", "noopener,noreferrer");
+  }
+
+  // Telegram's share intent — opens Telegram with the link + greeting prefilled.
+  function shareTelegram(guest: Guest) {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(guestLink(guest.token))}&text=${encodeURIComponent(shareText(guest))}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  // Native OS share sheet (lets the user pick any app); falls back to copy.
+  async function shareTo(guest: Guest) {
+    const data = { title: eventTitle, text: shareText(guest), url: guestLink(guest.token) };
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share(data);
+        return;
+      } catch {
+        return; // user dismissed the sheet
+      }
+    }
+    copyLink(guest);
+  }
+
+  function startEdit(guest: Guest) {
+    setEditingId(guest.id);
+    setEditName(guest.name);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditName("");
+  }
+
+  async function saveEdit(guest: Guest) {
+    const trimmed = editName.trim();
+    if (!trimmed || trimmed === guest.name) {
+      cancelEdit();
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/dashboard/events/${eventId}/guests/${guest.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (res.ok) {
+        setGuests((gs) => gs.map((x) => (x.id === guest.id ? { ...x, name: trimmed } : x)));
+        cancelEdit();
+      }
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -131,7 +198,7 @@ export function GuestListClient({ eventId, inviteBaseUrl, initialGuests, maxGues
           <table style={s.table}>
             <thead>
               <tr>
-                {["Name", "Contact", "RSVP", "Meal", "Responded", "Invite Link", ""].map((h) => (
+                {["Name", "Contact", "RSVP", "Meal", "Responded", "Share", ""].map((h) => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -140,9 +207,32 @@ export function GuestListClient({ eventId, inviteBaseUrl, initialGuests, maxGues
               {guests.map((g) => {
                 const statusKey = g.rsvpStatus ?? "pending";
                 const colors = STATUS_COLORS[statusKey] ?? STATUS_COLORS.pending;
+                const editing = editingId === g.id;
                 return (
                   <tr key={g.id} style={s.tr}>
-                    <td style={s.td}>{g.name}</td>
+                    <td style={s.td}>
+                      {editing ? (
+                        <span style={s.editWrap}>
+                          <input
+                            autoFocus
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveEdit(g);
+                              if (e.key === "Escape") cancelEdit();
+                            }}
+                            style={{ ...inp, padding: "0.35rem 0.5rem" }}
+                          />
+                          <button onClick={() => saveEdit(g)} disabled={savingEdit} style={s.iconOk} title="Save">✓</button>
+                          <button onClick={cancelEdit} style={s.iconCancel} title="Cancel">✕</button>
+                        </span>
+                      ) : (
+                        <span style={s.nameWrap}>
+                          {g.name}
+                          <button onClick={() => startEdit(g)} style={s.editBtn} title="Edit name">✎</button>
+                        </span>
+                      )}
+                    </td>
                     <td style={{ ...s.td, color: "#6b7280" }}>
                       {g.contact ? `${g.contactType ? `[${g.contactType}] ` : ""}${g.contact}` : "—"}
                     </td>
@@ -156,9 +246,14 @@ export function GuestListClient({ eventId, inviteBaseUrl, initialGuests, maxGues
                       {g.rsvpAt ? new Date(g.rsvpAt).toLocaleDateString() : "—"}
                     </td>
                     <td style={s.td}>
-                      <button onClick={() => copyLink(g)} style={s.copyBtn} title={guestLink(g.token)}>
-                        {copied === g.id ? "✓ Copied" : "🔗 Copy"}
-                      </button>
+                      <div style={s.actions}>
+                        <button onClick={() => openInvite(g)} style={s.actionBtn} title="Open the guest's invite to test">👁 Open</button>
+                        <button onClick={() => shareTelegram(g)} style={{ ...s.actionBtn, ...s.tgBtn }} title="Share to Telegram">✈ Telegram</button>
+                        <button onClick={() => shareTo(g)} style={s.actionBtn} title="Share to…">↗ Share</button>
+                        <button onClick={() => copyLink(g)} style={s.actionBtn} title={guestLink(g.token)}>
+                          {copied === g.id ? "✓ Copied" : "🔗 Copy"}
+                        </button>
+                      </div>
                     </td>
                     <td style={s.td}>
                       <button
@@ -184,8 +279,8 @@ const s = {
   toolbar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" },
   sectionTitle: { margin: 0, fontSize: "1rem", fontWeight: 600, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.5rem" },
   badge: { padding: "0.125rem 0.5rem", background: "#ede9fe", color: "#5b21b6", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 500 },
+  addForm: { display: "flex", gap: "0.5rem", marginBottom: "0.75rem", alignItems: "center", flexWrap: "wrap" as const },
   addBtn: { padding: "0.5rem 1rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600 },
-  addForm: { display: "flex", gap: "0.5rem", marginBottom: "0.75rem", alignItems: "center" },
   saveBtn: { padding: "0.5rem 1rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600, flexShrink: 0 },
   error: { color: "#dc2626", fontSize: "0.875rem", margin: "0 0 0.75rem" },
   empty: { padding: "2rem", textAlign: "center" as const, color: "#94a3b8", background: "#f9fafb", borderRadius: "10px", fontSize: "0.9375rem" },
@@ -194,7 +289,14 @@ const s = {
   th: { padding: "0.75rem 1rem", textAlign: "left" as const, fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.05em", background: "#f9fafb", borderBottom: "1px solid #e5e7eb" },
   tr: { borderBottom: "1px solid #f1f5f9" },
   td: { padding: "0.875rem 1rem", fontSize: "0.9375rem", color: "#0f172a", verticalAlign: "middle" as const },
+  nameWrap: { display: "inline-flex", alignItems: "center", gap: "0.4rem" },
+  editWrap: { display: "inline-flex", alignItems: "center", gap: "0.3rem" },
+  editBtn: { background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "0.8125rem", padding: "0.1rem 0.2rem" },
+  iconOk: { background: "#dcfce7", border: "1px solid #bbf7d0", color: "#166534", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", padding: "0.25rem 0.45rem" },
+  iconCancel: { background: "#fee2e2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", padding: "0.25rem 0.45rem" },
   statusBadge: { padding: "0.2rem 0.625rem", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 600 },
   deleteBtn: { background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "0.25rem", fontSize: "0.875rem" },
-  copyBtn: { background: "#f5f3ff", border: "1px solid #ede9fe", color: "#7c3aed", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, padding: "0.3rem 0.6rem", whiteSpace: "nowrap" as const },
+  actions: { display: "flex", gap: "0.35rem", flexWrap: "wrap" as const },
+  actionBtn: { background: "#f5f3ff", border: "1px solid #ede9fe", color: "#7c3aed", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, padding: "0.3rem 0.55rem", whiteSpace: "nowrap" as const },
+  tgBtn: { background: "#e6f3fb", border: "1px solid #cce7f6", color: "#1d6fa5" },
 } as const;

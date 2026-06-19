@@ -16,26 +16,31 @@ interface AddGuestData {
 }
 
 export class GuestService {
-  private static async verifyEventOwnership(eventId: string, userId: string) {
-    const event = await prisma.event.findFirst({ where: { id: eventId, userId } });
+  // Admin controls every event, so access is granted to the owning client OR
+  // any admin. Non-admins must own the event.
+  private static async verifyEventAccess(eventId: string, userId: string, isAdmin = false) {
+    const event = isAdmin
+      ? await prisma.event.findUnique({ where: { id: eventId } })
+      : await prisma.event.findFirst({ where: { id: eventId, userId } });
     if (!event) throw new Error("Event not found");
     return event;
   }
 
-  static async getGuestsForEvent(eventId: string, userId: string) {
-    await this.verifyEventOwnership(eventId, userId);
+  static async getGuestsForEvent(eventId: string, userId: string, isAdmin = false) {
+    await this.verifyEventAccess(eventId, userId, isAdmin);
     return prisma.guest.findMany({
       where: { eventId },
       orderBy: [{ rsvpStatus: "asc" }, { name: "asc" }],
     });
   }
 
-  static async addGuest(eventId: string, data: AddGuestData, userId: string) {
-    await this.verifyEventOwnership(eventId, userId);
+  static async addGuest(eventId: string, data: AddGuestData, userId: string, isAdmin = false) {
+    const event = await this.verifyEventAccess(eventId, userId, isAdmin);
 
-    // Check guest limit from active package
+    // Guest limit comes from the event owner's active package (not the actor —
+    // an admin adding guests must still respect the client's package).
     const userPkg = await prisma.userPackage.findFirst({
-      where: { userId, status: "active" },
+      where: { userId: event.userId, status: "active" },
       include: { package: true },
       orderBy: { grantedAt: "desc" },
     });
@@ -57,8 +62,21 @@ export class GuestService {
     });
   }
 
-  static async deleteGuest(guestId: string, eventId: string, userId: string) {
-    await this.verifyEventOwnership(eventId, userId);
+  // Rename a guest. Used both by the client and by admins moderating improper
+  // names entered on the guest list.
+  static async updateGuest(
+    guestId: string,
+    eventId: string,
+    data: { name: string },
+    userId: string,
+    isAdmin = false
+  ) {
+    await this.verifyEventAccess(eventId, userId, isAdmin);
+    return prisma.guest.update({ where: { id: guestId, eventId }, data: { name: data.name } });
+  }
+
+  static async deleteGuest(guestId: string, eventId: string, userId: string, isAdmin = false) {
+    await this.verifyEventAccess(eventId, userId, isAdmin);
     await prisma.guest.delete({ where: { id: guestId, eventId } });
   }
 
@@ -137,8 +155,8 @@ export class GuestService {
     });
   }
 
-  static async toCSV(eventId: string, userId: string): Promise<string> {
-    const guests = await this.getGuestsForEvent(eventId, userId);
+  static async toCSV(eventId: string, userId: string, isAdmin = false): Promise<string> {
+    const guests = await this.getGuestsForEvent(eventId, userId, isAdmin);
     const header = "Name,Contact,Contact Type,RSVP Status,Meal Preference,RSVP At\n";
     const rows = guests
       .map(

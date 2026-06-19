@@ -31,12 +31,24 @@ export default async function BuilderPage({ params }: PageProps) {
   ]);
 
   if (!event) notFound();
+
+  // Themes allowed for this event — the client's package pool plus any themes
+  // assigned exclusively to this event. Exclusive themes (admin-assigned, not in
+  // the package preset) are tagged in the picker.
+  const poolThemes = userPackage
+    ? await ThemeService.getThemesForPackage(userPackage.packageId)
+    : [];
+  const exclusiveThemes = await ThemeService.getExclusiveThemesForEvent(eventId);
+  const poolIds = new Set(poolThemes.map((t) => t.id));
+  const exclusiveThemeIds = exclusiveThemes.filter((t) => !poolIds.has(t.id)).map((t) => t.id);
+  const themesById = new Map<string, (typeof exclusiveThemes)[number]>();
+  for (const t of poolThemes) themesById.set(t.id, t);
+  for (const t of exclusiveThemes) themesById.set(t.id, t);
+  const allowedThemes = Array.from(themesById.values());
+
   if (!event.invitation) {
     // Auto-create invitation with first allowed theme
-    const themes = userPackage
-      ? await ThemeService.getThemesForPackage(userPackage.packageId)
-      : [];
-    const firstTheme = themes[0];
+    const firstTheme = allowedThemes[0];
     if (!firstTheme) notFound();
 
     const shareLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${event.slug}`;
@@ -53,10 +65,6 @@ export default async function BuilderPage({ params }: PageProps) {
 
   const invitation = event.invitation!;
 
-  const allowedThemes = userPackage
-    ? await ThemeService.getThemesForPackage(userPackage.packageId)
-    : [];
-
   const pkg = userPackage?.package;
 
   return (
@@ -72,6 +80,7 @@ export default async function BuilderPage({ params }: PageProps) {
       sections={invitation.sections as never}
       photos={invitation.photos as never}
       allowedThemes={allowedThemes as never}
+      exclusiveThemeIds={exclusiveThemeIds}
       pkg={pkg ? {
         maxSections: pkg.maxSections,
         maxPhotos: pkg.maxPhotos,

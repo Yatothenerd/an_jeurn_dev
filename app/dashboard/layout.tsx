@@ -25,15 +25,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const activePackage = user.userPackages[0];
 
   return (
-    <div style={s.wrapper}>
-      <aside style={s.sidebar}>
+    <div className="app-shell">
+      <aside className="app-sidebar">
         <div style={s.brand}>Anjeurn</div>
 
         {activePackage && (
           <div style={s.pkgBadge}>{activePackage.package.name}</div>
         )}
 
-        <nav style={s.nav}>
+        <nav className="app-nav">
           <NavLink href="/dashboard">My Events</NavLink>
         </nav>
 
@@ -46,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </aside>
 
-      <main style={s.main}>
+      <main className="app-main" style={{ background: "#f8fafc" }}>
         {!activePackage && (
           <div style={s.noPackageBanner}>
             Your account does not have an active package. Please contact the administrator.

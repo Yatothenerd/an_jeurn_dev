@@ -34,6 +34,43 @@ export class ThemeService {
     return themes;
   }
 
+  // Themes granted exclusively to one event (bespoke / admin-designed), active only.
+  static async getExclusiveThemesForEvent(eventId: string): Promise<Theme[]> {
+    const rows = await prisma.eventTheme.findMany({
+      where: { eventId, theme: { isActive: true } },
+      include: { theme: true },
+      orderBy: { theme: { sortOrder: "asc" } },
+    });
+    return rows.map((r: { theme: Theme }) => r.theme);
+  }
+
+  // Full theme picker for an event: the client's package pool PLUS any themes
+  // assigned exclusively to this event, de-duplicated.
+  static async getAllowedThemesForEvent(eventId: string, packageId: string | null): Promise<Theme[]> {
+    const [pool, exclusive] = await Promise.all([
+      packageId ? this.getThemesForPackage(packageId) : Promise.resolve([] as Theme[]),
+      this.getExclusiveThemesForEvent(eventId),
+    ]);
+    const byId = new Map<string, Theme>();
+    for (const t of pool) byId.set(t.id, t);
+    for (const t of exclusive) byId.set(t.id, t);
+    return Array.from(byId.values());
+  }
+
+  static async assignThemeToEvent(themeId: string, eventId: string): Promise<void> {
+    await prisma.eventTheme.upsert({
+      where: { eventId_themeId: { eventId, themeId } },
+      create: { eventId, themeId },
+      update: {},
+    });
+  }
+
+  static async releaseThemeFromEvent(themeId: string, eventId: string): Promise<void> {
+    await prisma.eventTheme
+      .delete({ where: { eventId_themeId: { eventId, themeId } } })
+      .catch(() => undefined); // ignore if not found
+  }
+
   // Active themes available to a specific client (resolved via their active package)
   static async getAllowedThemesForClient(userId: string): Promise<Theme[]> {
     const up = await prisma.userPackage.findFirst({

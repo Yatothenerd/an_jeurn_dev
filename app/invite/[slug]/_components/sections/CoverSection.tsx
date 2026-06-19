@@ -1,3 +1,5 @@
+import type { ThemeTokens } from "@/lib/themes/types";
+
 interface CoverContent {
   heading?: string;
   subheading?: string;
@@ -8,11 +10,12 @@ interface Props {
   content: CoverContent;
   eventTitle: string;
   eventDate: string;
+  venueName?: string | null;
   guestName?: string | null;
-  theme: { primary: string; accent: string; text: string; muted: string; font: string };
+  theme: ThemeTokens;
 }
 
-export function CoverSection({ content, eventTitle, eventDate, guestName, theme }: Props) {
+export function CoverSection({ content, eventTitle, eventDate, venueName, guestName, theme }: Props) {
   const date = new Date(eventDate);
   const formatted = date.toLocaleDateString("en-US", {
     weekday: "long",
@@ -20,101 +23,55 @@ export function CoverSection({ content, eventTitle, eventDate, guestName, theme 
     month: "long",
     day: "numeric",
   });
+  const label = content.guestLabel || "Respected Guest";
+
+  const damask = theme.cornerStyle === "damask";
+  const cornerClass = damask ? "inv-corner-orn" : "inv-corner";
+  const cornerPos = damask
+    ? ["orn-tl", "orn-tr", "orn-bl", "orn-br"]
+    : ["tl", "tr", "bl", "br"];
 
   return (
-    <section style={{ ...s.section, fontFamily: theme.font }}>
-      <div style={s.ornament}>✦ ✦ ✦</div>
-      <h1 style={{ ...s.heading, color: theme.primary }}>
+    <section
+      className="inv-cover"
+      style={{ background: theme.coverGradient, fontFamily: theme.font, color: theme.text }}
+    >
+      {cornerPos.map((pos) => (
+        <span key={pos} className={`${cornerClass} ${pos}`} style={{ color: theme.accent }} />
+      ))}
+
+      <p className="inv-pretitle" style={{ color: theme.accent }}>
+        {content.subheading || "You are cordially invited"}
+      </p>
+      <div className="inv-script" style={{ color: theme.primary }}>
         {content.heading || eventTitle}
-      </h1>
-      {(content.subheading) && (
-        <p style={{ ...s.subheading, color: theme.muted }}>{content.subheading}</p>
-      )}
+      </div>
+
+      <div className="inv-ornament-line" style={{ color: theme.accent }}>
+        <div className="line" />
+        <span className="gem">{theme.gem}</span>
+        <div className="line" />
+      </div>
 
       {/* Personalized guest greeting (filled from the per-guest link) */}
-      <div style={s.greeting}>
-        <span style={{ ...s.greetingLabel, color: theme.accent, borderColor: theme.accent }}>
-          ♥ {content.guestLabel || "Respected Guest"}
+      <div className="inv-greeting">
+        <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent }}>
+          ♥ {label}
         </span>
         <div
+          className="inv-greeting-name"
           style={{
-            ...s.greetingName,
             color: guestName ? theme.primary : theme.muted,
             borderColor: theme.accent,
             fontStyle: guestName ? "normal" : "italic",
           }}
         >
-          {guestName ? guestName : `[ ${content.guestLabel || "Respected Guest"} ]`}
+          {guestName ? guestName : `[ ${label} ]`}
         </div>
       </div>
 
-      <div style={{ ...s.divider, borderColor: theme.accent }} />
-      <p style={{ ...s.date, color: theme.accent }}>{formatted}</p>
+      <p className="inv-date" style={{ color: theme.accent }}>{formatted}</p>
+      {venueName && <p className="inv-venue-snippet" style={{ color: theme.muted }}>{venueName}</p>}
     </section>
   );
 }
-
-const s = {
-  section: {
-    padding: "4rem 1.5rem 3rem",
-    textAlign: "center" as const,
-    minHeight: "60vh",
-    display: "flex",
-    flexDirection: "column" as const,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "1rem",
-  },
-  ornament: { fontSize: "1rem", letterSpacing: "0.5rem", opacity: 0.4 },
-  heading: {
-    margin: 0,
-    fontSize: "clamp(2rem, 8vw, 3.5rem)",
-    fontWeight: 400,
-    lineHeight: 1.2,
-    letterSpacing: "0.02em",
-  },
-  subheading: {
-    margin: 0,
-    fontSize: "1.125rem",
-    fontWeight: 300,
-    letterSpacing: "0.05em",
-  },
-  greeting: {
-    display: "flex",
-    flexDirection: "column" as const,
-    alignItems: "center",
-    gap: "0.625rem",
-    width: "100%",
-    maxWidth: "420px",
-    margin: "0.5rem auto",
-  },
-  greetingLabel: {
-    fontSize: "0.6875rem",
-    letterSpacing: "0.18em",
-    textTransform: "uppercase" as const,
-    padding: "0.3rem 0.9rem",
-    border: "1px solid",
-    borderRadius: "999px",
-    opacity: 0.85,
-  },
-  greetingName: {
-    width: "100%",
-    padding: "0.85rem 1rem",
-    border: "1px solid",
-    borderRadius: "12px",
-    fontSize: "1.125rem",
-    letterSpacing: "0.02em",
-    background: "rgba(255,255,255,0.04)",
-  },
-  divider: {
-    width: "60px",
-    borderTop: "1px solid",
-    margin: "0.5rem auto",
-  },
-  date: {
-    margin: 0,
-    fontSize: "1rem",
-    letterSpacing: "0.1em",
-    textTransform: "uppercase" as const,
-  },
-} as const;

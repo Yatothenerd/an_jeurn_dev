@@ -59,6 +59,9 @@ model Package {
   hasWishing       Boolean          @default(false) @map("has_wishing")
   hasHosting       Boolean          @default(false) @map("has_hosting")
   hasCustomThumb   Boolean          @default(false) @map("has_custom_thumb")
+  hasLocation      Boolean          @default(false) @map("has_location")
+  hasOpeningCover  Boolean          @default(false) @map("has_opening_cover")
+  hasWatermark     Boolean          @default(true) @map("has_watermark")
   hasGuestControl  Boolean          @default(false) @map("has_guest_control")
   guestControlType GuestControlType @default(none) @map("guest_control_type")
   guestEditLimit   Int?             @map("guest_edit_limit")
@@ -85,6 +88,7 @@ model Theme {
 
   packageThemes PackageTheme[]
   invitations   Invitation[]
+  eventThemes   EventTheme[]
 
   @@map("themes")
 }
@@ -133,8 +137,25 @@ model Event {
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   invitation   Invitation?
   guests       Guest[]
+  eventThemes  EventTheme[]
 
   @@map("events")
+}
+
+// Event-exclusive theme grants: a bespoke theme made available to one specific
+// event (and thus that client) outside the package pool. Admin assigns it for
+// the event, then releases it afterward (and may recycle it into a package).
+model EventTheme {
+  id        String   @id @default(cuid())
+  eventId   String   @map("event_id")
+  themeId   String   @map("theme_id")
+  grantedAt DateTime @default(now()) @map("granted_at")
+
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  theme     Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, themeId])
+  @@map("event_themes")
 }
 
 model Invitation {

@@ -19,15 +19,16 @@ export default async function DashboardPage() {
     <div>
       <div style={s.header}>
         <h1 style={s.heading}>My Events</h1>
-        <Link href="/dashboard/events/new" style={s.newBtn}>+ New Event</Link>
       </div>
 
       {events.length === 0 ? (
         <div style={s.empty}>
           <div style={s.emptyIcon}>🎉</div>
           <div style={s.emptyTitle}>No events yet</div>
-          <div style={s.emptyText}>Create your first invitation event to get started.</div>
-          <Link href="/dashboard/events/new" style={s.emptyBtn}>Create Event</Link>
+          <div style={s.emptyText}>
+            Your events are set up by your administrator. Once an event is assigned to you,
+            it will appear here for you to manage.
+          </div>
         </div>
       ) : (
         <div style={s.grid}>

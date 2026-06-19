@@ -52,6 +52,8 @@ interface Props {
   sections: BuilderSection[];
   photos: BuilderPhoto[];
   allowedThemes: BuilderTheme[];
+  /** Ids of themes assigned exclusively to this event (not in the package preset). */
+  exclusiveThemeIds: string[];
   pkg: BuilderPkg | null;
 }
 
@@ -110,6 +112,7 @@ export function BuilderClient(props: Props) {
             invitationId={props.invitationId}
             currentThemeId={props.currentThemeId}
             allowedThemes={props.allowedThemes}
+            exclusiveThemeIds={props.exclusiveThemeIds}
           />
         )}
         {activeTab === "sections" && (

@@ -129,112 +129,150 @@ async function main() {
         sortOrder: 5,
       },
     }),
+    prisma.theme.upsert({
+      where: { id: "theme-starlight" },
+      update: {},
+      create: {
+        id: "theme-starlight",
+        name: "Starlight",
+        previewUrl: null,
+        thumbnailUrl: null,
+        isAnimated: true,
+        isActive: true,
+        sortOrder: 9,
+      },
+    }),
+    prisma.theme.upsert({
+      where: { id: "theme-cinematic" },
+      update: {},
+      create: {
+        id: "theme-cinematic",
+        name: "Cinematic",
+        previewUrl: null,
+        thumbnailUrl: null,
+        isAnimated: true,
+        isActive: true,
+        sortOrder: 10,
+      },
+    }),
   ]);
   console.log("Created themes:", themes.map((t) => t.name).join(", "));
 
-  const [themeClassicWhite, themeRoseGarden, themeRoyalKhmer, themeNavyToile, themeOliveArch, themeChampagneNoir, themeVintageLace, themeCocoaDoily] = themes;
+  const [themeClassicWhite, themeRoseGarden, themeRoyalKhmer, themeNavyToile, themeOliveArch, themeChampagneNoir, themeVintageLace, themeCocoaDoily, themeStarlight, themeCinematic] = themes;
 
-  // Packages
+  // Packages — see the package revision spec. Defined as plain data + idempotent
+  // upsert (create AND update) so re-seeding applies revisions to existing rows.
+  // Slugs are kept stable (package-a/b/c) to preserve UserPackage references.
+  const savingData = {
+    name: "Saving",
+    priceUsd: 50,
+    maxSections: 4,
+    maxPhotos: 4, // up to 4 photos (watermarked)
+    maxGuests: 50,
+    hasMusic: false,
+    hasVideo: false,
+    hasKhqr: false,
+    hasWishing: false,
+    hasHosting: true,
+    hasCustomThumb: false, // theme thumbnail only
+    hasLocation: false,
+    hasOpeningCover: false, // no opening cover
+    hasWatermark: true,
+    hasGuestControl: false,
+    guestControlType: "none" as const,
+    guestEditLimit: null,
+    hasLogo: false,
+    galleryType: "basic",
+    themeCount: 2,
+  };
+  const standardData = {
+    name: "Standard",
+    priceUsd: 100,
+    maxSections: 6,
+    maxPhotos: 20,
+    maxGuests: 100,
+    hasMusic: true,
+    hasVideo: false,
+    hasKhqr: true,
+    hasWishing: true,
+    hasHosting: true,
+    hasCustomThumb: false, // theme thumbnail or preset image, not custom
+    hasLocation: true,
+    hasOpeningCover: false,
+    hasWatermark: true, // watermark applied
+    hasGuestControl: true,
+    guestControlType: "limited" as const,
+    guestEditLimit: 3,
+    hasLogo: false,
+    galleryType: "standard",
+    themeCount: 2,
+  };
+  const premiereData = {
+    name: "Premiere",
+    priceUsd: 190,
+    maxSections: 10,
+    maxPhotos: 40,
+    maxGuests: 300,
+    hasMusic: true,
+    hasVideo: true,
+    hasKhqr: true,
+    hasWishing: true,
+    hasHosting: true,
+    hasCustomThumb: true, // admin designs or client provides
+    hasLocation: true,
+    hasOpeningCover: false,
+    hasWatermark: false, // no watermark
+    hasGuestControl: true,
+    guestControlType: "full" as const,
+    guestEditLimit: null,
+    hasLogo: true,
+    galleryType: "standard",
+    themeCount: 4,
+  };
+  const royaltyData = {
+    name: "Royalty",
+    priceUsd: 280,
+    maxSections: 20,
+    maxPhotos: 100,
+    maxGuests: 1000,
+    hasMusic: true,
+    hasVideo: true,
+    hasKhqr: true,
+    hasWishing: true,
+    hasHosting: true,
+    hasCustomThumb: true,
+    hasLocation: true,
+    hasOpeningCover: true, // motion opening screen
+    hasWatermark: false,
+    hasGuestControl: true,
+    guestControlType: "full" as const,
+    guestEditLimit: null,
+    hasLogo: true,
+    galleryType: "premium",
+    themeCount: 8,
+  };
+
   const packageSaving = await prisma.package.upsert({
     where: { slug: "saving" },
-    update: {},
-    create: {
-      name: "Saving",
-      slug: "saving",
-      priceUsd: 50,
-      maxSections: 4,
-      maxPhotos: 10,
-      maxGuests: 50,
-      hasMusic: false,
-      hasVideo: false,
-      hasKhqr: false,
-      hasWishing: false,
-      hasHosting: true,
-      hasCustomThumb: false,
-      hasGuestControl: false,
-      guestControlType: "none",
-      guestEditLimit: null,
-      hasLogo: false,
-      galleryType: "basic",
-      themeCount: 2,
-    },
+    update: savingData,
+    create: { ...savingData, slug: "saving" },
   });
-
   const packageA = await prisma.package.upsert({
     where: { slug: "package-a" },
-    update: {},
-    create: {
-      name: "Package A",
-      slug: "package-a",
-      priceUsd: 100,
-      maxSections: 6,
-      maxPhotos: 20,
-      maxGuests: 100,
-      hasMusic: true,
-      hasVideo: false,
-      hasKhqr: true,
-      hasWishing: true,
-      hasHosting: true,
-      hasCustomThumb: false,
-      hasGuestControl: true,
-      guestControlType: "limited",
-      guestEditLimit: 3,
-      hasLogo: false,
-      galleryType: "standard",
-      themeCount: 2,
-    },
+    update: standardData,
+    create: { ...standardData, slug: "package-a" },
   });
-
   const packageB = await prisma.package.upsert({
     where: { slug: "package-b" },
-    update: {},
-    create: {
-      name: "Package B",
-      slug: "package-b",
-      priceUsd: 190,
-      maxSections: 10,
-      maxPhotos: 40,
-      maxGuests: 300,
-      hasMusic: true,
-      hasVideo: true,
-      hasKhqr: true,
-      hasWishing: true,
-      hasHosting: true,
-      hasCustomThumb: true,
-      hasGuestControl: true,
-      guestControlType: "full",
-      guestEditLimit: null,
-      hasLogo: true,
-      galleryType: "standard",
-      themeCount: 4,
-    },
+    update: premiereData,
+    create: { ...premiereData, slug: "package-b" },
   });
-
   const packageC = await prisma.package.upsert({
     where: { slug: "package-c" },
-    update: {},
-    create: {
-      name: "Package C",
-      slug: "package-c",
-      priceUsd: 280,
-      maxSections: 20,
-      maxPhotos: 100,
-      maxGuests: 1000,
-      hasMusic: true,
-      hasVideo: true,
-      hasKhqr: true,
-      hasWishing: true,
-      hasHosting: true,
-      hasCustomThumb: true,
-      hasGuestControl: true,
-      guestControlType: "full",
-      guestEditLimit: null,
-      hasLogo: true,
-      galleryType: "premium",
-      themeCount: 8,
-    },
+    update: royaltyData,
+    create: { ...royaltyData, slug: "package-c" },
   });
-  console.log("Created packages: Saving, Package A, Package B, Package C");
+  console.log("Created packages: Saving, Standard, Premiere, Royalty");
 
   // PackageThemes — assign themes to packages
   // Saving: basic themes only (Classic White, Navy Toile)
@@ -263,6 +301,8 @@ async function main() {
     { packageId: packageC.id, themeId: themeOliveArch.id },
     { packageId: packageC.id, themeId: themeRoyalKhmer.id },
     { packageId: packageC.id, themeId: themeChampagneNoir.id },
+    { packageId: packageC.id, themeId: themeStarlight.id },
+    { packageId: packageC.id, themeId: themeCinematic.id },
   ];
 
   for (const assignment of packageThemeAssignments) {
