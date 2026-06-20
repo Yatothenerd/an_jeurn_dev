@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/services/auth.service";
 import { redirect } from "next/navigation";
 import { ForceUnpublishButton } from "./_components/ForceUnpublishButton";
+import { ForcePublishButton } from "./_components/ForcePublishButton";
 
 export const metadata = { title: "Admin — Invitations" };
 
@@ -93,7 +94,7 @@ export default async function AdminInvitationsPage() {
                           <ForceUnpublishButton invitationId={inv.id} />
                         </>
                       ) : (
-                        <span className="cell-sub">—</span>
+                        <ForcePublishButton invitationId={inv.id} />
                       )}
                     </span>
                   </td>

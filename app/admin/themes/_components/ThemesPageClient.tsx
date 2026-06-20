@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ThemeFormModal } from "./ThemeFormModal";
+import { NewThemeWizard } from "./NewThemeWizard";
+import { ThemePreviewModal } from "./ThemePreviewModal";
 import { ThemeThumbnail, ThemePalette } from "@/app/dashboard/events/[id]/builder/_components/ThemeThumbnail";
 import type { Theme } from "@/types";
 
@@ -13,8 +14,9 @@ interface Props {
 export function ThemesPageClient({ themes }: Props) {
   const router = useRouter();
   const [showCreate, setShowCreate] = useState(false);
-  const [editing, setEditing] = useState<Theme | null>(null);
-  const [toggling, setToggling] = useState<string | null>(null);
+  const [editing, setEditing]       = useState<Theme | null>(null);
+  const [previewing, setPreviewing] = useState<Theme | null>(null);
+  const [toggling, setToggling]     = useState<string | null>(null);
 
   async function toggleActive(theme: Theme) {
     setToggling(theme.id);
@@ -66,6 +68,7 @@ export function ThemesPageClient({ themes }: Props) {
                   <span style={s.order}>#{t.sortOrder}</span>
                 </div>
                 <div style={s.actions}>
+                  <button onClick={() => setPreviewing(t)} style={s.previewBtn}>Preview</button>
                   <button onClick={() => setEditing(t)} style={s.editBtn}>Edit</button>
                   <button
                     onClick={() => toggleActive(t)}
@@ -81,8 +84,9 @@ export function ThemesPageClient({ themes }: Props) {
         </div>
       )}
 
-      {showCreate && <ThemeFormModal onClose={() => setShowCreate(false)} />}
-      {editing && <ThemeFormModal theme={editing} onClose={() => setEditing(null)} />}
+      {showCreate  && <NewThemeWizard onClose={() => setShowCreate(false)} />}
+      {editing     && <NewThemeWizard theme={editing} onClose={() => setEditing(null)} />}
+      {previewing  && <ThemePreviewModal theme={previewing} onClose={() => setPreviewing(null)} />}
     </div>
   );
 }
@@ -161,7 +165,18 @@ const s = {
   badgeInactive: { background: "var(--c-surface-2)", color: "var(--c-muted)", borderColor: "var(--c-border)" },
   badgeAnimated: { background: "var(--c-accent-soft)", color: "var(--c-accent)", borderColor: "transparent" },
   order: { fontSize: "0.75rem", color: "var(--c-muted)", marginLeft: "auto", fontWeight: 600 },
-  actions: { display: "flex", gap: "0.5rem" },
+  actions: { display: "flex", gap: "0.375rem" },
+  previewBtn: {
+    flex: 1,
+    padding: "0.375rem",
+    border: "none",
+    borderRadius: "5px",
+    background: "var(--c-accent)",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: "0.8125rem",
+    fontWeight: 600,
+  },
   editBtn: {
     flex: 1,
     padding: "0.375rem",

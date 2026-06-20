@@ -9,33 +9,41 @@ const ALLOWED_IMAGE_TYPES = [
 const ALLOWED_AUDIO_TYPES = [
   "audio/mpeg", "audio/mp3", "audio/mp4", "audio/ogg", "audio/wav", "audio/aac",
 ];
+const ALLOWED_VIDEO_TYPES = [
+  "video/mp4", "video/webm", "video/quicktime", "video/x-msvideo", "video/avi",
+];
 // Some browsers send an empty/incorrect MIME type (notably HEIC from phones),
 // so we also classify by file extension as a fallback.
 const IMAGE_EXTS = ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"];
-const AUDIO_EXTS = ["mp3", "wav", "aac", "ogg", "m4a", "mp4"];
+const AUDIO_EXTS = ["mp3", "wav", "aac", "ogg", "m4a"];
+const VIDEO_EXTS = ["mp4", "webm", "mov", "avi"];
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;  // 10 MB (phone photos can be large)
-const MAX_AUDIO_BYTES = 20 * 1024 * 1024;  // 20 MB
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;   // 10 MB
+const MAX_AUDIO_BYTES = 20 * 1024 * 1024;   // 20 MB
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;  // 200 MB
 
-function classify(file: File): "image" | "audio" | null {
+function classify(file: File): "image" | "audio" | "video" | null {
   const type = file.type.toLowerCase();
   if (ALLOWED_IMAGE_TYPES.includes(type)) return "image";
   if (ALLOWED_AUDIO_TYPES.includes(type)) return "audio";
+  if (ALLOWED_VIDEO_TYPES.includes(type)) return "video";
   const ext = (file.name.split(".").pop() ?? "").toLowerCase();
   if (IMAGE_EXTS.includes(ext)) return "image";
   if (AUDIO_EXTS.includes(ext)) return "audio";
+  if (VIDEO_EXTS.includes(ext)) return "video";
   return null;
 }
 
 export async function uploadToCloudinary(file: File, folder = "uploads"): Promise<string> {
   const kind = classify(file);
   if (!kind) {
-    throw new Error(`Unsupported file type "${file.type || file.name}". Allowed: JPG, PNG, WebP, GIF, HEIC, MP3, WAV, AAC`);
+    throw new Error(`Unsupported file type "${file.type || file.name}". Allowed: JPG, PNG, WebP, GIF, HEIC, MP3, WAV, AAC, MP4, WebM, MOV`);
   }
 
-  const maxBytes = kind === "image" ? MAX_IMAGE_BYTES : MAX_AUDIO_BYTES;
+  const maxBytes = kind === "image" ? MAX_IMAGE_BYTES : kind === "audio" ? MAX_AUDIO_BYTES : MAX_VIDEO_BYTES;
+  const maxLabel = kind === "image" ? "10 MB" : kind === "audio" ? "20 MB" : "200 MB";
   if (file.size > maxBytes) {
-    throw new Error(`File too large. Max ${kind === "image" ? "10 MB" : "20 MB"}.`);
+    throw new Error(`File too large. Max ${maxLabel}.`);
   }
 
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;

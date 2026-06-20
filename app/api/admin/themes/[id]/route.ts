@@ -8,6 +8,19 @@ async function requireAdmin() {
   return session;
 }
 
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await requireAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  try {
+    await prisma.theme.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "Not found or in use" }, { status: 404 });
+  }
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await req.json() as Record<string, unknown>;
 
-  const allowedFields = ["name", "previewUrl", "thumbnailUrl", "isAnimated", "sortOrder", "isActive"];
+  const allowedFields = ["name", "contentType", "backgroundUrl", "backgroundVideoUrl", "coverUrl", "musicUrl", "defaultSections", "overlayConfig", "previewUrl", "thumbnailUrl", "isAnimated", "sortOrder", "isActive"];
   const data: Record<string, unknown> = {};
   for (const key of allowedFields) {
     if (key in body) data[key] = body[key];

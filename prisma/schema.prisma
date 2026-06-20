@@ -77,14 +77,21 @@ model Package {
 }
 
 model Theme {
-  id           String         @id @default(cuid())
-  name         String
-  previewUrl   String?        @map("preview_url")
-  thumbnailUrl String?        @map("thumbnail_url")
-  isAnimated   Boolean        @default(false) @map("is_animated")
-  isActive     Boolean        @default(true) @map("is_active")
-  sortOrder    Int            @default(0) @map("sort_order")
-  createdAt    DateTime       @default(now()) @map("created_at")
+  id              String    @id @default(cuid())
+  name            String
+  contentType     String?   @map("content_type")
+  backgroundUrl   String?   @map("background_url")
+  coverUrl        String?   @map("cover_url")
+  musicUrl        String?   @map("music_url")
+  defaultSections     Json?     @map("default_sections")
+  backgroundVideoUrl  String?   @map("background_video_url")
+  overlayConfig       Json?     @map("overlay_config")
+  previewUrl          String?   @map("preview_url")
+  thumbnailUrl    String?   @map("thumbnail_url")
+  isAnimated      Boolean   @default(false) @map("is_animated")
+  isActive        Boolean   @default(true) @map("is_active")
+  sortOrder       Int       @default(0) @map("sort_order")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   packageThemes PackageTheme[]
   invitations   Invitation[]

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db/prisma";
+import { PublishButton } from "./_components/PublishButton";
 
 export const metadata = { title: "My Events" };
 
@@ -12,7 +13,7 @@ export default async function DashboardPage() {
   const events = await prisma.event.findMany({
     where: { userId: session.sub },
     orderBy: { createdAt: "desc" },
-    include: { invitation: { select: { isPublished: true } } },
+    include: { invitation: { select: { id: true, isPublished: true } } },
   });
 
   return (
@@ -48,6 +49,9 @@ export default async function DashboardPage() {
               </p>
               {event.venueName && <p style={s.venue}>{event.venueName}</p>}
               <div style={s.cardFooter}>
+                {event.invitation && !event.invitation.isPublished && (
+                  <PublishButton invitationId={event.invitation.id} />
+                )}
                 <Link href={`/dashboard/events/${event.id}/builder`} style={s.builderBtn}>
                   Open Builder →
                 </Link>

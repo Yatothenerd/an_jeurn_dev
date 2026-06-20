@@ -20,6 +20,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ success: true });
   }
 
+  if (body.action === "force-publish") {
+    const inv = await prisma.invitation.update({
+      where: { id },
+      data: { isPublished: true },
+      include: { event: { select: { slug: true } } },
+    });
+    await bustInviteCache(inv.event.slug);
+    return NextResponse.json({ success: true });
+  }
+
   // Admin-only single background (used by single-background themes like Spotlight).
   if ("backgroundUrl" in body) {
     const inv = await prisma.invitation.update({
