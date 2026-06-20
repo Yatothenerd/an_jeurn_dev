@@ -54,6 +54,8 @@ a {
   display: flex;
   min-height: 100vh;
   font-family: system-ui, -apple-system, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
 }
 .app-sidebar {
   width: 220px;
@@ -66,8 +68,9 @@ a {
   flex-direction: column;
   gap: 0.5rem;
   padding: 1.5rem 1rem;
-  background: #fff;
-  border-right: 1px solid #e2e8f0;
+  background: var(--c-surface);
+  color: var(--c-text);
+  border-right: 1px solid var(--c-border);
 }
 .app-sidebar--dark {
   background: #111827;
@@ -85,6 +88,7 @@ a {
   min-width: 0;
   padding: 2rem 2.5rem;
   overflow-y: auto;
+  background: var(--c-bg);
 }
 
 @media (max-width: 768px) {
@@ -101,10 +105,7 @@ a {
     gap: 0.5rem 0.75rem;
     padding: 0.75rem 1rem;
     border-right: none;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  .app-sidebar--dark {
-    border-bottom-color: #1f2937;
+    border-bottom: 1px solid var(--c-border);
   }
   .app-nav {
     flex-direction: row;
@@ -118,7 +119,9 @@ a {
 }
 
 /* ── Admin design system (tokens, light/dark via [data-theme]) ───────────────── */
-.admin-root {
+/* Light tokens are global so any page (admin or client) can use them; the admin
+   root flips to dark when data-theme="dark". */
+:root {
   --c-bg: #f9fafb;
   --c-surface: #ffffff;
   --c-surface-2: #f3f4f6;
@@ -131,7 +134,7 @@ a {
   --c-sidebar-text: #9ca3af;
   --c-sidebar-active-bg: #1f2937;
 }
-.admin-root[data-theme="dark"] {
+[data-theme="dark"] {
   --c-bg: #0d1017;
   --c-surface: #161b22;
   --c-surface-2: #1c222b;
@@ -214,4 +217,122 @@ a {
   .admin-navlink { padding: 0.4rem 0.6rem; border-left: none; border-bottom: 2px solid transparent; }
   .admin-navlink.active { border-left: none; border-bottom-color: var(--c-accent); }
   .admin-main { padding: 1rem; }
+}
+
+/* ── Themed data table (light/dark via tokens; collapses to cards on mobile) ── */
+.page-title { font-size: 1.5rem; font-weight: 700; color: var(--c-text); margin: 0 0 0.25rem; }
+.page-summary { color: var(--c-muted); font-size: 0.875rem; margin: 0 0 1.25rem; }
+
+.data-table-wrap {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; color: var(--c-text); }
+.data-table thead th {
+  text-align: left; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--c-muted); background: var(--c-surface-2);
+  padding: 0.8rem 1rem; border-bottom: 1px solid var(--c-border); white-space: nowrap;
+}
+.data-table tbody td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--c-border); vertical-align: middle; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover { background: var(--c-surface-2); }
+.data-table .num { text-align: center; color: var(--c-muted); }
+.data-table th.actions, .data-table td.actions { text-align: right; }
+.cell-actions { display: inline-flex; gap: 0.5rem; align-items: center; justify-content: flex-end; }
+.cell-title { font-weight: 600; color: var(--c-text); }
+.cell-sub { font-size: 0.75rem; color: var(--c-muted); margin-top: 0.1rem; }
+.data-empty { padding: 3rem 1rem; text-align: center; color: var(--c-muted); }
+
+.status-pill { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+.status-pill.published { background: #dcfce7; color: #15803d; }
+.status-pill.draft { background: var(--c-surface-2); color: var(--c-muted); }
+
+.btn-pill {
+  padding: 0.32rem 0.75rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  transition: background 0.12s ease, transform 0.04s ease;
+}
+.btn-pill:active { transform: translateY(1px); }
+.btn-pill:disabled { opacity: 0.6; cursor: default; }
+.btn-view { background: #2563eb; color: #fff; }
+.btn-view:hover { background: #1d4ed8; }
+.btn-unpublish { background: #ef4444; color: #fff; }
+.btn-unpublish:hover { background: #dc2626; }
+
+@media (max-width: 768px) {
+  .data-table-wrap { background: transparent; border: none; border-radius: 0; overflow: visible; }
+  .data-table thead { display: none; }
+  .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
+  .data-table tr {
+    margin-bottom: 0.75rem; border: 1px solid var(--c-border); border-radius: 12px;
+    background: var(--c-surface); padding: 0.3rem 0.9rem;
+  }
+  .data-table tbody td {
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    text-align: right; padding: 0.55rem 0;
+  }
+  .data-table td::before {
+    content: attr(data-label); font-weight: 600; color: var(--c-muted);
+    text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .data-table .num { text-align: right; }
+  .data-table td.actions { justify-content: flex-end; }
+  .data-table td.actions::before { content: ""; }
+}
+
+/* ── Mobile: bottom nav bar + icon-button cards (app-style) ─────────────────── */
+.admin-bottomnav { display: none; }
+.admin-bottomnav a,
+.admin-bottomnav button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1rem;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  color: var(--c-sidebar-text); text-decoration: none; font-size: 0.6rem; padding: 0.4rem 0.2rem;
+  position: relative;
+}
+.admin-bottomnav .bico { font-size: 1.2rem; line-height: 1; }
+.admin-bottomnav a.active { color: #fff; }
+.admin-bottomnav a.active::before {
+  content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 3px; border-radius: 999px; background: var(--c-accent);
+}
+
+@media (max-width: 768px) {
+  .admin-sidebar { display: none; }
+  .admin-main { padding-bottom: 5rem; }
+  .admin-bottomnav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: var(--c-sidebar); border-top: 1px solid rgba(255,255,255,0.08);
+    padding: 0.25rem 0.3rem; box-shadow: 0 -2px 12px rgba(0,0,0,0.18);
+  }
+  /* Action buttons become compact icon buttons inside cards */
+  .btn-pill { padding: 0.5rem 0.6rem; border-radius: 10px; }
+  .btn-pill .bl { display: none; }
+  .btn-pill .bi { font-size: 1rem; }
+  /* Drop low-priority columns from the mobile cards for a compact view */
+  .col-hide-sm { display: none !important; }
+}
+
+/* ── Mobile app-style icon launcher grid ───────────────────────────────────── */
+.launcher { display: none; }
+.launcher-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.45rem;
+  padding: 1rem 0.5rem; border-radius: 14px;
+  background: var(--c-surface); border: 1px solid var(--c-border); color: var(--c-text);
+  text-decoration: none; cursor: pointer; font-family: inherit;
+  transition: transform 0.06s ease, border-color 0.12s ease, background 0.12s ease;
+}
+.launcher-card:hover { border-color: var(--c-accent); }
+.launcher-card:active { transform: scale(0.97); }
+.launcher-card.active { border-color: var(--c-accent); background: var(--c-accent-soft); }
+.launcher-ico { color: var(--c-accent); display: flex; }
+.launcher-label { font-size: 0.72rem; font-weight: 600; color: var(--c-text); text-align: center; line-height: 1.2; }
+
+@media (max-width: 768px) {
+  .launcher { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin-bottom: 1.5rem; }
+}
+@media (max-width: 360px) {
+  .launcher { grid-template-columns: repeat(2, 1fr); }
 }

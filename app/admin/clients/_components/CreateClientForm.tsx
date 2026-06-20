@@ -96,7 +96,7 @@ export function CreateClientForm({ packages, onClose }: CreateClientFormProps) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-      <label style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#374151" }}>{label}</label>
+      <label style={{ fontSize: "0.8125rem", fontWeight: 500, color: "var(--c-muted)" }}>{label}</label>
       {children}
     </div>
   );
@@ -113,27 +113,29 @@ const s = {
     zIndex: 50,
   },
   modal: {
-    background: "#fff",
+    background: "var(--c-surface)",
+    color: "var(--c-text)",
     borderRadius: "12px",
     width: "100%",
     maxWidth: "480px",
     maxHeight: "90vh",
     overflowY: "auto" as const,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+    border: "1px solid var(--c-border)",
   },
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     padding: "1.25rem 1.5rem",
-    borderBottom: "1px solid #e5e7eb",
+    borderBottom: "1px solid var(--c-border)",
   },
-  title: { margin: 0, fontSize: "1rem", fontWeight: 600 },
+  title: { margin: 0, fontSize: "1rem", fontWeight: 600, color: "var(--c-text)" },
   close: {
     background: "none",
     border: "none",
     cursor: "pointer",
-    color: "#6b7280",
+    color: "var(--c-muted)",
     fontSize: "1rem",
     padding: "0.25rem",
   },
@@ -145,7 +147,9 @@ const s = {
   },
   input: {
     padding: "0.5rem 0.75rem",
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--c-border)",
+    background: "transparent",
+    color: "var(--c-text)",
     borderRadius: "6px",
     fontSize: "0.9375rem",
     outline: "none",
@@ -165,14 +169,15 @@ const s = {
   cancelBtn: {
     padding: "0.5rem 1rem",
     background: "transparent",
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--c-border)",
+    color: "var(--c-text)",
     borderRadius: "6px",
     cursor: "pointer",
     fontSize: "0.875rem",
   },
   submitBtn: {
     padding: "0.5rem 1rem",
-    background: "#111",
+    background: "var(--c-accent)",
     color: "#fff",
     border: "none",
     borderRadius: "6px",

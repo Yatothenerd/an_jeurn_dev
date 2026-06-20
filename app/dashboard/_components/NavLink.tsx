@@ -21,7 +21,7 @@ export function NavLink({ href, children }: NavLinkProps) {
 
 const s = {
   link: {
-    color: "#475569",
+    color: "var(--c-muted)",
     textDecoration: "none",
     padding: "0.5rem 0.75rem",
     borderRadius: "6px",
@@ -29,5 +29,5 @@ const s = {
     display: "block",
     fontWeight: 500,
   },
-  active: { background: "#f1f5f9", color: "#0f172a" },
+  active: { background: "var(--c-surface-2)", color: "var(--c-text)" },
 } as const;

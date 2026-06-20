@@ -158,8 +158,8 @@ const s = {
     marginBottom: "1.25rem",
   },
   headerLeft: { display: "flex", flexDirection: "column" as const, gap: "0.25rem" },
-  backLink: { color: "#64748b", textDecoration: "none", fontSize: "0.8125rem" },
-  title: { margin: 0, fontSize: "1.375rem", fontWeight: 700, color: "#0f172a" },
+  backLink: { color: "var(--c-muted)", textDecoration: "none", fontSize: "0.8125rem" },
+  title: { margin: 0, fontSize: "1.375rem", fontWeight: 700, color: "var(--c-text)" },
   headerRight: { display: "flex", gap: "0.75rem", alignItems: "center" },
   viewBtn: {
     padding: "0.4rem 0.875rem",
@@ -173,9 +173,10 @@ const s = {
   },
   tabs: {
     display: "flex",
-    borderBottom: "2px solid #e2e8f0",
+    borderBottom: "2px solid var(--c-border)",
     marginBottom: "1.5rem",
     gap: "0",
+    flexWrap: "wrap" as const,
   },
   tab: {
     padding: "0.625rem 1.125rem",
@@ -186,9 +187,9 @@ const s = {
     cursor: "pointer",
     fontSize: "0.875rem",
     fontWeight: 500,
-    color: "#64748b",
+    color: "var(--c-muted)",
     transition: "color 0.15s, border-color 0.15s",
   },
-  tabActive: { color: "#7c3aed", borderBottomColor: "#7c3aed" },
+  tabActive: { color: "var(--c-accent)", borderBottomColor: "var(--c-accent)" },
   content: { minHeight: "400px" },
 } as const;

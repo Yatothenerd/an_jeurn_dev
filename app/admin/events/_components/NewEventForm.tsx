@@ -112,11 +112,11 @@ export function NewEventForm({ clients }: { clients: Client[] }) {
 }
 
 const s = {
-  form: { display: "flex", flexDirection: "column" as const, gap: "1rem", background: "#fff", padding: "1.5rem", borderRadius: "12px", border: "1px solid #e2e8f0" },
-  label: { display: "flex", flexDirection: "column" as const, gap: "0.35rem", fontSize: "0.8125rem", fontWeight: 600, color: "#374151" },
+  form: { display: "flex", flexDirection: "column" as const, gap: "1rem", background: "var(--c-surface)", padding: "1.5rem", borderRadius: "12px", border: "1px solid var(--c-border)" },
+  label: { display: "flex", flexDirection: "column" as const, gap: "0.35rem", fontSize: "0.8125rem", fontWeight: 600, color: "var(--c-muted)" },
   row: { display: "flex", gap: "1rem", flexWrap: "wrap" as const },
-  input: { padding: "0.6rem 0.75rem", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "0.9375rem", fontFamily: "inherit", outline: "none", fontWeight: 400, color: "#0f172a" },
+  input: { padding: "0.6rem 0.75rem", border: "1px solid var(--c-border)", background: "transparent", borderRadius: "8px", fontSize: "0.9375rem", fontFamily: "inherit", outline: "none", fontWeight: 400, color: "var(--c-text)" },
   error: { color: "#dc2626", fontSize: "0.875rem", margin: 0 },
-  submit: { padding: "0.7rem 1rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "0.9375rem", fontWeight: 600 },
-  note: { padding: "1.5rem", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", color: "#64748b", fontSize: "0.9375rem" },
+  submit: { padding: "0.7rem 1rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "0.9375rem", fontWeight: 600 },
+  note: { padding: "1.5rem", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: "12px", color: "var(--c-muted)", fontSize: "0.9375rem" },
 } as const;

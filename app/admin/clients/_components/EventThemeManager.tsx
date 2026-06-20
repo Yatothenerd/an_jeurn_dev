@@ -80,13 +80,13 @@ export function EventThemeManager({ eventId, assigned, allThemes }: Props) {
 }
 
 const s = {
-  wrap: { marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px dashed #e5e7eb", display: "flex", flexDirection: "column" as const, gap: "0.4rem" },
-  label: { fontSize: "0.6875rem", fontWeight: 600, color: "#9ca3af", textTransform: "uppercase" as const, letterSpacing: "0.04em" },
+  wrap: { marginTop: "0.5rem", paddingTop: "0.5rem", borderTop: "1px dashed var(--c-border)", display: "flex", flexDirection: "column" as const, gap: "0.4rem" },
+  label: { fontSize: "0.6875rem", fontWeight: 600, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.04em" },
   chips: { display: "flex", flexWrap: "wrap" as const, gap: "0.35rem", alignItems: "center" },
-  none: { fontSize: "0.8125rem", color: "#9ca3af" },
-  chip: { display: "inline-flex", alignItems: "center", gap: "0.3rem", background: "#faf5ff", border: "1px solid #f3e8ff", color: "#7c3aed", borderRadius: "999px", padding: "0.15rem 0.3rem 0.15rem 0.6rem", fontSize: "0.75rem", fontWeight: 600 },
-  release: { background: "none", border: "none", cursor: "pointer", color: "#a78bfa", fontSize: "0.95rem", lineHeight: 1, padding: "0 0.1rem" },
+  none: { fontSize: "0.8125rem", color: "var(--c-muted)" },
+  chip: { display: "inline-flex", alignItems: "center", gap: "0.3rem", background: "var(--c-accent-soft)", border: "1px solid transparent", color: "var(--c-accent)", borderRadius: "999px", padding: "0.15rem 0.3rem 0.15rem 0.6rem", fontSize: "0.75rem", fontWeight: 600 },
+  release: { background: "none", border: "none", cursor: "pointer", color: "var(--c-accent)", fontSize: "0.95rem", lineHeight: 1, padding: "0 0.1rem", opacity: 0.8 },
   row: { display: "flex", gap: "0.4rem", flexWrap: "wrap" as const },
-  select: { padding: "0.35rem 0.5rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.8125rem", fontFamily: "inherit" },
-  assignBtn: { padding: "0.35rem 0.7rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 },
+  select: { padding: "0.35rem 0.5rem", border: "1px solid var(--c-border)", background: "transparent", color: "var(--c-text)", borderRadius: "6px", fontSize: "0.8125rem", fontFamily: "inherit" },
+  assignBtn: { padding: "0.35rem 0.7rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 },
 } as const;

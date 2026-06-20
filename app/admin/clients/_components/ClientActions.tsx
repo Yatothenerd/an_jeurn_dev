@@ -83,7 +83,9 @@ const s = {
   extend: { display: "flex", gap: "0.375rem", alignItems: "center" },
   dateInput: {
     padding: "0.25rem 0.5rem",
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--c-border)",
+    background: "transparent",
+    color: "var(--c-text)",
     borderRadius: "5px",
     fontSize: "0.8125rem",
   },

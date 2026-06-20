@@ -65,16 +65,16 @@ export default async function DashboardPage() {
 
 function StatusBadge({ status, published }: { status: string; published: boolean }) {
   if (published) return <span style={{ ...s.badge, background: "#dcfce7", color: "#15803d" }}>Published</span>;
-  if (status === "draft") return <span style={{ ...s.badge, background: "#f1f5f9", color: "#64748b" }}>Draft</span>;
+  if (status === "draft") return <span style={{ ...s.badge, background: "var(--c-surface-2)", color: "var(--c-muted)" }}>Draft</span>;
   return <span style={{ ...s.badge, background: "#fef9c3", color: "#854d0e" }}>{status}</span>;
 }
 
 const s = {
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" },
-  heading: { margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "#0f172a" },
+  heading: { margin: 0, fontSize: "1.5rem", fontWeight: 700, color: "var(--c-text)" },
   newBtn: {
     padding: "0.5rem 1.125rem",
-    background: "#7c3aed",
+    background: "var(--c-accent)",
     color: "#fff",
     borderRadius: "8px",
     textDecoration: "none",
@@ -84,17 +84,17 @@ const s = {
   empty: {
     textAlign: "center" as const,
     padding: "4rem 2rem",
-    background: "#fff",
+    background: "var(--c-surface)",
     borderRadius: "12px",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--c-border)",
   },
   emptyIcon: { fontSize: "3rem", marginBottom: "0.75rem" },
-  emptyTitle: { fontSize: "1.125rem", fontWeight: 600, color: "#0f172a", marginBottom: "0.5rem" },
-  emptyText: { color: "#64748b", marginBottom: "1.5rem", fontSize: "0.9375rem" },
+  emptyTitle: { fontSize: "1.125rem", fontWeight: 600, color: "var(--c-text)", marginBottom: "0.5rem" },
+  emptyText: { color: "var(--c-muted)", marginBottom: "1.5rem", fontSize: "0.9375rem" },
   emptyBtn: {
     display: "inline-block",
     padding: "0.625rem 1.5rem",
-    background: "#7c3aed",
+    background: "var(--c-accent)",
     color: "#fff",
     borderRadius: "8px",
     textDecoration: "none",
@@ -103,44 +103,44 @@ const s = {
   },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" },
   card: {
-    background: "#fff",
+    background: "var(--c-surface)",
     borderRadius: "12px",
     padding: "1.25rem",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--c-border)",
     boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
     display: "flex",
     flexDirection: "column" as const,
     gap: "0.375rem",
   },
   cardTop: { display: "flex", justifyContent: "space-between", alignItems: "center" },
-  eventType: { fontSize: "0.75rem", fontWeight: 600, color: "#7c3aed", textTransform: "capitalize" as const },
+  eventType: { fontSize: "0.75rem", fontWeight: 600, color: "var(--c-accent)", textTransform: "capitalize" as const },
   badge: { fontSize: "0.6875rem", fontWeight: 600, padding: "0.15rem 0.5rem", borderRadius: "4px" },
-  eventTitle: { margin: "0.375rem 0 0", fontSize: "1rem", fontWeight: 700, color: "#0f172a" },
-  eventDate: { margin: 0, fontSize: "0.8125rem", color: "#64748b" },
-  venue: { margin: 0, fontSize: "0.8125rem", color: "#94a3b8" },
+  eventTitle: { margin: "0.375rem 0 0", fontSize: "1rem", fontWeight: 700, color: "var(--c-text)" },
+  eventDate: { margin: 0, fontSize: "0.8125rem", color: "var(--c-muted)" },
+  venue: { margin: 0, fontSize: "0.8125rem", color: "var(--c-muted)" },
   cardFooter: { marginTop: "auto", paddingTop: "0.875rem", display: "flex", flexDirection: "column" as const, gap: "0.5rem" },
   guestsLink: {
     display: "block",
     textAlign: "center" as const,
     padding: "0.4rem",
     background: "transparent",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--c-border)",
     borderRadius: "7px",
     textDecoration: "none",
     fontSize: "0.8125rem",
     fontWeight: 500,
-    color: "#64748b",
+    color: "var(--c-muted)",
   },
   builderBtn: {
     display: "block",
     textAlign: "center" as const,
     padding: "0.5rem",
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
+    background: "var(--c-surface-2)",
+    border: "1px solid var(--c-border)",
     borderRadius: "7px",
     textDecoration: "none",
     fontSize: "0.875rem",
     fontWeight: 600,
-    color: "#0f172a",
+    color: "var(--c-text)",
   },
 } as const;

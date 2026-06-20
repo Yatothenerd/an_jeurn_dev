@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Icon } from "./Icon";
 
 interface NavLinkProps {
   href: string;
@@ -15,7 +16,7 @@ export function NavLink({ href, icon, children }: NavLinkProps) {
 
   return (
     <Link href={href} className={`admin-navlink${active ? " active" : ""}`}>
-      {icon && <span className="ico" aria-hidden>{icon}</span>}
+      {icon && <span className="ico"><Icon name={icon} size={18} /></span>}
       <span>{children}</span>
     </Link>
   );

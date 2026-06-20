@@ -93,14 +93,14 @@ export function GrantPackage({ userId, packages, currentPackageId }: Props) {
 }
 
 const s = {
-  panel: { display: "flex", flexDirection: "column" as const, gap: "0.5rem", marginTop: "0.75rem", padding: "0.75rem", background: "#faf5ff", border: "1px solid #f3e8ff", borderRadius: "8px" },
+  panel: { display: "flex", flexDirection: "column" as const, gap: "0.5rem", marginTop: "0.75rem", padding: "0.75rem", background: "var(--c-accent-soft)", border: "1px solid var(--c-border)", borderRadius: "8px" },
   field: { display: "flex", flexDirection: "column" as const, gap: "0.25rem" },
-  fieldLabel: { fontSize: "0.75rem", color: "#6b7280" },
-  input: { padding: "0.4rem 0.6rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.8125rem", fontFamily: "inherit" },
+  fieldLabel: { fontSize: "0.75rem", color: "var(--c-muted)" },
+  input: { padding: "0.4rem 0.6rem", border: "1px solid var(--c-border)", background: "transparent", color: "var(--c-text)", borderRadius: "6px", fontSize: "0.8125rem", fontFamily: "inherit" },
   actions: { display: "flex", gap: "0.5rem" },
   error: { color: "#dc2626", fontSize: "0.8125rem", margin: 0 },
-  hint: { color: "#9ca3af", fontSize: "0.75rem", margin: 0 },
+  hint: { color: "var(--c-muted)", fontSize: "0.75rem", margin: 0 },
   btn: { padding: "0.3125rem 0.75rem", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, whiteSpace: "nowrap" as const },
-  purple: { background: "#7c3aed", color: "#fff" },
-  gray: { background: "#f1f5f9", color: "#475569" },
+  purple: { background: "var(--c-accent)", color: "#fff" },
+  gray: { background: "var(--c-surface-2)", color: "var(--c-text)" },
 } as const;

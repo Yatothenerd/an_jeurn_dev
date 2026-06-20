@@ -16,9 +16,9 @@ export default function Loading() {
 
 const s = {
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "1rem" },
-  card: { background: "#fff", borderRadius: 10, padding: "1.5rem", border: "1px solid #e5e7eb" },
+  card: { background: "var(--c-surface)", borderRadius: 10, padding: "1.5rem", border: "1px solid var(--c-border)" },
   sk: {
-    background: "linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%)",
+    background: "linear-gradient(90deg,var(--c-surface-2) 25%,var(--c-border) 37%,var(--c-surface-2) 63%)",
     backgroundSize: "400% 100%",
     borderRadius: 6,
     animation: "anjeurnShimmer 1.4s ease infinite",

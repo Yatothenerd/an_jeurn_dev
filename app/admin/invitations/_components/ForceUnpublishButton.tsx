@@ -20,21 +20,9 @@ export function ForceUnpublishButton({ invitationId }: { invitationId: string })
   }
 
   return (
-    <button onClick={handle} disabled={loading} style={s.btn}>
-      {loading ? "…" : "Unpublish"}
+    <button onClick={handle} disabled={loading} className="btn-pill btn-unpublish" title="Unpublish">
+      <span className="bi" aria-hidden>⊘</span>
+      <span className="bl">{loading ? "…" : "Unpublish"}</span>
     </button>
   );
 }
-
-const s = {
-  btn: {
-    padding: "0.25rem 0.625rem",
-    background: "#fee2e2",
-    color: "#991b1b",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-    fontSize: "0.8125rem",
-    fontWeight: 500,
-  },
-} as const;

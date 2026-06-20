@@ -26,7 +26,7 @@ interface Props {
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   attending: { bg: "#dcfce7", text: "#166534" },
   declined: { bg: "#fee2e2", text: "#991b1b" },
-  pending: { bg: "#f3f4f6", text: "#6b7280" },
+  pending: { bg: "var(--c-surface-2)", text: "var(--c-muted)" },
 };
 
 export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGuests, maxGuests, hasGuestControl }: Props) {
@@ -41,7 +41,6 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
   const [deleting, setDeleting] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  // Inline name editing
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
@@ -49,7 +48,6 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
   function guestLink(token: string | null): string {
     return token ? `${inviteBaseUrl}?g=${token}` : inviteBaseUrl;
   }
-
   function shareText(g: Guest): string {
     return `${g.name}, you're invited to ${eventTitle} 💌`;
   }
@@ -63,48 +61,26 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
       window.prompt("Copy this guest's invite link:", guestLink(guest.token));
     }
   }
-
-  // Open the guest's personalized invite in a new tab (to test the name view).
   function openInvite(guest: Guest) {
     window.open(guestLink(guest.token), "_blank", "noopener,noreferrer");
   }
-
-  // Telegram's share intent — opens Telegram with the link + greeting prefilled.
   function shareTelegram(guest: Guest) {
     const url = `https://t.me/share/url?url=${encodeURIComponent(guestLink(guest.token))}&text=${encodeURIComponent(shareText(guest))}`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
-
-  // Native OS share sheet (lets the user pick any app); falls back to copy.
   async function shareTo(guest: Guest) {
     const data = { title: eventTitle, text: shareText(guest), url: guestLink(guest.token) };
     if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share(data);
-        return;
-      } catch {
-        return; // user dismissed the sheet
-      }
+      try { await navigator.share(data); return; } catch { return; }
     }
     copyLink(guest);
   }
 
-  function startEdit(guest: Guest) {
-    setEditingId(guest.id);
-    setEditName(guest.name);
-  }
-
-  function cancelEdit() {
-    setEditingId(null);
-    setEditName("");
-  }
-
+  function startEdit(guest: Guest) { setEditingId(guest.id); setEditName(guest.name); }
+  function cancelEdit() { setEditingId(null); setEditName(""); }
   async function saveEdit(guest: Guest) {
     const trimmed = editName.trim();
-    if (!trimmed || trimmed === guest.name) {
-      cancelEdit();
-      return;
-    }
+    if (!trimmed || trimmed === guest.name) { cancelEdit(); return; }
     setSavingEdit(true);
     try {
       const res = await fetch(`/api/dashboard/events/${eventId}/guests/${guest.id}`, {
@@ -154,7 +130,9 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
 
   const inp = {
     padding: "0.5rem 0.75rem",
-    border: "1px solid #e5e7eb",
+    border: "1px solid var(--c-border)",
+    background: "transparent",
+    color: "var(--c-text)",
     borderRadius: "7px",
     fontSize: "0.875rem",
     fontFamily: "inherit",
@@ -165,7 +143,6 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
 
   return (
     <div>
-      {/* Add Guest */}
       <div style={s.toolbar}>
         <h2 style={s.sectionTitle}>
           {guests.length} guests {maxGuests > 0 ? `/ ${maxGuests}` : ""}
@@ -178,29 +155,31 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
 
       {showAdd && (
         <form onSubmit={handleAdd} style={s.addForm}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" required style={{ ...inp, flex: 2 }} />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name *" required style={{ ...inp, flex: 2, minWidth: "160px" }} />
           <select value={contactType} onChange={(e) => setContactType(e.target.value)} style={{ ...inp, flex: "0 0 110px" }}>
             <option value="phone">Phone</option>
             <option value="email">Email</option>
             <option value="whatsapp">WhatsApp</option>
           </select>
-          <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact" style={{ ...inp, flex: 2 }} />
+          <input value={contact} onChange={(e) => setContact(e.target.value)} placeholder="Contact" style={{ ...inp, flex: 2, minWidth: "140px" }} />
           <button type="submit" disabled={adding} style={s.saveBtn}>{adding ? "Adding…" : "Add"}</button>
         </form>
       )}
       {addError && <p style={s.error}>{addError}</p>}
 
-      {/* Guest Table */}
       {guests.length === 0 ? (
         <div style={s.empty}>No guests yet. Add guests manually or they will appear after RSVPing.</div>
       ) : (
-        <div style={s.tableWrap}>
-          <table style={s.table}>
+        <div className="data-table-wrap">
+          <table className="data-table">
             <thead>
               <tr>
-                {["Name", "Contact", "RSVP", "Meal", "Responded", "Share", ""].map((h) => (
-                  <th key={h} style={s.th}>{h}</th>
-                ))}
+                <th>Name</th>
+                <th>Contact</th>
+                <th>RSVP</th>
+                <th className="col-hide-sm">Meal</th>
+                <th className="col-hide-sm">Responded</th>
+                <th className="actions">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -209,8 +188,8 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
                 const colors = STATUS_COLORS[statusKey] ?? STATUS_COLORS.pending;
                 const editing = editingId === g.id;
                 return (
-                  <tr key={g.id} style={s.tr}>
-                    <td style={s.td}>
+                  <tr key={g.id}>
+                    <td data-label="Name">
                       {editing ? (
                         <span style={s.editWrap}>
                           <input
@@ -221,7 +200,7 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
                               if (e.key === "Enter") saveEdit(g);
                               if (e.key === "Escape") cancelEdit();
                             }}
-                            style={{ ...inp, padding: "0.35rem 0.5rem" }}
+                            style={{ ...inp, padding: "0.35rem 0.5rem", width: "auto" }}
                           />
                           <button onClick={() => saveEdit(g)} disabled={savingEdit} style={s.iconOk} title="Save">✓</button>
                           <button onClick={cancelEdit} style={s.iconCancel} title="Cancel">✕</button>
@@ -233,19 +212,19 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
                         </span>
                       )}
                     </td>
-                    <td style={{ ...s.td, color: "#6b7280" }}>
+                    <td data-label="Contact" style={{ color: "var(--c-muted)" }}>
                       {g.contact ? `${g.contactType ? `[${g.contactType}] ` : ""}${g.contact}` : "—"}
                     </td>
-                    <td style={s.td}>
-                      <span style={{ ...s.statusBadge, background: colors.bg, color: colors.text }}>
+                    <td data-label="RSVP">
+                      <span className="status-pill" style={{ background: colors.bg, color: colors.text, textTransform: "capitalize" }}>
                         {statusKey}
                       </span>
                     </td>
-                    <td style={{ ...s.td, color: "#6b7280" }}>{g.mealPref ?? "—"}</td>
-                    <td style={{ ...s.td, color: "#6b7280", fontSize: "0.75rem" }}>
+                    <td data-label="Meal" className="col-hide-sm" style={{ color: "var(--c-muted)" }}>{g.mealPref ?? "—"}</td>
+                    <td data-label="Responded" className="col-hide-sm" style={{ color: "var(--c-muted)", fontSize: "0.75rem" }}>
                       {g.rsvpAt ? new Date(g.rsvpAt).toLocaleDateString() : "—"}
                     </td>
-                    <td style={s.td}>
+                    <td data-label="Actions" className="actions">
                       <div style={s.actions}>
                         <button onClick={() => openInvite(g)} style={s.actionBtn} title="Open the guest's invite to test">👁 Open</button>
                         <button onClick={() => shareTelegram(g)} style={{ ...s.actionBtn, ...s.tgBtn }} title="Share to Telegram">✈ Telegram</button>
@@ -253,16 +232,8 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
                         <button onClick={() => copyLink(g)} style={s.actionBtn} title={guestLink(g.token)}>
                           {copied === g.id ? "✓ Copied" : "🔗 Copy"}
                         </button>
+                        <button onClick={() => handleDelete(g.id)} disabled={deleting === g.id} style={s.deleteBtn} title="Remove guest">✕</button>
                       </div>
-                    </td>
-                    <td style={s.td}>
-                      <button
-                        onClick={() => handleDelete(g.id)}
-                        disabled={deleting === g.id}
-                        style={s.deleteBtn}
-                      >
-                        ✕
-                      </button>
                     </td>
                   </tr>
                 );
@@ -276,27 +247,21 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
 }
 
 const s = {
-  toolbar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" },
-  sectionTitle: { margin: 0, fontSize: "1rem", fontWeight: 600, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.5rem" },
-  badge: { padding: "0.125rem 0.5rem", background: "#ede9fe", color: "#5b21b6", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 500 },
+  toolbar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", gap: "0.75rem", flexWrap: "wrap" as const },
+  sectionTitle: { margin: 0, fontSize: "1rem", fontWeight: 600, color: "var(--c-text)", display: "flex", alignItems: "center", gap: "0.5rem" },
+  badge: { padding: "0.125rem 0.5rem", background: "var(--c-accent-soft)", color: "var(--c-accent)", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 500 },
   addForm: { display: "flex", gap: "0.5rem", marginBottom: "0.75rem", alignItems: "center", flexWrap: "wrap" as const },
-  addBtn: { padding: "0.5rem 1rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600 },
-  saveBtn: { padding: "0.5rem 1rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600, flexShrink: 0 },
+  addBtn: { padding: "0.5rem 1rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600 },
+  saveBtn: { padding: "0.5rem 1rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600, flexShrink: 0 },
   error: { color: "#dc2626", fontSize: "0.875rem", margin: "0 0 0.75rem" },
-  empty: { padding: "2rem", textAlign: "center" as const, color: "#94a3b8", background: "#f9fafb", borderRadius: "10px", fontSize: "0.9375rem" },
-  tableWrap: { overflowX: "auto" as const },
-  table: { width: "100%", borderCollapse: "collapse" as const, background: "#fff", borderRadius: "10px", overflow: "hidden", border: "1px solid #e5e7eb" },
-  th: { padding: "0.75rem 1rem", textAlign: "left" as const, fontSize: "0.75rem", fontWeight: 600, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: "0.05em", background: "#f9fafb", borderBottom: "1px solid #e5e7eb" },
-  tr: { borderBottom: "1px solid #f1f5f9" },
-  td: { padding: "0.875rem 1rem", fontSize: "0.9375rem", color: "#0f172a", verticalAlign: "middle" as const },
+  empty: { padding: "2rem", textAlign: "center" as const, color: "var(--c-muted)", background: "var(--c-surface-2)", borderRadius: "10px", fontSize: "0.9375rem" },
   nameWrap: { display: "inline-flex", alignItems: "center", gap: "0.4rem" },
   editWrap: { display: "inline-flex", alignItems: "center", gap: "0.3rem" },
-  editBtn: { background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "0.8125rem", padding: "0.1rem 0.2rem" },
+  editBtn: { background: "none", border: "none", cursor: "pointer", color: "var(--c-muted)", fontSize: "0.8125rem", padding: "0.1rem 0.2rem" },
   iconOk: { background: "#dcfce7", border: "1px solid #bbf7d0", color: "#166534", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", padding: "0.25rem 0.45rem" },
   iconCancel: { background: "#fee2e2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", padding: "0.25rem 0.45rem" },
-  statusBadge: { padding: "0.2rem 0.625rem", borderRadius: "999px", fontSize: "0.75rem", fontWeight: 600 },
-  deleteBtn: { background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: "0.25rem", fontSize: "0.875rem" },
-  actions: { display: "flex", gap: "0.35rem", flexWrap: "wrap" as const },
-  actionBtn: { background: "#f5f3ff", border: "1px solid #ede9fe", color: "#7c3aed", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, padding: "0.3rem 0.55rem", whiteSpace: "nowrap" as const },
-  tgBtn: { background: "#e6f3fb", border: "1px solid #cce7f6", color: "#1d6fa5" },
+  actions: { display: "flex", gap: "0.35rem", flexWrap: "wrap" as const, justifyContent: "flex-end" },
+  actionBtn: { background: "var(--c-accent-soft)", border: "1px solid transparent", color: "var(--c-accent)", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, padding: "0.3rem 0.55rem", whiteSpace: "nowrap" as const },
+  tgBtn: { background: "#1d6fa5", border: "1px solid #1d6fa5", color: "#fff" },
+  deleteBtn: { background: "none", border: "1px solid var(--c-border)", cursor: "pointer", color: "var(--c-muted)", padding: "0.3rem 0.5rem", fontSize: "0.8rem", borderRadius: "6px" },
 } as const;

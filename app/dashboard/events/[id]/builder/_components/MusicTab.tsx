@@ -99,21 +99,21 @@ export function MusicTab({ invitationId, currentMusicUrl }: Props) {
 }
 
 const s = {
-  heading: { margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 600, color: "#0f172a" },
-  sub: { margin: "0 0 1.25rem", color: "#64748b", fontSize: "0.875rem" },
+  heading: { margin: "0 0 0.25rem", fontSize: "1rem", fontWeight: 600, color: "var(--c-text)" },
+  sub: { margin: "0 0 1.25rem", color: "var(--c-muted)", fontSize: "0.875rem" },
   error: { marginBottom: "0.75rem", padding: "0.625rem 0.75rem", background: "#fef2f2", borderRadius: "8px", color: "#dc2626", fontSize: "0.875rem" },
   currentMusic: {
     display: "flex",
     alignItems: "center",
     gap: "1rem",
     padding: "1.25rem",
-    background: "#fff",
+    background: "var(--c-surface)",
     borderRadius: "10px",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--c-border)",
   },
   musicIcon: { fontSize: "2rem" },
   musicInfo: { flex: 1, display: "flex", flexDirection: "column" as const, gap: "0.5rem" },
-  musicLabel: { fontSize: "0.875rem", fontWeight: 600, color: "#0f172a" },
+  musicLabel: { fontSize: "0.875rem", fontWeight: 600, color: "var(--c-text)" },
   audio: { width: "100%", maxWidth: "360px" },
   removeBtn: {
     padding: "0.375rem 0.75rem",
@@ -132,12 +132,12 @@ const s = {
     alignItems: "center",
     gap: "0.375rem",
     padding: "2.5rem",
-    border: "2px dashed #c4b5fd",
+    border: "2px dashed var(--c-accent)",
     borderRadius: "10px",
     cursor: "pointer",
-    background: "#faf5ff",
+    background: "var(--c-accent-soft)",
   },
   uploadIcon: { fontSize: "2rem" },
-  uploadText: { fontSize: "0.9375rem", fontWeight: 600, color: "#7c3aed" },
-  uploadSub: { fontSize: "0.8125rem", color: "#94a3b8" },
+  uploadText: { fontSize: "0.9375rem", fontWeight: 600, color: "var(--c-accent)" },
+  uploadSub: { fontSize: "0.8125rem", color: "var(--c-muted)" },
 } as const;

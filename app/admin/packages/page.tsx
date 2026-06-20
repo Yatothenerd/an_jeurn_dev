@@ -20,7 +20,7 @@ export default async function PackagesPage() {
 }
 
 const s = {
-  heading: { margin: "0 0 0.25rem", fontSize: "1.5rem", fontWeight: 700, color: "#111" },
-  sub: { margin: "0 0 1.5rem", color: "#6b7280", fontSize: "0.875rem" },
+  heading: { margin: "0 0 0.25rem", fontSize: "1.5rem", fontWeight: 700, color: "var(--c-text)" },
+  sub: { margin: "0 0 1.5rem", color: "var(--c-muted)", fontSize: "0.875rem" },
   list: { display: "flex", flexDirection: "column" as const, gap: "1rem" },
 } as const;

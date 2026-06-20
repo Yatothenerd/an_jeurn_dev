@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Theme } from "@/types";
+import { ImageDropzone } from "./ImageDropzone";
 
 interface ThemeFormModalProps {
   theme?: Theme;
@@ -85,17 +86,11 @@ export function ThemeFormModal({ theme, onClose }: ThemeFormModalProps) {
           <Field label="Theme name">
             <input name="name" defaultValue={theme?.name} type="text" required style={s.input} />
           </Field>
-          <Field label="Preview image (JPG/PNG/WebP, max 5 MB)">
-            <input name="previewFile" type="file" accept="image/*" style={s.input} />
-            {theme?.previewUrl && (
-              <img src={theme.previewUrl} alt="preview" style={s.preview} />
-            )}
+          <Field label="Preview image">
+            <ImageDropzone name="previewFile" initialUrl={theme?.previewUrl} />
           </Field>
-          <Field label="Thumbnail (JPG/PNG/WebP, max 5 MB)">
-            <input name="thumbnailFile" type="file" accept="image/*" style={s.input} />
-            {theme?.thumbnailUrl && (
-              <img src={theme.thumbnailUrl} alt="thumbnail" style={s.preview} />
-            )}
+          <Field label="Thumbnail">
+            <ImageDropzone name="thumbnailFile" initialUrl={theme?.thumbnailUrl} />
           </Field>
           <Field label="Sort order">
             <input name="sortOrder" type="number" defaultValue={theme?.sortOrder ?? 0} style={s.input} />
@@ -126,7 +121,7 @@ export function ThemeFormModal({ theme, onClose }: ThemeFormModalProps) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
-      <label style={{ fontSize: "0.8125rem", fontWeight: 500, color: "#374151" }}>{label}</label>
+      <label style={{ fontSize: "0.8125rem", fontWeight: 500, color: "var(--c-muted)" }}>{label}</label>
       {children}
     </div>
   );
@@ -143,34 +138,38 @@ const s = {
     zIndex: 50,
   },
   modal: {
-    background: "#fff",
+    background: "var(--c-surface)",
+    color: "var(--c-text)",
     borderRadius: "12px",
     width: "100%",
     maxWidth: "480px",
     maxHeight: "90vh",
     overflowY: "auto" as const,
-    boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+    border: "1px solid var(--c-border)",
   },
   header: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     padding: "1.25rem 1.5rem",
-    borderBottom: "1px solid #e5e7eb",
+    borderBottom: "1px solid var(--c-border)",
   },
-  title: { margin: 0, fontSize: "1rem", fontWeight: 600 },
-  close: { background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: "1rem" },
+  title: { margin: 0, fontSize: "1rem", fontWeight: 600, color: "var(--c-text)" },
+  close: { background: "none", border: "none", cursor: "pointer", color: "var(--c-muted)", fontSize: "1rem" },
   form: { padding: "1.5rem", display: "flex", flexDirection: "column" as const, gap: "1rem" },
   input: {
     padding: "0.5rem 0.75rem",
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--c-border)",
+    background: "transparent",
+    color: "var(--c-text)",
     borderRadius: "6px",
     fontSize: "0.9375rem",
     width: "100%",
     boxSizing: "border-box" as const,
     fontFamily: "inherit",
   },
-  preview: { width: "80px", height: "60px", objectFit: "cover" as const, borderRadius: "4px", border: "1px solid #e5e7eb" },
+  preview: { width: "80px", height: "60px", objectFit: "cover" as const, borderRadius: "4px", border: "1px solid var(--c-border)" },
   toggleRow: { display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" },
   error: {
     margin: 0,
@@ -184,14 +183,15 @@ const s = {
   cancelBtn: {
     padding: "0.5rem 1rem",
     background: "transparent",
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--c-border)",
+    color: "var(--c-text)",
     borderRadius: "6px",
     cursor: "pointer",
     fontSize: "0.875rem",
   },
   submitBtn: {
     padding: "0.5rem 1rem",
-    background: "#111",
+    background: "var(--c-accent)",
     color: "#fff",
     border: "none",
     borderRadius: "6px",

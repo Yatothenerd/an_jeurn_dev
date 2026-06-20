@@ -21,8 +21,8 @@ export function LogoutButton() {
 const s = {
   btn: {
     background: "transparent",
-    border: "1px solid #e2e8f0",
-    color: "#64748b",
+    border: "1px solid var(--c-border)",
+    color: "var(--c-muted)",
     padding: "0.5rem 0.75rem",
     borderRadius: "6px",
     cursor: "pointer",

@@ -119,7 +119,7 @@ export function SectionsTab({ invitationId, sections, pkg }: Props) {
                         if (isEditing) { setEditingId(null); }
                         else { setEditingId(sec.id); setEditContent(sec.content as Record<string, unknown>); }
                       }}
-                      style={{ ...s.iconBtn, color: isEditing ? "#7c3aed" : "#374151" }}
+                      style={{ ...s.iconBtn, color: isEditing ? "var(--c-accent)" : "var(--c-text)" }}
                     >
                       {isEditing ? "✕" : "✏"}
                     </button>
@@ -176,7 +176,7 @@ function SectionEditor({
     onChange({ ...content, [key]: value });
   }
 
-  const inp = { padding: "0.5rem 0.625rem", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "0.875rem", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" };
+  const inp = { padding: "0.5rem 0.625rem", border: "1px solid var(--c-border)", background: "transparent", color: "var(--c-text)", borderRadius: "6px", fontSize: "0.875rem", width: "100%", boxSizing: "border-box" as const, fontFamily: "inherit" };
 
   if (type === "cover") {
     return (
@@ -207,7 +207,7 @@ function SectionEditor({
           </div>
         ))}
         {items.length < 10 && (
-          <button onClick={() => set("items", [...items, { icon: "📌", label: "", value: "" }])} style={{ fontSize: "0.8125rem", color: "#7c3aed", background: "none", border: "1px dashed #c4b5fd", borderRadius: "6px", padding: "0.375rem 0.75rem", cursor: "pointer" }}>
+          <button onClick={() => set("items", [...items, { icon: "📌", label: "", value: "" }])} style={{ fontSize: "0.8125rem", color: "var(--c-accent)", background: "none", border: "1px dashed var(--c-accent)", borderRadius: "6px", padding: "0.375rem 0.75rem", cursor: "pointer" }}>
             + Add row
           </button>
         )}
@@ -231,7 +231,7 @@ function SectionEditor({
           </div>
         ))}
         {items.length < 12 && (
-          <button onClick={() => set("items", [...items, { time: "", title: "", icon: ((items.length % 9) + 1) }])} style={{ fontSize: "0.8125rem", color: "#7c3aed", background: "none", border: "1px dashed #c4b5fd", borderRadius: "6px", padding: "0.375rem 0.75rem", cursor: "pointer" }}>
+          <button onClick={() => set("items", [...items, { time: "", title: "", icon: ((items.length % 9) + 1) }])} style={{ fontSize: "0.8125rem", color: "var(--c-accent)", background: "none", border: "1px dashed var(--c-accent)", borderRadius: "6px", padding: "0.375rem 0.75rem", cursor: "pointer" }}>
             + Add agenda item
           </button>
         )}
@@ -275,13 +275,13 @@ function SectionEditor({
       </div>
     );
   }
-  return <p style={{ color: "#94a3b8", fontSize: "0.875rem" }}>No editor for this section type.</p>;
+  return <p style={{ color: "var(--c-muted)", fontSize: "0.875rem" }}>No editor for this section type.</p>;
 }
 
 function F({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-      <label style={{ fontSize: "0.75rem", fontWeight: 500, color: "#374151" }}>{label}</label>
+      <label style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--c-muted)" }}>{label}</label>
       {children}
     </div>
   );
@@ -291,34 +291,34 @@ const eg = { display: "flex", flexDirection: "column" as const, gap: "0.625rem" 
 
 const s = {
   header: { display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" },
-  heading: { margin: 0, fontSize: "1rem", fontWeight: 600, color: "#0f172a" },
-  count: { fontSize: "0.8125rem", color: "#94a3b8" },
-  empty: { padding: "2rem", textAlign: "center" as const, color: "#94a3b8", fontSize: "0.875rem" },
+  heading: { margin: 0, fontSize: "1rem", fontWeight: 600, color: "var(--c-text)" },
+  count: { fontSize: "0.8125rem", color: "var(--c-muted)" },
+  empty: { padding: "2rem", textAlign: "center" as const, color: "var(--c-muted)", fontSize: "0.875rem" },
   list: { display: "flex", flexDirection: "column" as const, gap: "0.5rem", marginBottom: "1.5rem" },
   sectionRow: {
-    background: "#fff",
+    background: "var(--c-surface)",
     borderRadius: "8px",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--c-border)",
     overflow: "hidden",
   },
   sectionTop: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.75rem 1rem" },
   sectionInfo: { display: "flex", alignItems: "center", gap: "0.5rem" },
   emoji: { fontSize: "1rem" },
-  sectionLabel: { fontSize: "0.875rem", fontWeight: 600, color: "#0f172a" },
-  sortOrder: { fontSize: "0.75rem", color: "#94a3b8" },
+  sectionLabel: { fontSize: "0.875rem", fontWeight: 600, color: "var(--c-text)" },
+  sortOrder: { fontSize: "0.75rem", color: "var(--c-muted)" },
   sectionActions: { display: "flex", gap: "0.25rem" },
-  iconBtn: { background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0.375rem", borderRadius: "4px", fontSize: "0.9375rem", color: "#374151" },
-  editor: { padding: "0.875rem 1rem", borderTop: "1px solid #f1f5f9", background: "#fafafa" },
+  iconBtn: { background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0.375rem", borderRadius: "4px", fontSize: "0.9375rem", color: "var(--c-text)" },
+  editor: { padding: "0.875rem 1rem", borderTop: "1px solid var(--c-border)", background: "var(--c-surface-2)" },
   editorActions: { display: "flex", gap: "0.5rem", justifyContent: "flex-end", marginTop: "0.875rem" },
-  cancelBtn: { padding: "0.375rem 0.75rem", background: "transparent", border: "1px solid #d1d5db", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem" },
-  saveBtn: { padding: "0.375rem 0.75rem", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 },
+  cancelBtn: { padding: "0.375rem 0.75rem", background: "transparent", border: "1px solid var(--c-border)", color: "var(--c-text)", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem" },
+  saveBtn: { padding: "0.375rem 0.75rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600 },
   addSection: { marginTop: "1rem" },
-  addLabel: { fontSize: "0.8125rem", fontWeight: 500, color: "#374151", margin: "0 0 0.5rem" },
+  addLabel: { fontSize: "0.8125rem", fontWeight: 500, color: "var(--c-muted)", margin: "0 0 0.5rem" },
   typeGrid: { display: "flex", gap: "0.5rem", flexWrap: "wrap" as const },
   typeBtn: {
     padding: "0.5rem 0.875rem",
-    background: "#fff",
-    border: "1px solid #e2e8f0",
+    background: "var(--c-surface)",
+    border: "1px solid var(--c-border)",
     borderRadius: "7px",
     cursor: "pointer",
     fontSize: "0.8125rem",
@@ -326,7 +326,7 @@ const s = {
     display: "flex",
     alignItems: "center",
     gap: "0.375rem",
-    color: "#374151",
+    color: "var(--c-text)",
   },
   limitMsg: { marginTop: "1rem", padding: "0.75rem", background: "#fef9c3", borderRadius: "8px", fontSize: "0.875rem", color: "#854d0e" },
 } as const;

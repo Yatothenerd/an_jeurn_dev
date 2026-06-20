@@ -22,9 +22,9 @@ export default function Loading() {
 const s = {
   header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" },
-  card: { background: "#fff", borderRadius: 12, padding: "1.25rem", border: "1px solid #e2e8f0" },
+  card: { background: "var(--c-surface)", borderRadius: 12, padding: "1.25rem", border: "1px solid var(--c-border)" },
   sk: {
-    background: "linear-gradient(90deg,#eef2f7 25%,#e2e8f0 37%,#eef2f7 63%)",
+    background: "linear-gradient(90deg,var(--c-surface-2) 25%,var(--c-border) 37%,var(--c-surface-2) 63%)",
     backgroundSize: "400% 100%",
     borderRadius: 6,
     animation: "anjeurnShimmer 1.4s ease infinite",

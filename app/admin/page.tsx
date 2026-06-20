@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
+import { AdminLauncher } from "./_components/AdminLauncher";
 
 export const metadata = { title: "Admin — Dashboard" };
 
@@ -56,6 +57,10 @@ export default async function AdminDashboard() {
   return (
     <div>
       <h1 style={s.heading}>Dashboard</h1>
+
+      {/* Mobile app-style launcher (hidden on desktop) */}
+      <AdminLauncher />
+
 
       {/* Alerts */}
       {(d.totalPending > 0 || d.inactiveClients > 0) && (
