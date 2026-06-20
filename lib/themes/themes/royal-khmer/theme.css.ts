@@ -58,6 +58,18 @@ export const KHMER_CSS = `
 /* Ornate gold corner frame wrapper (Khmer applies to every section) */
 .sec-frame { position: relative; }
 .sec-frame > .sec-corner { position: absolute; width: 46px; height: 58px; background: var(--sec-accent, #d4af37); -webkit-mask: url('/themes/khmer/corner.png') center / contain no-repeat; mask: url('/themes/khmer/corner.png') center / contain no-repeat; pointer-events: none; opacity: 0.9; z-index: 5; }
+/* Admin-uploaded background for a text-based section (scrim + light text). */
+.rk-bgpanel { position: relative; border-radius: 6px; overflow: hidden; background-size: cover; background-position: center; }
+.rk-bgpanel::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.72)); }
+.rk-bgpanel-inner { position: relative; padding: 1.5rem 1.25rem; }
+.rk-bgpanel .rk-title { color: #fff; }
+.rk-bgpanel .rk-title::after { background: rgba(255,255,255,0.5); }
+.rk-bgpanel .rk-sub { color: rgba(255,255,255,0.85); }
+.rk-bgpanel .rk-body { color: rgba(255,255,255,0.92); }
+.rk-bgpanel .rk-agenda-kh { color: #f5e3c0; }
+.rk-bgpanel .rk-agenda-en { color: rgba(255,255,255,0.85); }
+.rk-bgpanel .rk-agenda-time { color: #f3c9d0; }
+
 .sec-corner.tl { top: 8px; left: 8px; }
 .sec-corner.tr { top: 8px; right: 8px; transform: scaleX(-1); }
 .sec-corner.bl { bottom: 8px; left: 8px; transform: scaleY(-1); }

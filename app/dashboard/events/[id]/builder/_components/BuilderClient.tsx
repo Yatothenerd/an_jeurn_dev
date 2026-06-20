@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ThemeTab } from "./ThemeTab";
 import { SectionsTab } from "./SectionsTab";
 import { PhotosTab } from "./PhotosTab";
 import { MusicTab } from "./MusicTab";
@@ -13,6 +12,7 @@ export interface BuilderSection {
   type: string;
   content: unknown;
   sortOrder: number;
+  isVisible: boolean;
 }
 
 export interface BuilderPhoto {
@@ -54,13 +54,16 @@ interface Props {
   allowedThemes: BuilderTheme[];
   /** Ids of themes assigned exclusively to this event (not in the package preset). */
   exclusiveThemeIds: string[];
+  /** The active theme uses per-section background images/videos. */
+  usesBackgrounds: boolean;
   pkg: BuilderPkg | null;
 }
 
-type Tab = "theme" | "sections" | "photos" | "music" | "settings";
+type Tab = "sections" | "photos" | "music" | "settings";
 
+// Theme is admin-assigned — clients cannot select it. Clients manage sections
+// (incl. show/hide), photos, music, and sharing.
 const ALL_TABS: Array<{ id: Tab; label: string }> = [
-  { id: "theme", label: "Theme" },
   { id: "sections", label: "Sections" },
   { id: "photos", label: "Photos" },
   { id: "music", label: "Music" },
@@ -68,7 +71,7 @@ const ALL_TABS: Array<{ id: Tab; label: string }> = [
 ];
 
 export function BuilderClient(props: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>("theme");
+  const [activeTab, setActiveTab] = useState<Tab>("sections");
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.id === "music") return props.pkg?.hasMusic ?? false;
@@ -80,7 +83,7 @@ export function BuilderClient(props: Props) {
       {/* Header */}
       <div style={s.header}>
         <div style={s.headerLeft}>
-          <Link href="/dashboard" style={s.backLink}>← Events</Link>
+          <Link href="/dashboard" className="back-btn"><span className="ico" aria-hidden>←</span> Events</Link>
           <h1 style={s.title}>{props.eventTitle}</h1>
         </div>
         <div style={s.headerRight}>
@@ -107,19 +110,12 @@ export function BuilderClient(props: Props) {
 
       {/* Tab Content */}
       <div style={s.content}>
-        {activeTab === "theme" && (
-          <ThemeTab
-            invitationId={props.invitationId}
-            currentThemeId={props.currentThemeId}
-            allowedThemes={props.allowedThemes}
-            exclusiveThemeIds={props.exclusiveThemeIds}
-          />
-        )}
         {activeTab === "sections" && (
           <SectionsTab
             invitationId={props.invitationId}
             sections={props.sections}
             pkg={props.pkg}
+            usesBackgrounds={props.usesBackgrounds}
           />
         )}
         {activeTab === "photos" && (

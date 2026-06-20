@@ -23,167 +23,45 @@ async function main() {
   });
   console.log("Created admin:", admin.email);
 
-  // Themes
-  const themes = await Promise.all([
-    prisma.theme.upsert({
-      where: { id: "theme-classic-white" },
-      update: {},
-      create: {
-        id: "theme-classic-white",
-        name: "Classic White",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: false,
-        isActive: true,
-        sortOrder: 1,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-rose-garden" },
-      update: {},
-      create: {
-        id: "theme-rose-garden",
-        name: "Rose Garden",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: false,
-        isActive: true,
-        sortOrder: 3,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-royal-khmer" },
-      update: { name: "Red Royal Khmer" },
-      create: {
-        id: "theme-royal-khmer",
-        name: "Red Royal Khmer",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: true,
-        isActive: true,
-        sortOrder: 7,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-navy-toile" },
-      update: {},
-      create: {
-        id: "theme-navy-toile",
-        name: "Navy Toile",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: false,
-        isActive: true,
-        sortOrder: 2,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-olive-arch" },
-      update: {},
-      create: {
-        id: "theme-olive-arch",
-        name: "Olive Arch",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: false,
-        isActive: true,
-        sortOrder: 6,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-champagne-noir" },
-      update: {},
-      create: {
-        id: "theme-champagne-noir",
-        name: "Champagne Noir",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: true,
-        isActive: true,
-        sortOrder: 8,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-vintage-lace" },
-      update: {},
-      create: {
-        id: "theme-vintage-lace",
-        name: "Vintage Lace",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: false,
-        isActive: true,
-        sortOrder: 4,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-cocoa-doily" },
-      update: {},
-      create: {
-        id: "theme-cocoa-doily",
-        name: "Cocoa Doily",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: false,
-        isActive: true,
-        sortOrder: 5,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-starlight" },
-      update: {},
-      create: {
-        id: "theme-starlight",
-        name: "Starlight",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: true,
-        isActive: true,
-        sortOrder: 9,
-      },
-    }),
-    prisma.theme.upsert({
-      where: { id: "theme-cinematic" },
-      update: {},
-      create: {
-        id: "theme-cinematic",
-        name: "Cinematic",
-        previewUrl: null,
-        thumbnailUrl: null,
-        isAnimated: true,
-        isActive: true,
-        sortOrder: 10,
-      },
-    }),
-  ]);
+  // Themes — Royal Khmer is the only / default theme (admin designs on it).
+  const themeRoyalKhmer = await prisma.theme.upsert({
+    where: { id: "theme-royal-khmer" },
+    update: { name: "Red Royal Khmer", isActive: true },
+    create: {
+      id: "theme-royal-khmer",
+      name: "Red Royal Khmer",
+      previewUrl: null,
+      thumbnailUrl: null,
+      isAnimated: true,
+      isActive: true,
+      sortOrder: 1,
+    },
+  });
+  const themes = [themeRoyalKhmer];
   console.log("Created themes:", themes.map((t) => t.name).join(", "));
 
-  const [themeClassicWhite, themeRoseGarden, themeRoyalKhmer, themeNavyToile, themeOliveArch, themeChampagneNoir, themeVintageLace, themeCocoaDoily, themeStarlight, themeCinematic] = themes;
-
-  // Packages — see the package revision spec. Defined as plain data + idempotent
-  // upsert (create AND update) so re-seeding applies revisions to existing rows.
-  // Slugs are kept stable (package-a/b/c) to preserve UserPackage references.
+  // Packages — feature flags + limits. Idempotent (create AND update).
   const savingData = {
     name: "Saving",
     priceUsd: 50,
     maxSections: 4,
-    maxPhotos: 4, // up to 4 photos (watermarked)
+    maxPhotos: 4,
     maxGuests: 50,
     hasMusic: false,
     hasVideo: false,
     hasKhqr: false,
     hasWishing: false,
     hasHosting: true,
-    hasCustomThumb: false, // theme thumbnail only
+    hasCustomThumb: false,
     hasLocation: false,
-    hasOpeningCover: false, // no opening cover
+    hasOpeningCover: false,
     hasWatermark: true,
     hasGuestControl: false,
     guestControlType: "none" as const,
     guestEditLimit: null,
     hasLogo: false,
     galleryType: "basic",
-    themeCount: 2,
+    themeCount: 1,
   };
   const standardData = {
     name: "Standard",
@@ -196,16 +74,16 @@ async function main() {
     hasKhqr: true,
     hasWishing: true,
     hasHosting: true,
-    hasCustomThumb: false, // theme thumbnail or preset image, not custom
+    hasCustomThumb: false,
     hasLocation: true,
     hasOpeningCover: false,
-    hasWatermark: true, // watermark applied
+    hasWatermark: true,
     hasGuestControl: true,
     guestControlType: "limited" as const,
     guestEditLimit: 3,
     hasLogo: false,
     galleryType: "standard",
-    themeCount: 2,
+    themeCount: 1,
   };
   const premiereData = {
     name: "Premiere",
@@ -218,16 +96,16 @@ async function main() {
     hasKhqr: true,
     hasWishing: true,
     hasHosting: true,
-    hasCustomThumb: true, // admin designs or client provides
+    hasCustomThumb: true,
     hasLocation: true,
     hasOpeningCover: false,
-    hasWatermark: false, // no watermark
+    hasWatermark: false,
     hasGuestControl: true,
     guestControlType: "full" as const,
     guestEditLimit: null,
     hasLogo: true,
     galleryType: "standard",
-    themeCount: 4,
+    themeCount: 1,
   };
   const royaltyData = {
     name: "Royalty",
@@ -242,14 +120,14 @@ async function main() {
     hasHosting: true,
     hasCustomThumb: true,
     hasLocation: true,
-    hasOpeningCover: true, // motion opening screen
+    hasOpeningCover: true,
     hasWatermark: false,
     hasGuestControl: true,
     guestControlType: "full" as const,
     guestEditLimit: null,
     hasLogo: true,
     galleryType: "premium",
-    themeCount: 8,
+    themeCount: 1,
   };
 
   const packageSaving = await prisma.package.upsert({
@@ -274,37 +152,11 @@ async function main() {
   });
   console.log("Created packages: Saving, Standard, Premiere, Royalty");
 
-  // PackageThemes — assign themes to packages
-  // Saving: basic themes only (Classic White, Navy Toile)
-  // Package A: same 2 basic themes
-  // Package B: 4 themes (adds Rose Garden, Cocoa Doily)
-  // Package C: all 8 themes
-
-  const packageThemeAssignments = [
-    // Saving — 2 basic themes
-    { packageId: packageSaving.id, themeId: themeClassicWhite.id },
-    { packageId: packageSaving.id, themeId: themeNavyToile.id },
-    // Package A — same 2 basic themes
-    { packageId: packageA.id, themeId: themeClassicWhite.id },
-    { packageId: packageA.id, themeId: themeNavyToile.id },
-    // Package B — 4 themes
-    { packageId: packageB.id, themeId: themeClassicWhite.id },
-    { packageId: packageB.id, themeId: themeNavyToile.id },
-    { packageId: packageB.id, themeId: themeRoseGarden.id },
-    { packageId: packageB.id, themeId: themeCocoaDoily.id },
-    // Package C — all themes
-    { packageId: packageC.id, themeId: themeClassicWhite.id },
-    { packageId: packageC.id, themeId: themeNavyToile.id },
-    { packageId: packageC.id, themeId: themeRoseGarden.id },
-    { packageId: packageC.id, themeId: themeVintageLace.id },
-    { packageId: packageC.id, themeId: themeCocoaDoily.id },
-    { packageId: packageC.id, themeId: themeOliveArch.id },
-    { packageId: packageC.id, themeId: themeRoyalKhmer.id },
-    { packageId: packageC.id, themeId: themeChampagneNoir.id },
-    { packageId: packageC.id, themeId: themeStarlight.id },
-    { packageId: packageC.id, themeId: themeCinematic.id },
-  ];
-
+  // Every package gets the single Royal Khmer theme (themes no longer gate by package).
+  const packageThemeAssignments = [packageSaving, packageA, packageB, packageC].map((p) => ({
+    packageId: p.id,
+    themeId: themeRoyalKhmer.id,
+  }));
   for (const assignment of packageThemeAssignments) {
     await prisma.packageTheme.upsert({
       where: { packageId_themeId: assignment },
@@ -312,9 +164,9 @@ async function main() {
       create: assignment,
     });
   }
-  console.log("Assigned themes to packages");
+  console.log("Assigned Royal Khmer to all packages");
 
-  // Demo client (role: client) with an active Package C — for testing the dashboard.
+  // Demo client with an active Package C — for testing the dashboard.
   const clientPassword = await bcrypt.hash("Client@123", 12);
   const client = await prisma.user.upsert({
     where: { email: "client@anjeurn.com" },
@@ -331,25 +183,23 @@ async function main() {
   });
   if (!existingGrant) {
     await prisma.userPackage.create({
-      data: {
-        userId: client.id,
-        packageId: packageC.id,
-        createdBy: admin.id,
-        status: "active",
-      },
+      data: { userId: client.id, packageId: packageC.id, createdBy: admin.id, status: "active" },
     });
   }
   console.log("Created demo client:", client.email, "(Package C)");
 
-  // Clean up themes removed in this revision (e.g. on a previously-seeded DB).
-  // Deactivate rather than delete so existing invitations keep their FK intact.
+  // Remove every non–Royal Khmer theme. Repoint any invitations that still use a
+  // retired theme onto Royal Khmer first (frees the FK), then delete the rest
+  // and their package assignments + exclusive-event grants.
   const currentThemeIds = themes.map((t) => t.id);
-  await prisma.packageTheme.deleteMany({ where: { themeId: { notIn: currentThemeIds } } });
-  const { count: deactivated } = await prisma.theme.updateMany({
-    where: { id: { notIn: currentThemeIds }, isActive: true },
-    data: { isActive: false },
+  await prisma.invitation.updateMany({
+    where: { themeId: { notIn: currentThemeIds } },
+    data: { themeId: themeRoyalKhmer.id },
   });
-  if (deactivated > 0) console.log(`Deactivated ${deactivated} retired theme(s)`);
+  await prisma.packageTheme.deleteMany({ where: { themeId: { notIn: currentThemeIds } } });
+  await prisma.eventTheme.deleteMany({ where: { themeId: { notIn: currentThemeIds } } });
+  const { count: removed } = await prisma.theme.deleteMany({ where: { id: { notIn: currentThemeIds } } });
+  if (removed > 0) console.log(`Deleted ${removed} retired theme(s)`);
 
   console.log("Seed complete.");
 }

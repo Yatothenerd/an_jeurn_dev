@@ -122,17 +122,20 @@ a {
 /* Light tokens are global so any page (admin or client) can use them; the admin
    root flips to dark when data-theme="dark". */
 :root {
-  --c-bg: #f9fafb;
+  --c-bg: #eef1fb;
   --c-surface: #ffffff;
   --c-surface-2: #f3f4f6;
-  --c-text: #111827;
+  --c-text: #1b1640;
   --c-muted: #6b7280;
-  --c-border: #e5e7eb;
-  --c-accent: #7c3aed;
-  --c-accent-soft: #f5f3ff;
-  --c-sidebar: #111827;
-  --c-sidebar-text: #9ca3af;
-  --c-sidebar-active-bg: #1f2937;
+  --c-border: #e9e8f3;
+  --c-accent: #7c5cff;
+  --c-accent-soft: #efeaff;
+  --c-lime: var(--c-accent);
+  --c-lime-text: #ffffff;
+  --c-shadow: rgba(76, 70, 150, 0.10);
+  --c-sidebar: #161335;
+  --c-sidebar-text: #a7a3c4;
+  --c-sidebar-active-bg: #241f4d;
 }
 [data-theme="dark"] {
   --c-bg: #0d1017;
@@ -143,6 +146,9 @@ a {
   --c-border: #2a313c;
   --c-accent: #a855f7;
   --c-accent-soft: #241a36;
+  --c-lime: var(--c-accent);
+  --c-lime-text: #ffffff;
+  --c-shadow: rgba(0, 0, 0, 0.4);
   --c-sidebar: #0b0e14;
   --c-sidebar-text: #8b949e;
   --c-sidebar-active-bg: #1b2230;
@@ -188,8 +194,8 @@ a {
 }
 .admin-navlink:hover { background: rgba(255,255,255,0.06); color: #fff; }
 .admin-navlink.active {
-  background: var(--c-sidebar-active-bg); color: #fff; font-weight: 600;
-  border-left-color: var(--c-accent);
+  background: var(--c-lime); color: var(--c-lime-text); font-weight: 700;
+  border-left-color: transparent;
 }
 .admin-navlink .ico { width: 1.1rem; text-align: center; flex-shrink: 0; }
 
@@ -202,8 +208,48 @@ a {
 
 .admin-card {
   background: var(--c-surface); border: 1px solid var(--c-border);
-  border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border-radius: 18px; box-shadow: 0 10px 30px var(--c-shadow);
 }
+
+/* Dashboard top bar — search + notifications + profile (admin & client) */
+.dash-topbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.6rem 0.85rem; margin-bottom: 1.25rem;
+  background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 14px;
+  box-shadow: 0 10px 30px var(--c-shadow);
+}
+.topbar-search {
+  flex: 1; max-width: 440px; display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.9rem; border-radius: 10px; background: var(--c-surface-2); color: var(--c-muted);
+}
+.topbar-search input {
+  border: none; background: transparent; outline: none;
+  color: var(--c-text); font-size: 0.875rem; width: 100%; font-family: inherit;
+}
+.topbar-right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+.topbar-profile { display: flex; align-items: center; gap: 0.5rem; padding-left: 0.4rem; }
+.topbar-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: var(--c-accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem;
+}
+.topbar-name { font-size: 0.875rem; font-weight: 600; color: var(--c-text); white-space: nowrap; }
+.topbar-signout {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.45rem 0.9rem; border-radius: 9px;
+  border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text);
+  cursor: pointer; font-size: 0.8125rem; font-weight: 600; font-family: inherit;
+  transition: border-color 0.12s, color 0.12s;
+}
+.topbar-signout:hover { border-color: var(--c-accent); color: var(--c-accent); }
+
+@media (max-width: 640px) {
+  .topbar-search { display: none; }
+  .topbar-name { display: none; }
+  .dash-topbar { padding: 0.5rem 0.6rem; }
+}
+.data-table-wrap { box-shadow: 0 10px 30px var(--c-shadow); }
 
 @media (max-width: 768px) {
   .admin-shell { flex-direction: column; }
@@ -293,10 +339,10 @@ a {
   position: relative;
 }
 .admin-bottomnav .bico { font-size: 1.2rem; line-height: 1; }
-.admin-bottomnav a.active { color: #fff; }
+.admin-bottomnav a.active { color: var(--c-lime); }
 .admin-bottomnav a.active::before {
   content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-  width: 22px; height: 3px; border-radius: 999px; background: var(--c-accent);
+  width: 22px; height: 3px; border-radius: 999px; background: var(--c-lime);
 }
 
 @media (max-width: 768px) {
@@ -336,3 +382,73 @@ a {
 @media (max-width: 360px) {
   .launcher { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Back button (consistent across pages) ─────────────────────────────────── */
+.back-btn {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  padding: 0.5rem 0.95rem; border-radius: 10px;
+  border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text);
+  text-decoration: none; font-size: 0.875rem; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: border-color 0.12s, color 0.12s, background 0.12s;
+  box-shadow: 0 4px 14px var(--c-shadow);
+}
+.back-btn:hover { border-color: var(--c-accent); color: var(--c-accent); }
+.back-btn .ico { font-size: 1.15rem; line-height: 1; }
+@media (max-width: 768px) {
+  .back-btn { padding: 0.6rem 1.1rem; font-size: 0.95rem; min-height: 44px; }
+  .back-btn .ico { font-size: 1.3rem; }
+}
+
+/* ── Guests: compact mobile cards ──────────────────────────────────────────── */
+.guest-cards { display: none; }
+.guest-card {
+  background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px;
+  padding: 0.7rem 0.85rem; display: flex; flex-direction: column; gap: 0.45rem;
+}
+.guest-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
+.guest-card-name { font-weight: 700; color: var(--c-text); font-size: 0.95rem; word-break: break-word; line-height: 1.25; }
+.guest-card-meta { font-size: 0.78rem; color: var(--c-muted); display: flex; flex-wrap: wrap; gap: 0.2rem 0.75rem; }
+.guest-card-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.guest-card-actions .icon-btn { width: 34px; height: 34px; }
+@media (max-width: 768px) {
+  .guest-table-desktop { display: none; }
+  .guest-cards { display: flex; flex-direction: column; gap: 0.6rem; }
+}
+
+/* ── Guests dashboard ──────────────────────────────────────────────────────── */
+.rsvp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 560px) {
+  .rsvp-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.event-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+  padding: 0.7rem 1rem; margin-bottom: 1.25rem;
+  background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 10px;
+  font-size: 0.875rem; color: var(--c-muted);
+}
+.event-banner strong { color: var(--c-text); }
+.event-banner .chip {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.2rem 0.6rem; border-radius: 999px;
+  background: var(--c-accent-soft); color: var(--c-accent); font-weight: 600; font-size: 0.75rem;
+}
+
+/* Grouped icon action buttons (theme-aware) */
+.icon-actions { display: inline-flex; gap: 0.3rem; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.icon-btn {
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; border: 1px solid var(--c-border);
+  background: var(--c-surface); color: var(--c-text); cursor: pointer; font-size: 0.9rem;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.icon-btn:hover { border-color: var(--c-accent); color: var(--c-accent); }
+.icon-btn:disabled { opacity: 0.5; cursor: default; }
+.icon-btn.tg:hover { color: #1d6fa5; border-color: #1d6fa5; }
+.icon-btn.danger:hover { color: #dc2626; border-color: #fecaca; }
+.icon-btn.ok { background: #dcfce7; border-color: #bbf7d0; color: #166534; }

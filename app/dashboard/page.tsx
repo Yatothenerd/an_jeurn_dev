@@ -64,7 +64,7 @@ export default async function DashboardPage() {
 }
 
 function StatusBadge({ status, published }: { status: string; published: boolean }) {
-  if (published) return <span style={{ ...s.badge, background: "#dcfce7", color: "#15803d" }}>Published</span>;
+  if (published) return <span style={{ ...s.badge, background: "var(--c-lime)", color: "var(--c-lime-text)" }}>Published</span>;
   if (status === "draft") return <span style={{ ...s.badge, background: "var(--c-surface-2)", color: "var(--c-muted)" }}>Draft</span>;
   return <span style={{ ...s.badge, background: "#fef9c3", color: "#854d0e" }}>{status}</span>;
 }
@@ -104,10 +104,10 @@ const s = {
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "1rem" },
   card: {
     background: "var(--c-surface)",
-    borderRadius: "12px",
-    padding: "1.25rem",
+    borderRadius: "18px",
+    padding: "1.4rem",
     border: "1px solid var(--c-border)",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+    boxShadow: "0 10px 30px var(--c-shadow)",
     display: "flex",
     flexDirection: "column" as const,
     gap: "0.375rem",

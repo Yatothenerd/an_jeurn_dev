@@ -10,9 +10,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!session || session.role !== "client") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id, sectionId } = await params;
-  const body = await req.json() as { content?: Record<string, unknown>; direction?: "up" | "down" };
+  const body = await req.json() as { content?: Record<string, unknown>; direction?: "up" | "down"; isVisible?: boolean };
 
   try {
+    if (typeof body.isVisible === "boolean") {
+      await InvitationService.setSectionVisibility(sectionId, id, body.isVisible, session.sub);
+      await bustInviteCacheByInvitationId(id);
+      return NextResponse.json({ success: true });
+    }
     if (body.direction) {
       await InvitationService.reorderSections(id, sectionId, body.direction, session.sub);
       await bustInviteCacheByInvitationId(id);

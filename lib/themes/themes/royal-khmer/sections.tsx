@@ -11,6 +11,17 @@ import type { ThemeTokens } from "../../types";
 import { useCountdown } from "../../shared/use-countdown";
 import { useWishForm } from "../../shared/use-wish-form";
 
+// Wraps a text-based section's content in its admin-uploaded background image
+// (with a scrim + light text), when one is set. Otherwise renders plainly.
+function withBg(bgUrl: string | undefined, children: React.ReactNode) {
+  if (!bgUrl) return <>{children}</>;
+  return (
+    <div className="rk-bgpanel" style={{ backgroundImage: `url(${bgUrl})` }}>
+      <div className="rk-bgpanel-inner">{children}</div>
+    </div>
+  );
+}
+
 // ── Cover ──
 interface CoverContent {
   heading?: string;
@@ -120,11 +131,12 @@ interface AgendaItem {
 export function KhmerAgenda({
   content,
 }: {
-  content: { title?: string; subtitle?: string; items?: AgendaItem[] };
+  content: { title?: string; subtitle?: string; items?: AgendaItem[]; bgUrl?: string };
   theme: ThemeTokens;
 }) {
   const items = content.items ?? [];
-  return (
+  return withBg(
+    content.bgUrl,
     <>
       <h3 className="rk-title">{content.title || "ពិធីមង្គលការ"}</h3>
       <p className="rk-sub">{content.subtitle || "Agenda"}</p>
@@ -159,13 +171,14 @@ export function KhmerDetails({
   venueName,
   venueMapUrl,
 }: {
-  content: { title?: string; items?: DetailItem[] };
+  content: { title?: string; items?: DetailItem[]; bgUrl?: string };
   venueName: string | null;
   venueMapUrl: string | null;
   theme: ThemeTokens;
 }) {
   const items = content.items ?? [];
-  return (
+  return withBg(
+    content.bgUrl,
     <>
       <h3 className="rk-title">{content.title || "ព័ត៌មានលម្អិត"}</h3>
       <p className="rk-sub">Event Details</p>

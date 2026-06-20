@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { ClientActions } from "../_components/ClientActions";
 import { GrantPackage } from "../_components/GrantPackage";
 import { EventThemeManager } from "../_components/EventThemeManager";
+import { EventBackground } from "../_components/EventBackground";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -25,7 +26,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
       events: {
         orderBy: { createdAt: "desc" },
         include: {
-          invitation: { select: { isPublished: true } },
+          invitation: { select: { isPublished: true, id: true, backgroundUrl: true } },
           eventThemes: { include: { theme: { select: { id: true, name: true } } } },
         },
       },
@@ -53,7 +54,7 @@ export default async function ClientDetailPage({ params }: PageProps) {
   return (
     <div>
       <div style={s.breadcrumb}>
-        <Link href="/admin/clients" style={s.backLink}>← Clients</Link>
+        <Link href="/admin/clients" className="back-btn"><span className="ico" aria-hidden>←</span> Clients</Link>
       </div>
 
       <div style={s.header}>
@@ -132,6 +133,9 @@ export default async function ClientDetailPage({ params }: PageProps) {
                     assigned={ev.eventThemes.map((et) => et.theme)}
                     allThemes={allThemes}
                   />
+                  {ev.invitation && (
+                    <EventBackground invitationId={ev.invitation.id} backgroundUrl={ev.invitation.backgroundUrl} />
+                  )}
                 </div>
               ))}
             </div>

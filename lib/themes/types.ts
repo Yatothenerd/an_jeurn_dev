@@ -56,7 +56,9 @@ export type SectionType =
   | "gallery"
   | "video"
   | "khqr"
-  | "wishing";
+  | "wishing"
+  | "image"
+  | "guestlist";
 
 /**
  * Per-section component overrides. Intentionally loosely typed: every section
@@ -107,4 +109,14 @@ export interface ThemeModule {
   sections?: SectionComponents;
   /** Section / shell chrome; falls back to the standard layout. */
   layout?: ThemeLayout;
+  /**
+   * When true, the builder shows a per-section background image/video uploader
+   * (image/video themes read `content.bgUrl` / `content.bgVideo`).
+   */
+  usesBackgrounds?: boolean;
+  /**
+   * When true, the whole invite renders over ONE fixed background
+   * (Invitation.backgroundUrl, admin-set) and sections overlay it as panels.
+   */
+  singleBackground?: boolean;
 }

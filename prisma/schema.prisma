@@ -163,6 +163,7 @@ model Invitation {
   eventId        String    @unique @map("event_id")
   themeId        String    @map("theme_id")
   thumbnailUrl   String?   @map("thumbnail_url")
+  backgroundUrl  String?   @map("background_url")
   musicUrl       String?   @map("music_url")
   shareLink      String?   @map("share_link")
   showWatermark  Boolean   @default(true) @map("show_watermark")
@@ -184,6 +185,7 @@ model Section {
   type         String
   sortOrder    Int        @default(0) @map("sort_order")
   content      Json
+  isVisible    Boolean    @default(true) @map("is_visible")
   createdAt    DateTime   @default(now()) @map("created_at")
 
   invitation   Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)

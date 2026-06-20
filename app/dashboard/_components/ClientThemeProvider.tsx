@@ -38,22 +38,8 @@ export function ClientThemeProvider({ children }: { children: React.ReactNode })
 export function ClientThemeToggle() {
   const { theme, toggle } = useClientTheme();
   return (
-    <button
-      onClick={toggle}
-      aria-label="Toggle dark mode"
-      style={{
-        background: "transparent",
-        border: "1px solid var(--c-border)",
-        color: "var(--c-muted)",
-        padding: "0.45rem 0.75rem",
-        borderRadius: "6px",
-        cursor: "pointer",
-        fontSize: "0.8125rem",
-        width: "100%",
-        textAlign: "left",
-      }}
-    >
-      {theme === "dark" ? "☀️ Light mode" : "🌙 Dark mode"}
+    <button onClick={toggle} className="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
+      {theme === "dark" ? "☀️" : "🌙"}
     </button>
   );
 }

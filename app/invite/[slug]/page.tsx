@@ -12,6 +12,8 @@ import { GallerySection } from "./_components/sections/GallerySection";
 import { VideoSection } from "./_components/sections/VideoSection";
 import { KhqrSection } from "./_components/sections/KhqrSection";
 import { WishingSection } from "./_components/sections/WishingSection";
+import { ImageSection } from "./_components/sections/ImageSection";
+import { GuestlistSection } from "./_components/sections/GuestlistSection";
 import { RsvpModal } from "./_components/RsvpModal";
 import { InviteActions } from "./_components/InviteActions";
 import { Watermark } from "./_components/Watermark";
@@ -29,6 +31,8 @@ const STANDARD_SECTIONS = {
   video: VideoSection,
   khqr: KhqrSection,
   wishing: WishingSection,
+  image: ImageSection,
+  guestlist: GuestlistSection,
 } satisfies SectionComponents;
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
@@ -43,7 +47,7 @@ async function loadInviteData(slug: string): Promise<InviteData | null> {
       invitation: {
         include: {
           theme: true,
-          sections: { orderBy: { sortOrder: "asc" } },
+          sections: { where: { isVisible: true }, orderBy: { sortOrder: "asc" } },
           photos: { orderBy: { sortOrder: "asc" } },
           wishes: { orderBy: { createdAt: "desc" }, take: 50 },
         },
@@ -79,6 +83,7 @@ async function loadInviteData(slug: string): Promise<InviteData | null> {
       id: inv.id,
       themeId: inv.themeId,
       thumbnailUrl: inv.thumbnailUrl,
+      backgroundUrl: inv.backgroundUrl,
       musicUrl: inv.musicUrl,
       shareLink: inv.shareLink,
       showWatermark: inv.showWatermark,
@@ -114,9 +119,18 @@ function renderSection(
   tokens: ThemeTokens,
   components: SectionComponents,
   assets: Record<string, string> | undefined,
-  guestName: string | null
+  guestName: string | null,
+  guests: Array<{ name: string; rsvpStatus: string | null }>,
+  showGuestNames: boolean
 ): React.ReactNode {
   const c = sec.content as Record<string, unknown>;
+
+  // Image-based section: the uploaded image IS the content (any section type).
+  if (c.mode === "image" && c.imageUrl && components.image) {
+    const C = components.image;
+    return <C content={c as never} theme={tokens} />;
+  }
+
   switch (sec.type) {
     case "cover": {
       const C = components.cover;
@@ -170,6 +184,14 @@ function renderSection(
       return data.pkg?.hasWishing && C ? (
         <C invitationId={data.invitation.id} initialWishes={data.wishes} content={c as never} theme={tokens} />
       ) : null;
+    }
+    case "image": {
+      const C = components.image;
+      return C ? <C content={c as never} theme={tokens} /> : null;
+    }
+    case "guestlist": {
+      const C = components.guestlist;
+      return C ? <C content={c as never} guests={guests} showNames={showGuestNames} theme={tokens} /> : null;
     }
     default:
       return null;
@@ -235,6 +257,28 @@ export default async function InvitePage({
     guestName = guest?.name ?? null;
   }
 
+  // Guestlist widget data — loaded fresh (outside the cache) so counts are live.
+  // Full names are only revealed on a personal (?g=) link; otherwise counts only.
+  const hasGuestlist = data.sections.some((s) => s.type === "guestlist");
+  const guests = hasGuestlist
+    ? await prisma.guest.findMany({
+        where: { eventId: data.event.id },
+        select: { name: true, rsvpStatus: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
+  const showGuestNames = !!guestName;
+
+  // Single fixed background (Spotlight-style themes): admin-set invitation
+  // background, falling back to the cover section's uploaded background.
+  const coverBg = data.sections.find((s) => s.type === "cover")?.content as
+    | { bgUrl?: string; bgVideo?: string }
+    | undefined;
+  const bgUrl = theme.singleBackground
+    ? data.invitation.backgroundUrl || coverBg?.bgVideo || coverBg?.bgUrl || null
+    : null;
+  const bgIsVideo = !!bgUrl && /\.(mp4|webm|mov)$/i.test(bgUrl);
+
   // Running index of rendered non-cover sections, for background alternation.
   let altIndex = 0;
 
@@ -257,10 +301,10 @@ export default async function InvitePage({
   const shell = (
     <div
       className={`invite-shell${layout.shellClass ? " " + layout.shellClass : ""}`}
-      style={{ background: tokens.bg }}
+      style={{ background: bgUrl ? "transparent" : tokens.bg }}
     >
       {data.sections.map((sec) => {
-        const node = renderSection(sec, data, tokens, components, theme.assets, guestName);
+        const node = renderSection(sec, data, tokens, components, theme.assets, guestName, guests, showGuestNames);
         if (!node) return null;
 
         if (sec.type === "cover") {
@@ -308,6 +352,18 @@ export default async function InvitePage({
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href={buildFontsHref(theme.fonts)} />
       <style dangerouslySetInnerHTML={{ __html: buildInviteCss(theme) }} />
+
+      {/* Single fixed background behind the whole invite (admin-controlled). */}
+      {bgUrl && (
+        <div className="inv-fixed-bg">
+          {bgIsVideo ? (
+            <video className="inv-fixed-bg-media" src={bgUrl} autoPlay muted loop playsInline />
+          ) : (
+            <div className="inv-fixed-bg-media" style={{ backgroundImage: `url(${bgUrl})` }} />
+          )}
+          <div className="inv-fixed-bg-scrim" />
+        </div>
+      )}
 
       {/* Opening cover (Royalty's motion opening screen) — only when the package
           includes it; otherwise the letter shows immediately. */}

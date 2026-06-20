@@ -12,23 +12,8 @@ export function LogoutButton() {
   }
 
   return (
-    <button onClick={handleLogout} style={s.btn}>
+    <button onClick={handleLogout} className="topbar-signout">
       Sign out
     </button>
   );
 }
-
-const s = {
-  btn: {
-    background: "transparent",
-    border: "1px solid #333",
-    color: "#aaa",
-    padding: "0.5rem 0.75rem",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "0.8125rem",
-    width: "100%",
-    textAlign: "left" as const,
-    marginTop: "auto",
-  },
-} as const;

@@ -3,6 +3,7 @@ import { getSession } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db/prisma";
 import { ThemeService } from "@/lib/services/theme.service";
 import { PackageService } from "@/lib/services/package.service";
+import { getTheme } from "@/lib/themes/registry";
 import { BuilderClient } from "./_components/BuilderClient";
 
 interface PageProps {
@@ -81,6 +82,7 @@ export default async function BuilderPage({ params }: PageProps) {
       photos={invitation.photos as never}
       allowedThemes={allowedThemes as never}
       exclusiveThemeIds={exclusiveThemeIds}
+      usesBackgrounds={!!getTheme(invitation.themeId).usesBackgrounds}
       pkg={pkg ? {
         maxSections: pkg.maxSections,
         maxPhotos: pkg.maxPhotos,

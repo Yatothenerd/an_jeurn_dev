@@ -40,14 +40,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <div style={s.userSection}>
             <div style={s.userName}>{user.name}</div>
             <div style={s.userEmail}>{user.email}</div>
-            <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <ClientThemeToggle />
-              <LogoutButton />
-            </div>
           </div>
         </aside>
 
         <main className="app-main">
+          <header className="dash-topbar">
+            <div className="topbar-search">
+              <span aria-hidden>🔍</span>
+              <input type="search" placeholder="Search…" aria-label="Search" />
+            </div>
+            <div className="topbar-right">
+              <div className="topbar-profile">
+                <span className="topbar-avatar">{user.name.trim().charAt(0).toUpperCase() || "U"}</span>
+                <span className="topbar-name">{user.name}</span>
+              </div>
+              <ClientThemeToggle />
+              <LogoutButton />
+            </div>
+          </header>
           {!activePackage && (
             <div style={s.noPackageBanner}>
               Your account does not have an active package. Please contact the administrator.

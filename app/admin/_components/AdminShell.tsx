@@ -34,19 +34,17 @@ const BOTTOM_NAV = [
   { href: "/admin/themes", icon: "theme", label: "Design" },
 ];
 
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export function AdminShell({ children, userName = "Admin" }: { children: React.ReactNode; userName?: string }) {
   const pathname = usePathname();
   const { theme, toggle } = useAdminTheme();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const initial = userName.trim().charAt(0).toUpperCase() || "A";
 
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-brand">
           <span className="admin-brand-name">Anjeurn</span>
-          <button className="admin-icon-btn" onClick={toggle} title="Toggle dark mode" aria-label="Toggle dark mode">
-            <Icon name={theme === "dark" ? "day" : "night"} size={16} />
-          </button>
         </div>
 
         {GROUPS.map((g) => {
@@ -69,13 +67,29 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </div>
           );
         })}
-
-        <div style={{ marginTop: "auto", paddingTop: "1rem" }}>
-          <LogoutButton />
-        </div>
       </aside>
 
-      <main className="admin-main">{children}</main>
+      <main className="admin-main">
+        <header className="dash-topbar">
+          <div className="topbar-search">
+            <span aria-hidden>🔍</span>
+            <input type="search" placeholder="Search…" aria-label="Search" />
+          </div>
+          <div className="topbar-right">
+            <button className="icon-btn" title="Notifications" aria-label="Notifications">🔔</button>
+            <button className="icon-btn" title="Messages" aria-label="Messages">✉️</button>
+            <button className="icon-btn" onClick={toggle} title="Toggle dark mode" aria-label="Toggle dark mode">
+              <Icon name={theme === "dark" ? "day" : "night"} size={16} />
+            </button>
+            <div className="topbar-profile">
+              <span className="topbar-avatar">{initial}</span>
+              <span className="topbar-name">{userName}</span>
+            </div>
+            <LogoutButton />
+          </div>
+        </header>
+        {children}
+      </main>
 
       {/* Mobile bottom navigation (icon-based, app-style) */}
       <nav className="admin-bottomnav">
@@ -89,10 +103,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </Link>
           );
         })}
-        <button onClick={toggle} aria-label="Toggle dark mode">
-          <span className="bico"><Icon name={theme === "dark" ? "day" : "night"} size={20} /></span>
-          <span>{theme === "dark" ? "Day" : "Night"}</span>
-        </button>
       </nav>
     </div>
   );

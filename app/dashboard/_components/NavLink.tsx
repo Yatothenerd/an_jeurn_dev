@@ -29,5 +29,5 @@ const s = {
     display: "block",
     fontWeight: 500,
   },
-  active: { background: "var(--c-surface-2)", color: "var(--c-text)" },
+  active: { background: "var(--c-lime)", color: "var(--c-lime-text)", fontWeight: 700 },
 } as const;

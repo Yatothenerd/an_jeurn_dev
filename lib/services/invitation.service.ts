@@ -68,6 +68,20 @@ export class InvitationService {
     });
   }
 
+  // Show/hide a section — the one design control clients are allowed.
+  static async setSectionVisibility(
+    sectionId: string,
+    invitationId: string,
+    isVisible: boolean,
+    userId: string
+  ) {
+    await this.verifyOwnership(invitationId, userId);
+    return prisma.section.update({
+      where: { id: sectionId, invitationId },
+      data: { isVisible },
+    });
+  }
+
   static async reorderSections(
     invitationId: string,
     sectionId: string,

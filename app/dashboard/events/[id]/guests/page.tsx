@@ -38,7 +38,9 @@ export default async function GuestListPage({ params }: { params: Promise<{ id: 
     <div style={s.page}>
       <div style={s.header}>
         <div>
-          <a href="/dashboard" style={s.back}>← Dashboard</a>
+          <a href="/dashboard" className="back-btn" style={{ marginBottom: "0.6rem" }}>
+            <span className="ico" aria-hidden>←</span> Dashboard
+          </a>
           <h1 style={s.title}>{event.title} — Guests</h1>
         </div>
         <a
@@ -50,8 +52,8 @@ export default async function GuestListPage({ params }: { params: Promise<{ id: 
         </a>
       </div>
 
-      {/* Summary counts */}
-      <div style={s.stats}>
+      {/* RSVP summary — single equal-width row (2 columns on phones) */}
+      <div className="rsvp-stats">
         <div style={{ ...s.stat, background: "#dcfce7", color: "#166534" }}>
           <span style={s.statNum}>{counts.attending}</span>
           <span style={s.statLabel}>Attending</span>
@@ -60,14 +62,20 @@ export default async function GuestListPage({ params }: { params: Promise<{ id: 
           <span style={s.statNum}>{counts.declined}</span>
           <span style={s.statLabel}>Declined</span>
         </div>
-        <div style={{ ...s.stat, background: "#f3f4f6", color: "#374151" }}>
+        <div style={{ ...s.stat, background: "#fef3c7", color: "#92400e" }}>
           <span style={s.statNum}>{counts.pending}</span>
           <span style={s.statLabel}>Pending</span>
         </div>
-        <div style={{ ...s.stat, background: "#ede9fe", color: "#5b21b6" }}>
-          <span style={s.statNum}>{guests.length} / {userPkg?.package.maxGuests ?? "∞"}</span>
+        <div style={{ ...s.stat, background: "var(--c-accent-soft)", color: "var(--c-accent)" }}>
+          <span style={s.statNum}>{guests.length}{userPkg?.package.maxGuests ? ` / ${userPkg.package.maxGuests}` : ""}</span>
           <span style={s.statLabel}>Total</span>
         </div>
+      </div>
+
+      {/* Compact event-info banner */}
+      <div className="event-banner">
+        {userPkg?.package.hasGuestControl && <span className="chip">🎛 Guest Control ON</span>}
+        <span><strong>{guests.length}</strong> guest{guests.length === 1 ? "" : "s"}{userPkg?.package.maxGuests ? ` of ${userPkg.package.maxGuests}` : ""}</span>
       </div>
 
       <GuestListClient
@@ -84,8 +92,6 @@ export default async function GuestListPage({ params }: { params: Promise<{ id: 
           mealPref: g.mealPref,
           rsvpAt: g.rsvpAt?.toISOString() ?? null,
         }))}
-        maxGuests={userPkg?.package.maxGuests ?? 0}
-        hasGuestControl={userPkg?.package.hasGuestControl ?? false}
       />
     </div>
   );

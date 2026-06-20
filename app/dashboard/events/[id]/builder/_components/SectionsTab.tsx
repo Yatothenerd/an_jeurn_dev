@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { BuilderSection, BuilderPkg } from "./BuilderClient";
 
@@ -8,6 +8,7 @@ interface Props {
   invitationId: string;
   sections: BuilderSection[];
   pkg: BuilderPkg | null;
+  usesBackgrounds?: boolean;
 }
 
 interface SectionTypeDef {
@@ -27,9 +28,11 @@ const SECTION_TYPES: SectionTypeDef[] = [
   { type: "video", label: "Video", emoji: "🎬", requires: "hasVideo", defaultContent: { url: "", caption: "" } },
   { type: "wishing", label: "Wishing Wall", emoji: "💌", requires: "hasWishing", defaultContent: { placeholder: "Leave your wishes here…" } },
   { type: "khqr", label: "KHQR", emoji: "📱", requires: "hasKhqr", defaultContent: { recipientName: "", amount: "", currency: "USD", qrImageUrl: "" } },
+  { type: "image", label: "Image", emoji: "🖼", defaultContent: {} },
+  { type: "guestlist", label: "Guest List", emoji: "👥", defaultContent: { title: "Guest List" } },
 ];
 
-export function SectionsTab({ invitationId, sections, pkg }: Props) {
+export function SectionsTab({ invitationId, sections, pkg, usesBackgrounds }: Props) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState<Record<string, unknown>>({});
@@ -76,6 +79,17 @@ export function SectionsTab({ invitationId, sections, pkg }: Props) {
     router.refresh();
   }
 
+  async function toggleVisibility(sec: BuilderSection) {
+    setLoading(true);
+    await fetch(`/api/dashboard/invitation/${invitationId}/sections/${sec.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isVisible: !sec.isVisible }),
+    });
+    setLoading(false);
+    router.refresh();
+  }
+
   async function moveSection(sectionId: string, direction: "up" | "down") {
     setLoading(true);
     await fetch(`/api/dashboard/invitation/${invitationId}/sections/${sectionId}`, {
@@ -104,14 +118,18 @@ export function SectionsTab({ invitationId, sections, pkg }: Props) {
             const def = SECTION_TYPES.find((d) => d.type === sec.type);
             const isEditing = editingId === sec.id;
             return (
-              <div key={sec.id} style={s.sectionRow}>
+              <div key={sec.id} style={{ ...s.sectionRow, ...(sec.isVisible ? {} : { opacity: 0.55 }) }}>
                 <div style={s.sectionTop}>
                   <div style={s.sectionInfo}>
                     <span style={s.emoji}>{def?.emoji ?? "📄"}</span>
                     <span style={s.sectionLabel}>{def?.label ?? sec.type}</span>
                     <span style={s.sortOrder}>#{idx + 1}</span>
+                    {!sec.isVisible && <span style={s.hiddenTag}>Hidden</span>}
                   </div>
                   <div style={s.sectionActions}>
+                    <button onClick={() => toggleVisibility(sec)} disabled={loading} style={s.iconBtn} title={sec.isVisible ? "Hide section" : "Show section"}>
+                      {sec.isVisible ? "👁" : "🙈"}
+                    </button>
                     <button onClick={() => moveSection(sec.id, "up")} disabled={idx === 0 || loading} style={s.iconBtn} title="Move up">↑</button>
                     <button onClick={() => moveSection(sec.id, "down")} disabled={idx === sections.length - 1 || loading} style={s.iconBtn} title="Move down">↓</button>
                     <button
@@ -129,6 +147,26 @@ export function SectionsTab({ invitationId, sections, pkg }: Props) {
 
                 {isEditing && (
                   <div style={s.editor}>
+                    {usesBackgrounds && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem", marginBottom: "0.875rem", paddingBottom: "0.875rem", borderBottom: "1px solid var(--c-border)" }}>
+                        <F label="Section background image">
+                          <BgUploader
+                            value={editContent.bgUrl as string | undefined}
+                            accept="image/*"
+                            onDone={(url) => setEditContent((c) => ({ ...c, bgUrl: url }))}
+                          />
+                        </F>
+                        {sec.type === "cover" && (
+                          <F label="Cover background video (optional, mp4)">
+                            <BgUploader
+                              value={editContent.bgVideo as string | undefined}
+                              accept="video/*"
+                              onDone={(url) => setEditContent((c) => ({ ...c, bgVideo: url }))}
+                            />
+                          </F>
+                        )}
+                      </div>
+                    )}
                     <SectionEditor type={sec.type} content={editContent} onChange={setEditContent} />
                     <div style={s.editorActions}>
                       <button onClick={() => setEditingId(null)} style={s.cancelBtn}>Cancel</button>
@@ -196,8 +234,19 @@ function SectionEditor({
   }
   if (type === "details") {
     const items = (content.items as Array<{ icon: string; label: string; value: string }>) ?? [];
+    const mode = content.mode === "image" ? "image" : "text";
     return (
       <div style={eg}>
+        <ModeToggle mode={mode} onSet={(m) => set("mode", m)} />
+        {mode === "image" ? (
+          <>
+            <F label="Content image (PNG)"><BgUploader value={content.imageUrl as string | undefined} accept="image/*" onDone={(url) => set("imageUrl", url)} /></F>
+            <F label="Title (optional)"><input value={(content.title as string) ?? ""} onChange={(e) => set("title", e.target.value)} style={inp} /></F>
+            <F label="Caption (optional)"><input value={(content.caption as string) ?? ""} onChange={(e) => set("caption", e.target.value)} style={inp} /></F>
+          </>
+        ) : (
+          <>
+        <F label="Background image (optional)"><BgUploader value={content.bgUrl as string | undefined} accept="image/*" onDone={(url) => set("bgUrl", url)} /></F>
         {items.map((item, i) => (
           <div key={i} style={{ display: "grid", gridTemplateColumns: "50px 1fr 1fr auto", gap: "0.5rem", alignItems: "center" }}>
             <input value={item.icon} onChange={(e) => { const n = [...items]; n[i] = { ...item, icon: e.target.value }; set("items", n); }} style={{ ...inp, width: "100%" }} placeholder="Icon" />
@@ -211,13 +260,27 @@ function SectionEditor({
             + Add row
           </button>
         )}
+          </>
+        )}
       </div>
     );
   }
   if (type === "agenda") {
     const items = (content.items as Array<{ time?: string; timeEn?: string; title?: string; icon?: number | string }>) ?? [];
+    const mode = content.mode === "image" ? "image" : "text";
+    if (mode === "image") {
+      return (
+        <div style={eg}>
+          <ModeToggle mode={mode} onSet={(m) => set("mode", m)} />
+          <F label="Content image (PNG)"><BgUploader value={content.imageUrl as string | undefined} accept="image/*" onDone={(url) => set("imageUrl", url)} /></F>
+          <F label="Title (optional)"><input value={(content.title as string) ?? ""} onChange={(e) => set("title", e.target.value)} style={inp} /></F>
+        </div>
+      );
+    }
     return (
       <div style={eg}>
+        <ModeToggle mode={mode} onSet={(m) => set("mode", m)} />
+        <F label="Background image (optional)"><BgUploader value={content.bgUrl as string | undefined} accept="image/*" onDone={(url) => set("bgUrl", url)} /></F>
         <F label="Title"><input value={(content.title as string) ?? ""} onChange={(e) => set("title", e.target.value)} style={inp} placeholder="Order of Ceremony" /></F>
         <F label="Subtitle"><input value={(content.subtitle as string) ?? ""} onChange={(e) => set("subtitle", e.target.value)} style={inp} placeholder="Agenda" /></F>
         {items.map((item, i) => (
@@ -275,7 +338,105 @@ function SectionEditor({
       </div>
     );
   }
+  if (type === "image") {
+    return (
+      <div style={eg}>
+        <F label="Image"><BgUploader value={content.imageUrl as string | undefined} accept="image/*" onDone={(url) => set("imageUrl", url)} /></F>
+        <F label="Title (optional)"><input value={(content.title as string) ?? ""} onChange={(e) => set("title", e.target.value)} style={inp} /></F>
+        <F label="Caption (optional)"><input value={(content.caption as string) ?? ""} onChange={(e) => set("caption", e.target.value)} style={inp} /></F>
+      </div>
+    );
+  }
+  if (type === "guestlist") {
+    return (
+      <div style={eg}>
+        <F label="Title"><input value={(content.title as string) ?? ""} onChange={(e) => set("title", e.target.value)} style={inp} placeholder="Guest List" /></F>
+        <p style={{ fontSize: "0.75rem", color: "var(--c-muted)", margin: 0 }}>
+          Attendance counts are public; full guest names appear only on a guest&apos;s personal invite link.
+        </p>
+      </div>
+    );
+  }
   return <p style={{ color: "var(--c-muted)", fontSize: "0.875rem" }}>No editor for this section type.</p>;
+}
+
+// Uploads a section background (image or video) and reports the stored URL,
+// which is saved into the section's content.bgUrl / bgVideo on Save.
+function BgUploader({ value, accept, onDone }: { value?: string; accept: string; onDone: (url: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const isVideo = accept.startsWith("video");
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    setErr("");
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", "invitations/backgrounds");
+    const res = await fetch("/api/dashboard/upload", { method: "POST", body: fd });
+    setBusy(false);
+    if (ref.current) ref.current.value = "";
+    if (!res.ok) {
+      setErr("Upload failed");
+      return;
+    }
+    const { url } = await res.json();
+    onDone(url);
+  }
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.7rem" }}>
+      <div style={bgThumb}>
+        {value ? (
+          isVideo ? <video src={value} style={bgThumbMedia} muted /> : <img src={value} alt="" style={bgThumbMedia} />
+        ) : (
+          <span style={{ color: "var(--c-muted)", fontSize: "0.7rem" }}>None</span>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+        <div style={{ display: "flex", gap: "0.4rem" }}>
+          <button type="button" onClick={() => ref.current?.click()} disabled={busy} style={bgBtn}>
+            {busy ? "Uploading…" : value ? "Replace" : "Upload"}
+          </button>
+          {value && <button type="button" onClick={() => onDone("")} style={bgRemove}>Remove</button>}
+        </div>
+        {err && <span style={{ color: "#dc2626", fontSize: "0.72rem" }}>{err}</span>}
+      </div>
+      <input ref={ref} type="file" accept={accept} onChange={upload} style={{ display: "none" }} />
+    </div>
+  );
+}
+
+const bgThumb = { width: 64, height: 44, borderRadius: 8, overflow: "hidden" as const, background: "var(--c-surface-2)", border: "1px solid var(--c-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 };
+const bgThumbMedia = { width: "100%", height: "100%", objectFit: "cover" as const };
+const bgBtn = { padding: "0.35rem 0.7rem", border: "1px solid var(--c-border)", background: "var(--c-surface)", color: "var(--c-text)", borderRadius: 6, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600 };
+const bgRemove = { padding: "0.35rem 0.6rem", border: "none", background: "none", color: "#dc2626", cursor: "pointer", fontSize: "0.78rem" };
+
+// Toggle a content section between text-based and image-based.
+function ModeToggle({ mode, onSet }: { mode: string; onSet: (m: "text" | "image") => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+      <label style={{ fontSize: "0.75rem", fontWeight: 500, color: "var(--c-muted)" }}>Content type</label>
+      <div style={{ display: "inline-flex", border: "1px solid var(--c-border)", borderRadius: 8, overflow: "hidden", width: "fit-content" }}>
+        {(["text", "image"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => onSet(m)}
+            style={{
+              padding: "0.35rem 0.95rem", border: "none", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, textTransform: "capitalize",
+              background: mode === m ? "var(--c-accent)" : "transparent", color: mode === m ? "#fff" : "var(--c-text)",
+            }}
+          >
+            {m}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function F({ label, children }: { label: string; children: React.ReactNode }) {
@@ -306,6 +467,7 @@ const s = {
   emoji: { fontSize: "1rem" },
   sectionLabel: { fontSize: "0.875rem", fontWeight: 600, color: "var(--c-text)" },
   sortOrder: { fontSize: "0.75rem", color: "var(--c-muted)" },
+  hiddenTag: { fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.05em", padding: "0.1rem 0.4rem", borderRadius: "4px", background: "var(--c-surface-2)", color: "var(--c-muted)" },
   sectionActions: { display: "flex", gap: "0.25rem" },
   iconBtn: { background: "none", border: "none", cursor: "pointer", padding: "0.25rem 0.375rem", borderRadius: "4px", fontSize: "0.9375rem", color: "var(--c-text)" },
   editor: { padding: "0.875rem 1rem", borderTop: "1px solid var(--c-border)", background: "var(--c-surface-2)" },

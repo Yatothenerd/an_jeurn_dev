@@ -25,6 +25,7 @@ export type InviteData = {
     id: string;
     themeId: string;
     thumbnailUrl: string | null;
+    backgroundUrl: string | null;
     musicUrl: string | null;
     shareLink: string | null;
     showWatermark: boolean;

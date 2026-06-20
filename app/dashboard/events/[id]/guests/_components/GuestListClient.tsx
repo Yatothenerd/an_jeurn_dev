@@ -19,8 +19,6 @@ interface Props {
   eventTitle: string;
   inviteBaseUrl: string;
   initialGuests: Guest[];
-  maxGuests: number;
-  hasGuestControl: boolean;
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -29,7 +27,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   pending: { bg: "var(--c-surface-2)", text: "var(--c-muted)" },
 };
 
-export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGuests, maxGuests, hasGuestControl }: Props) {
+export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGuests }: Props) {
   const router = useRouter();
   const [guests, setGuests] = useState(initialGuests);
   const [showAdd, setShowAdd] = useState(false);
@@ -144,10 +142,7 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
   return (
     <div>
       <div style={s.toolbar}>
-        <h2 style={s.sectionTitle}>
-          {guests.length} guests {maxGuests > 0 ? `/ ${maxGuests}` : ""}
-          {hasGuestControl && <span style={s.badge}>Guest Control ON</span>}
-        </h2>
+        <h2 style={s.sectionTitle}>Guest list</h2>
         <button onClick={() => setShowAdd(!showAdd)} style={s.addBtn}>
           {showAdd ? "Cancel" : "+ Add Guest"}
         </button>
@@ -170,15 +165,16 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
       {guests.length === 0 ? (
         <div style={s.empty}>No guests yet. Add guests manually or they will appear after RSVPing.</div>
       ) : (
+        <>
+        <div className="guest-table-desktop">
         <div className="data-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Name</th>
                 <th>Contact</th>
-                <th>RSVP</th>
-                <th className="col-hide-sm">Meal</th>
-                <th className="col-hide-sm">Responded</th>
+                <th>RSVP Status</th>
+                <th className="col-hide-sm">Date</th>
                 <th className="actions">Actions</th>
               </tr>
             </thead>
@@ -220,19 +216,16 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
                         {statusKey}
                       </span>
                     </td>
-                    <td data-label="Meal" className="col-hide-sm" style={{ color: "var(--c-muted)" }}>{g.mealPref ?? "—"}</td>
-                    <td data-label="Responded" className="col-hide-sm" style={{ color: "var(--c-muted)", fontSize: "0.75rem" }}>
+                    <td data-label="Date" className="col-hide-sm" style={{ color: "var(--c-muted)", fontSize: "0.8125rem" }}>
                       {g.rsvpAt ? new Date(g.rsvpAt).toLocaleDateString() : "—"}
                     </td>
                     <td data-label="Actions" className="actions">
-                      <div style={s.actions}>
-                        <button onClick={() => openInvite(g)} style={s.actionBtn} title="Open the guest's invite to test">👁 Open</button>
-                        <button onClick={() => shareTelegram(g)} style={{ ...s.actionBtn, ...s.tgBtn }} title="Share to Telegram">✈ Telegram</button>
-                        <button onClick={() => shareTo(g)} style={s.actionBtn} title="Share to…">↗ Share</button>
-                        <button onClick={() => copyLink(g)} style={s.actionBtn} title={guestLink(g.token)}>
-                          {copied === g.id ? "✓ Copied" : "🔗 Copy"}
-                        </button>
-                        <button onClick={() => handleDelete(g.id)} disabled={deleting === g.id} style={s.deleteBtn} title="Remove guest">✕</button>
+                      <div className="icon-actions">
+                        <button onClick={() => openInvite(g)} className="icon-btn" title="Open the guest's invite to test" aria-label="Open invite">👁</button>
+                        <button onClick={() => shareTelegram(g)} className="icon-btn tg" title="Share to Telegram" aria-label="Share to Telegram">✈</button>
+                        <button onClick={() => shareTo(g)} className="icon-btn" title="Share to…" aria-label="Share">↗</button>
+                        <button onClick={() => copyLink(g)} className="icon-btn" title={guestLink(g.token)} aria-label="Copy link">{copied === g.id ? "✓" : "🔗"}</button>
+                        <button onClick={() => handleDelete(g.id)} disabled={deleting === g.id} className="icon-btn danger" title="Remove guest" aria-label="Remove guest">✕</button>
                       </div>
                     </td>
                   </tr>
@@ -241,6 +234,56 @@ export function GuestListClient({ eventId, eventTitle, inviteBaseUrl, initialGue
             </tbody>
           </table>
         </div>
+        </div>
+
+        {/* Compact mobile cards */}
+        <div className="guest-cards">
+          {guests.map((g) => {
+            const statusKey = g.rsvpStatus ?? "pending";
+            const colors = STATUS_COLORS[statusKey] ?? STATUS_COLORS.pending;
+            const editing = editingId === g.id;
+            return (
+              <div key={g.id} className="guest-card">
+                <div className="guest-card-top">
+                  {editing ? (
+                    <span style={s.editWrap}>
+                      <input
+                        autoFocus
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(g);
+                          if (e.key === "Escape") cancelEdit();
+                        }}
+                        style={{ ...inp, padding: "0.35rem 0.5rem" }}
+                      />
+                      <button onClick={() => saveEdit(g)} disabled={savingEdit} style={s.iconOk} title="Save">✓</button>
+                      <button onClick={cancelEdit} style={s.iconCancel} title="Cancel">✕</button>
+                    </span>
+                  ) : (
+                    <span className="guest-card-name">{g.name}</span>
+                  )}
+                  <span className="status-pill" style={{ background: colors.bg, color: colors.text, textTransform: "capitalize" }}>
+                    {statusKey}
+                  </span>
+                </div>
+                <div className="guest-card-meta">
+                  <span>{g.contact ? `${g.contactType ? `[${g.contactType}] ` : ""}${g.contact}` : "No contact"}</span>
+                  <span>{g.rsvpAt ? new Date(g.rsvpAt).toLocaleDateString() : "—"}</span>
+                </div>
+                <div className="guest-card-actions">
+                  {!editing && <button onClick={() => startEdit(g)} className="icon-btn" title="Edit name" aria-label="Edit name">✎</button>}
+                  <button onClick={() => openInvite(g)} className="icon-btn" title="Open invite" aria-label="Open invite">👁</button>
+                  <button onClick={() => shareTelegram(g)} className="icon-btn tg" title="Telegram" aria-label="Telegram">✈</button>
+                  <button onClick={() => shareTo(g)} className="icon-btn" title="Share" aria-label="Share">↗</button>
+                  <button onClick={() => copyLink(g)} className="icon-btn" title="Copy link" aria-label="Copy link">{copied === g.id ? "✓" : "🔗"}</button>
+                  <button onClick={() => handleDelete(g.id)} disabled={deleting === g.id} className="icon-btn danger" title="Remove" aria-label="Remove">✕</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        </>
       )}
     </div>
   );
