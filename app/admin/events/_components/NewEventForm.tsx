@@ -41,7 +41,7 @@ export function NewEventForm({ clients }: { clients: Client[] }) {
         setError(d.error ?? "Failed to create event");
         return;
       }
-      router.push("/admin/invitations");
+      router.push(`/admin/events/${d.eventId as string}`);
       router.refresh();
     } catch {
       setError("Network error. Please try again.");

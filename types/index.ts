@@ -1,4 +1,4 @@
-export type { User, Package, Theme, PackageTheme, UserPackage, Event, Invitation, Section, Photo, Guest, Wish } from "../app/generated/prisma";
+export type { User, Package, UserPackage, Event, Invitation, Section, Photo, Guest, Wish } from "../app/generated/prisma";
 export { Role, GuestControlType, UserPackageStatus, ContactType } from "../app/generated/prisma";
 
 // Auth
@@ -28,16 +28,38 @@ export interface ApiResponse<T = unknown> {
   message?: string;
 }
 
-// Package with themes
-export interface PackageWithThemes extends Package {
-  packageThemes: Array<{
-    theme: Theme;
-  }>;
-}
-
 // Event with invitation
 export interface EventWithInvitation extends Event {
   invitation: Invitation | null;
 }
 
-import type { Package, Theme, Invitation, Event } from "../app/generated/prisma";
+// Legacy stubs — Theme/PackageTheme models removed from Prisma schema.
+// These interfaces keep existing component files compiling during cleanup.
+export interface Theme {
+  id: string;
+  name: string;
+  contentType: string | null;
+  defaultSections: unknown;
+  overlayConfig: unknown;
+  backgroundUrl: string | null;
+  backgroundVideoUrl: string | null;
+  coverUrl: string | null;
+  musicUrl: string | null;
+  thumbnailUrl: string | null;
+  previewUrl: string | null;
+  isAnimated: boolean;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface PackageTheme {
+  packageId: string;
+  themeId: string;
+  theme?: Theme;
+}
+
+export interface PackageWithThemes extends Package {
+  packageThemes: Array<{ theme: Theme }>;
+}
+
+import type { Invitation, Event, Package } from "../app/generated/prisma";

@@ -9,13 +9,15 @@ interface Props {
   /** Greeting fallback when there's no personalized guest (no ?g= token). */
   guestLabel?: string;
   theme: ThemeTokens;
+  /** Cover or background image shown as the gate's full-screen backdrop. */
+  bgUrl?: string | null;
   children: React.ReactNode;
 }
 
-// Universal opening "envelope" that wraps every theme: a landing page (event +
-// guest name + a hand button to open), then the letter itself, then a one-time
-// scroll-guide overlay nudging the guest down through the content.
-export function InviteGate({ eventTitle, guestName, guestLabel, theme, children }: Props) {
+// Universal opening "envelope" that wraps every invitation: a landing page
+// (event title + guest greeting + Open Letter button), then the letter itself,
+// then a one-time scroll-guide overlay.
+export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, children }: Props) {
   const [phase, setPhase] = useState<"closed" | "opening" | "open">("closed");
   const [guide, setGuide] = useState(false);
 
@@ -63,30 +65,41 @@ export function InviteGate({ eventTitle, guestName, guestLabel, theme, children 
       {phase !== "open" && (
         <div
           className={`inv-gate${phase === "opening" ? " is-opening" : ""}`}
-          style={{ background: theme.coverGradient, fontFamily: theme.font, color: theme.text }}
+          style={{
+            fontFamily: theme.font,
+            color: theme.text,
+            ...(bgUrl
+              ? { backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+              : { background: theme.coverGradient }),
+          }}
         >
-          <p className="inv-pretitle" style={{ color: theme.accent }}>You are invited to</p>
-          <div className="inv-script" style={{ color: theme.primary }}>{eventTitle}</div>
+          {/* Scrim over image so text stays readable */}
+          {bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />}
 
-          <div className="inv-ornament-line" style={{ color: theme.accent }}>
-            <div className="line" />
-            <span className="gem">{theme.gem}</span>
-            <div className="line" />
+          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+            <p className="inv-pretitle" style={{ color: theme.accent }}>You are invited to</p>
+            <div className="inv-script" style={{ color: theme.primary }}>{eventTitle}</div>
+
+            <div className="inv-ornament-line" style={{ color: theme.accent }}>
+              <div className="line" />
+              {theme.gem && <span className="gem">{theme.gem}</span>}
+              <div className="line" />
+            </div>
+
+            <div className="inv-gate-guest">
+              <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent }}>
+                ♥ Dear
+              </span>
+              <div className="inv-gate-name" style={{ color: theme.primary }}>{label}</div>
+            </div>
+
+            <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
+              <img className="inv-gate-hand" src="/hand.webp" alt="" />
+              <span className="inv-gate-open-label" style={{ color: theme.accent, borderColor: theme.accent }}>
+                Open Letter
+              </span>
+            </button>
           </div>
-
-          <div className="inv-gate-guest">
-            <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent }}>
-              ♥ Dear
-            </span>
-            <div className="inv-gate-name" style={{ color: theme.primary }}>{label}</div>
-          </div>
-
-          <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
-            <img className="inv-gate-hand" src="/hand.webp" alt="" />
-            <span className="inv-gate-open-label" style={{ color: theme.accent, borderColor: theme.accent }}>
-              Tap to open
-            </span>
-          </button>
         </div>
       )}
 

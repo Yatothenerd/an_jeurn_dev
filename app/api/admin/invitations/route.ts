@@ -9,7 +9,6 @@ export async function GET() {
   const invitations = await prisma.invitation.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      theme: { select: { name: true } },
       event: {
         select: {
           title: true,

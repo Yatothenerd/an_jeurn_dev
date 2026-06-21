@@ -1,52 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
-import { getSession } from "@/lib/services/auth.service";
+import { NextResponse } from "next/server";
 
-async function requireAdmin() {
-  const session = await getSession();
-  if (!session || session.role !== "admin") return null;
-  return session;
+// Theme model removed. Use /api/admin/events instead.
+export function GET() {
+  return NextResponse.json({ error: "Themes have been removed. Manage events directly." }, { status: 410 });
 }
-
-export async function GET() {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const themes = await prisma.theme.findMany({ orderBy: { sortOrder: "asc" } });
-  return NextResponse.json({ success: true, data: themes });
-}
-
-export async function POST(req: NextRequest) {
-  const session = await requireAdmin();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  try {
-    const {
-      name, contentType, backgroundUrl, backgroundVideoUrl, coverUrl,
-      musicUrl, defaultSections, overlayConfig, previewUrl, thumbnailUrl, isAnimated, sortOrder,
-    } = await req.json();
-    if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
-
-    const theme = await prisma.theme.create({
-      data: {
-        name: name as string,
-        contentType: contentType as string | undefined,
-        backgroundUrl: backgroundUrl as string | undefined,
-        backgroundVideoUrl: backgroundVideoUrl as string | undefined,
-        coverUrl: coverUrl as string | undefined,
-        musicUrl: musicUrl as string | undefined,
-        defaultSections: defaultSections ?? undefined,
-        overlayConfig: overlayConfig ?? undefined,
-        previewUrl: previewUrl as string | undefined,
-        thumbnailUrl: thumbnailUrl as string | undefined,
-        isAnimated: !!isAnimated,
-        sortOrder: Number(sortOrder ?? 0),
-      },
-    });
-
-    return NextResponse.json({ success: true, data: theme }, { status: 201 });
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed to create theme" }, { status: 500 });
-  }
+export function POST() {
+  return NextResponse.json({ error: "Themes have been removed. Manage events directly." }, { status: 410 });
 }

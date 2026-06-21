@@ -1,21 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/services/auth.service";
-import { InvitationService } from "@/lib/services/invitation.service";
-import { bustInviteCacheByInvitationId } from "@/lib/utils/invite-cache";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session || session.role !== "client") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { id } = await params;
-  const { url } = await req.json();
-  if (!url) return NextResponse.json({ error: "url required" }, { status: 400 });
-
-  try {
-    const photo = await InvitationService.addPhoto(id, url as string, session.sub);
-    await bustInviteCacheByInvitationId(id);
-    return NextResponse.json({ success: true, data: photo }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
-  }
+// Photos and gallery assets are managed by the administrator through the theme.
+// Clients cannot upload or modify photos.
+export async function POST() {
+  return NextResponse.json(
+    { error: "Photos are managed by your administrator and cannot be modified here." },
+    { status: 403 }
+  );
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import type { Package, PackageWithThemes } from "@/types";
+import type { Package } from "@/types";
 
 type PackageFeatureFlag = keyof Pick<
   Package,
@@ -14,30 +14,23 @@ type PackageFeatureFlag = keyof Pick<
 >;
 
 export class PackageService {
-  static async getAll(): Promise<PackageWithThemes[]> {
-    return prisma.package.findMany({
-      include: { packageThemes: { include: { theme: true } } },
-      orderBy: { priceUsd: "asc" },
-    }) as Promise<PackageWithThemes[]>;
+  static async getAll() {
+    return prisma.package.findMany({ orderBy: { priceUsd: "asc" } });
   }
 
-  static async getBySlug(slug: string): Promise<PackageWithThemes | null> {
-    return prisma.package.findUnique({
-      where: { slug },
-      include: { packageThemes: { include: { theme: true } } },
-    }) as Promise<PackageWithThemes | null>;
+  static async getBySlug(slug: string) {
+    return prisma.package.findUnique({ where: { slug } });
   }
 
   // Returns the user's active UserPackage + Package data
   static async getClientPackage(userId: string) {
     return prisma.userPackage.findFirst({
       where: { userId, status: "active" },
-      include: { package: { include: { packageThemes: { include: { theme: true } } } } },
+      include: { package: true },
       orderBy: { grantedAt: "desc" },
     });
   }
 
-  // Checks whether the user's active package has a given boolean feature enabled
   static async canUseFeature(userId: string, feature: PackageFeatureFlag): Promise<boolean> {
     const up = await this.getClientPackage(userId);
     if (!up) return false;
@@ -56,7 +49,6 @@ export class PackageService {
     });
   }
 
-  // Alias used by legacy code
   static async getUserActivePackage(userId: string) {
     return this.getClientPackage(userId);
   }

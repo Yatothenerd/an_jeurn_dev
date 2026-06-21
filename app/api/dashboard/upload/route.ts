@@ -1,29 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/services/auth.service";
-import { uploadToCloudinary } from "@/lib/upload";
+import { NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session || session.role !== "client") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const fd = await req.formData();
-    const file = fd.get("file") as File | null;
-    // Client sends e.g. "invitations/photos" or "invitations/music" — keep only the
-    // leaf ("photos"/"music") and nest it under the user's own folder.
-    const sub = ((fd.get("folder") as string | null)?.split("/").pop() || "uploads")
-      .replace(/[^a-zA-Z0-9_-]/g, "");
-    const folder = `an_jeurn/${session.sub}/${sub}`;
-
-    if (!file || file.size === 0) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    const url = await uploadToCloudinary(file, folder);
-    return NextResponse.json({ success: true, url });
-  } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
-  }
+// Asset uploads are handled by the administrator through the theme editor.
+// Clients do not have upload access.
+export async function POST() {
+  return NextResponse.json(
+    { error: "Asset uploads are managed by your administrator." },
+    { status: 403 }
+  );
 }

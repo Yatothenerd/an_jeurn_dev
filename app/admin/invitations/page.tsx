@@ -13,7 +13,6 @@ export default async function AdminInvitationsPage() {
   const invitations = await prisma.invitation.findMany({
     orderBy: { createdAt: "desc" },
     include: {
-      theme: { select: { name: true } },
       event: {
         select: {
           title: true,
@@ -42,7 +41,7 @@ export default async function AdminInvitationsPage() {
             <tr>
               <th>Event</th>
               <th>Client</th>
-              <th>Theme</th>
+
               <th>Date</th>
               <th>Status</th>
               <th className="num col-hide-sm">Sections</th>
@@ -53,7 +52,7 @@ export default async function AdminInvitationsPage() {
           <tbody>
             {n === 0 ? (
               <tr>
-                <td colSpan={8} className="data-empty">No invitations yet.</td>
+                <td colSpan={7} className="data-empty">No invitations yet.</td>
               </tr>
             ) : (
               invitations.map((inv) => (
@@ -66,7 +65,7 @@ export default async function AdminInvitationsPage() {
                     <div>{inv.event.user.name}</div>
                     <div className="cell-sub">{inv.event.user.email}</div>
                   </td>
-                  <td data-label="Theme">{inv.theme.name}</td>
+
                   <td data-label="Date" style={{ color: "var(--c-muted)" }}>
                     {new Date(inv.event.eventDate).toLocaleDateString()}
                   </td>

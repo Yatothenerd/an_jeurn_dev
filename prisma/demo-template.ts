@@ -37,7 +37,7 @@ async function main() {
   await prisma.invitation.create({
     data: {
       eventId: event.id,
-      themeId: "theme-royal-khmer",
+      contentType: "photo",
       isPublished: true,
       showWatermark: false,
       shareLink: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/invite/${SLUG}`,

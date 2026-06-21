@@ -15,10 +15,10 @@ export type ThemeFamily = "standard" | "khmer" | "custom";
 
 /** Design tokens — the recolorable surface of the shared `.inv-*` system. */
 export interface ThemeTokens {
-  id: string;
+  id?: string;
   /** Body font stack for the invite. */
   font: string;
-  family: ThemeFamily;
+  family?: ThemeFamily;
   /** Primary page / section background. */
   bg: string;
   /** Alternating section background (every other section). */
@@ -31,6 +31,14 @@ export interface ThemeTokens {
   accent: string;
   text: string;
   muted: string;
+  /** DB-theme semantic color for h1 / main title (falls back to text). */
+  title?: string;
+  /** DB-theme semantic color for subtitle paragraphs (falls back to text). */
+  subtitle?: string;
+  /** DB-theme semantic color for section-header labels (falls back to accent). */
+  header?: string;
+  /** DB-theme semantic color for body text and detail values (falls back to text). */
+  body?: string;
   /** Hairline border used on cards (already includes alpha). */
   border: string;
   btnBg: string;
@@ -38,11 +46,11 @@ export interface ThemeTokens {
   musicBg: string;
   musicColor: string;
   /** Decorative gem glyph in the cover ornament line. */
-  gem: string;
+  gem?: string;
   /** Cover corner treatment: simple lines, or the damask mask ornament. */
-  cornerStyle: "line" | "damask";
+  cornerStyle?: "line" | "damask";
   /** Optional decorative band below the cover. */
-  decoBand: { pattern: "floral" | "lace"; blend: "mul" | "screen" } | null;
+  decoBand?: { pattern: "floral" | "lace"; blend: "mul" | "screen" } | null;
 }
 
 /** @deprecated Back-compat alias. Prefer {@link ThemeTokens}. */

@@ -23,10 +23,15 @@ function getTimeLeft(target: string, eventDate: string): TimeLeft {
   };
 }
 
+const ZERO: TimeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0, expired: false };
+
 /** Live countdown to `targetDate` (falling back to `eventDate`), ticking once a second. */
 export function useCountdown(targetDate: string, eventDate: string): TimeLeft {
-  const [time, setTime] = useState<TimeLeft>(() => getTimeLeft(targetDate, eventDate));
+  // Start with zeros so the server-rendered HTML always matches the initial client render.
+  // The real value is set in useEffect, which only runs on the client after hydration.
+  const [time, setTime] = useState<TimeLeft>(ZERO);
   useEffect(() => {
+    setTime(getTimeLeft(targetDate, eventDate));
     const id = setInterval(() => setTime(getTimeLeft(targetDate, eventDate)), 1000);
     return () => clearInterval(id);
   }, [targetDate, eventDate]);

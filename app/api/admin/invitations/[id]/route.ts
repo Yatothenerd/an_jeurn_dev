@@ -53,7 +53,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     include: {
       event: { include: { guests: { orderBy: { name: "asc" } } } },
-      theme: { select: { name: true } },
     },
   });
   if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });

@@ -13,7 +13,7 @@ export class EventService {
   static async getBySlug(slug: string): Promise<EventWithInvitation | null> {
     return prisma.event.findUnique({
       where: { slug },
-      include: { invitation: { include: { sections: { orderBy: { sortOrder: "asc" } }, photos: { orderBy: { sortOrder: "asc" } }, theme: true } } },
+      include: { invitation: { include: { sections: { orderBy: { sortOrder: "asc" } }, photos: { orderBy: { sortOrder: "asc" } } } } },
     }) as Promise<EventWithInvitation | null>;
   }
 

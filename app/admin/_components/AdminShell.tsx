@@ -24,14 +24,14 @@ const GROUPS: { label: string; items: { href: string; icon: string; label: strin
       { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
     ],
   },
-  { label: "Design", items: [{ href: "/admin/themes", icon: "theme", label: "Themes" }] },
+  { label: "Events", items: [{ href: "/admin/events", icon: "theme", label: "All Events" }] },
 ];
 
 const BOTTOM_NAV = [
   { href: "/admin", icon: "dashboard", label: "Overview" },
   { href: "/admin/clients", icon: "client", label: "Clients" },
   { href: "/admin/invitations", icon: "invitation", label: "Events" },
-  { href: "/admin/themes", icon: "theme", label: "Design" },
+  { href: "/admin/events", icon: "theme", label: "Events" },
 ];
 
 export function AdminShell({ children, userName = "Admin" }: { children: React.ReactNode; userName?: string }) {

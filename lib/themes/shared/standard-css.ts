@@ -37,9 +37,42 @@ img { max-width: 100%; }
   max-width: 430px;
   margin: 0 auto;
   position: relative;
+  z-index: 1;
   box-shadow: 0 0 40px rgba(0,0,0,0.18);
   overflow: hidden;
   padding-bottom: 6.5rem;
+}
+
+/* ── Single fixed background (Spotlight-style themes) ── */
+/* Background is constrained to the same 430px as the invite shell so it
+   stays locked to mobile dimensions on desktop rather than filling the
+   full viewport and distorting the image. */
+.inv-fixed-bg {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  z-index: 0;
+  overflow: hidden;
+}
+.inv-fixed-bg-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  object-fit: cover;
+  object-position: center center;
+}
+.inv-fixed-bg-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.28);
 }
 
 /* ── Cover ── */

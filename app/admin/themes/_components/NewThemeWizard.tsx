@@ -1,8 +1,24 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import type { Theme } from "@/types";
+// Local stub — Theme model was removed from Prisma; wizard kept for PhonePreview reuse
+interface Theme {
+  id: string;
+  name: string;
+  contentType: string | null;
+  isAnimated: boolean;
+  sortOrder: number;
+  defaultSections: unknown;
+  overlayConfig: unknown;
+  backgroundUrl: string | null;
+  backgroundVideoUrl: string | null;
+  coverUrl: string | null;
+  thumbnailUrl: string | null;
+  previewUrl: string | null;
+  musicUrl: string | null;
+}
+import { PhonePreview } from "./PhonePreview";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type SectionType = "cover" | "countdown" | "details" | "gallery" | "video" | "wishing" | "khqr";
@@ -29,7 +45,15 @@ interface WizardSection {
   content: SectionContent;
 }
 
-interface ColorScheme { text: string; accent: string }
+interface ColorScheme {
+  text: string;       // base text fallback
+  accent: string;     // decorative / borders / buttons
+  title: string;      // h1 / cover title, countdown digits
+  subtitle: string;   // subheading paragraph below title
+  header: string;     // section-header labels ("DETAILS", "COUNTDOWN")
+  body: string;       // body text, detail row values, captions
+  muted: string;      // dates, venue, secondary info
+}
 
 interface OverlayConfig {
   style: OverlayStyle;
@@ -65,13 +89,15 @@ const INITIAL_SECTIONS: WizardSection[] = [
   { type: "khqr",      included: false, content: { recipientName: "", amount: "", currency: "KHR" } },
 ];
 
-const COLOR_PRESETS: Array<{ label: string; text: string; accent: string }> = [
-  { label: "Classic Gold",    text: "#ffffff", accent: "#c9a96e" },
-  { label: "Rose Blush",      text: "#fff0f5", accent: "#e91e8c" },
-  { label: "Sage Garden",     text: "#f0fff4", accent: "#38a169" },
-  { label: "Ocean Blue",      text: "#e8f4f8", accent: "#2b6cb0" },
-  { label: "Midnight Purple", text: "#f5f0ff", accent: "#805ad5" },
-  { label: "Warm Ivory",      text: "#fffff0", accent: "#d69e2e" },
+type ColorPreset = { name: string } & ColorScheme;
+
+const COLOR_PRESETS: ColorPreset[] = [
+  { name: "Classic Gold",    text: "#ffffff", accent: "#c9a96e", title: "#ffffff",   subtitle: "rgba(255,255,255,0.88)", header: "#c9a96e",   body: "rgba(255,255,255,0.85)", muted: "rgba(255,255,255,0.52)" },
+  { name: "Rose Blush",      text: "#fff0f5", accent: "#e91e8c", title: "#fff0f5",   subtitle: "rgba(255,240,245,0.9)",  header: "#e91e8c",   body: "rgba(255,240,245,0.85)", muted: "rgba(255,240,245,0.55)" },
+  { name: "Sage Garden",     text: "#f0fff4", accent: "#38a169", title: "#f0fff4",   subtitle: "rgba(240,255,244,0.9)",  header: "#4ade80",   body: "rgba(240,255,244,0.85)", muted: "rgba(240,255,244,0.55)" },
+  { name: "Ocean Blue",      text: "#e8f4f8", accent: "#2b6cb0", title: "#e8f4f8",   subtitle: "rgba(232,244,248,0.9)",  header: "#63b3ed",   body: "rgba(232,244,248,0.85)", muted: "rgba(232,244,248,0.52)" },
+  { name: "Midnight Purple", text: "#f5f0ff", accent: "#805ad5", title: "#f5f0ff",   subtitle: "rgba(245,240,255,0.9)",  header: "#b794f4",   body: "rgba(245,240,255,0.85)", muted: "rgba(245,240,255,0.52)" },
+  { name: "Warm Ivory",      text: "#fffff0", accent: "#d69e2e", title: "#fffff0",   subtitle: "rgba(255,255,240,0.9)",  header: "#d69e2e",   body: "rgba(255,255,240,0.85)", muted: "rgba(255,255,240,0.52)" },
 ];
 
 const INITIAL_OVERLAY: OverlayConfig = {
@@ -80,10 +106,33 @@ const INITIAL_OVERLAY: OverlayConfig = {
   music:  { enabled: true },
   goToTop:{ enabled: true },
   gifts:  { enabled: false },
-  colorScheme: { text: "#ffffff", accent: "#c9a96e" },
+  colorScheme: {
+    text:     "#ffffff",
+    accent:   "#c9a96e",
+    title:    "#ffffff",
+    subtitle: "rgba(255,255,255,0.88)",
+    header:   "#c9a96e",
+    body:     "rgba(255,255,255,0.85)",
+    muted:    "rgba(255,255,255,0.52)",
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// `<input type="color">` requires a 6-digit hex value. rgba() strings break it.
+// This converts any CSS color string to a hex fallback for the color picker.
+function toHex(color: string): string {
+  if (!color) return "#ffffff";
+  if (/^#[0-9a-f]{3,8}$/i.test(color.trim())) return color.trim().slice(0, 7);
+  // rgba — extract r,g,b and convert
+  const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (m) {
+    const hex = (n: number) => n.toString(16).padStart(2, "0");
+    return `#${hex(+m[1])}${hex(+m[2])}${hex(+m[3])}`;
+  }
+  return "#ffffff";
+}
+
 function parseSections(raw: unknown): WizardSection[] {
   if (!Array.isArray(raw) || raw.length === 0) return INITIAL_SECTIONS;
   if (typeof raw[0] !== "object" || raw[0] === null) return INITIAL_SECTIONS;
@@ -100,7 +149,13 @@ function parseSections(raw: unknown): WizardSection[] {
 
 function parseOverlay(raw: unknown): OverlayConfig {
   if (!raw || typeof raw !== "object") return INITIAL_OVERLAY;
-  return { ...INITIAL_OVERLAY, ...(raw as Partial<OverlayConfig>) };
+  const r = raw as Partial<OverlayConfig>;
+  return {
+    ...INITIAL_OVERLAY,
+    ...r,
+    // Deep-merge colorScheme so old themes (with only text+accent) get new field defaults
+    colorScheme: { ...INITIAL_OVERLAY.colorScheme, ...(r.colorScheme ?? {}) },
+  };
 }
 
 // ─── Shared sub-components ────────────────────────────────────────────────────
@@ -414,14 +469,17 @@ const ed = {
 } as const;
 
 const cs = {
-  presets:    { display: "flex", gap: "0.5rem", flexWrap: "wrap" as const, marginBottom: "0.375rem" },
+  presets:    { display: "flex", gap: "0.5rem", flexWrap: "wrap" as const, marginBottom: "0.75rem" },
   swatch:     { width: 28, height: 28, borderRadius: "50%", border: "2px solid rgba(0,0,0,0.12)", cursor: "pointer", flexShrink: 0, padding: 0 },
-  customRow:  { display: "flex", gap: "1.5rem", marginTop: "0.5rem" },
-  customItem: { display: "flex", flexDirection: "column" as const, gap: "0.25rem" },
-  customLbl:  { fontSize: "0.75rem", fontWeight: 600, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.04em" },
+  groupLabel: { fontSize: "0.6875rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginTop: "0.875rem", marginBottom: "0.375rem" },
+  colorGrid:  { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" },
+  customItem: { display: "flex", flexDirection: "column" as const, gap: "0.2rem" },
+  customLbl:  { fontSize: "0.6875rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.04em" },
+  hintTxt:    { fontSize: "0.6875rem", color: "var(--c-muted)", marginBottom: "0.1rem" },
   colorWrap:  { display: "flex", alignItems: "center", gap: "0.5rem" },
   colorInput: { width: 36, height: 28, padding: 2, border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", background: "none" },
-  colorHex:   { fontSize: "0.8125rem", color: "var(--c-text)", fontFamily: "monospace" },
+  colorHex:   { fontSize: "0.75rem", color: "var(--c-text)", fontFamily: "monospace" },
+  preview:    { display: "flex", alignItems: "center", flexWrap: "wrap" as const, gap: "0.625rem", padding: "0.75rem 1rem", borderRadius: 8, marginTop: "1rem", border: "1px solid var(--c-border)" },
 } as const;
 
 // ─── Section accordion row ────────────────────────────────────────────────────
@@ -551,6 +609,41 @@ export function NewThemeWizard({ onClose, theme }: Props) {
   const [loading, setLoading]   = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError]       = useState("");
+  const [autoSaveStatus, setAutoSaveStatus] = useState<"idle" | "pending" | "saved">("idle");
+
+  const autoSavePayload = useMemo(() => ({
+    name: name.trim(),
+    contentType,
+    isAnimated,
+    sortOrder,
+    defaultSections: sections,
+    overlayConfig: overlay,
+  }), [name, contentType, isAnimated, sortOrder, sections, overlay]);
+
+  useEffect(() => {
+    if (!isEdit || !theme || !name.trim()) return;
+    setAutoSaveStatus("pending");
+    const themeId = theme.id;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/themes/${themeId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(autoSavePayload),
+        });
+        if (res.ok) {
+          setAutoSaveStatus("saved");
+          setTimeout(() => setAutoSaveStatus("idle"), 2500);
+        } else {
+          setAutoSaveStatus("idle");
+        }
+      } catch {
+        setAutoSaveStatus("idle");
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSavePayload]);
 
   const updateSection = useCallback((type: SectionType, patch: Partial<WizardSection>) => {
     setSections(prev => prev.map(s => s.type === type ? { ...s, ...patch } : s));
@@ -631,7 +724,18 @@ export function NewThemeWizard({ onClose, theme }: Props) {
 
         <div style={w.header}>
           <div>
-            <h2 style={w.title}>{isEdit ? `Edit — ${theme.name}` : "New Theme"}</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <h2 style={w.title}>{isEdit ? `Edit — ${theme.name}` : "New Theme"}</h2>
+              {isEdit && autoSaveStatus !== "idle" && (
+                <span style={{ fontSize: "0.6875rem", fontWeight: 600, padding: "0.15rem 0.5rem", borderRadius: 4,
+                  background: autoSaveStatus === "saved" ? "#dcfce7" : "var(--c-surface-2)",
+                  color: autoSaveStatus === "saved" ? "#16a34a" : "var(--c-muted)",
+                  border: `1px solid ${autoSaveStatus === "saved" ? "#86efac" : "var(--c-border)"}`,
+                }}>
+                  {autoSaveStatus === "pending" ? "Saving…" : "✓ Saved"}
+                </span>
+              )}
+            </div>
             <p style={w.subtitle}>
               {step === 1 && "Name your theme and choose its visual style"}
               {step === 2 && "Enable sections and set their default content"}
@@ -670,7 +774,8 @@ export function NewThemeWizard({ onClose, theme }: Props) {
         </div>
         <div style={w.track}><div style={{ ...w.fill, width: `${((step - 1) / (STEPS - 1)) * 100}%` }} /></div>
 
-        <div style={w.body}>
+        <div style={w.contentRow}>
+        <div style={w.editPane}>
 
           {/* Step 1 — Identity */}
           {step === 1 && (
@@ -712,51 +817,100 @@ export function NewThemeWizard({ onClose, theme }: Props) {
 
               <div style={w.field}>
                 <label style={w.flbl}>Color scheme</label>
-                <p style={w.note}>Invitation text and accent color — guests see these colors on the invitation page.</p>
+                <p style={w.note}>Set each text role independently — changes appear instantly on all live invitations using this theme.</p>
+
+                {/* Quick presets */}
                 <div style={cs.presets}>
-                  {COLOR_PRESETS.map(preset => (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      title={preset.label}
-                      onClick={() => patchOverlay({ colorScheme: { text: preset.text, accent: preset.accent } })}
-                      style={{
-                        ...cs.swatch,
-                        background: preset.accent,
-                        outline: overlay.colorScheme.accent === preset.accent && overlay.colorScheme.text === preset.text
-                          ? "2px solid var(--c-accent)" : "none",
-                        outlineOffset: 2,
-                      }}
-                    />
+                  {COLOR_PRESETS.map(preset => {
+                    const active = overlay.colorScheme.accent === preset.accent && overlay.colorScheme.title === preset.title;
+                    return (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        title={preset.name}
+                        onClick={() => patchOverlay({ colorScheme: { ...preset } })}
+                        style={{
+                          ...cs.swatch,
+                          background: `linear-gradient(135deg, ${preset.accent} 50%, ${preset.title} 50%)`,
+                          outline: active ? "2px solid var(--c-accent)" : "none",
+                          outlineOffset: 2,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Title & Subtitle row */}
+                <div style={cs.groupLabel}>Title &amp; Subtitle</div>
+                <div style={cs.colorGrid}>
+                  {([
+                    ["Title",    "title",    "Cover h1, countdown digits"] as const,
+                    ["Subtitle", "subtitle", "Subheading below title"] as const,
+                  ]).map(([lbl, key, hint]) => (
+                    <div key={key} style={cs.customItem}>
+                      <span style={cs.customLbl}>{lbl}</span>
+                      <div style={cs.hintTxt}>{hint}</div>
+                      <div style={cs.colorWrap}>
+                        <input type="color"
+                          value={toHex(overlay.colorScheme[key])}
+                          onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, [key]: e.target.value } })}
+                          style={cs.colorInput} />
+                        <span style={cs.colorHex}>{overlay.colorScheme[key]}</span>
+                      </div>
+                    </div>
                   ))}
                 </div>
-                <div style={cs.customRow}>
-                  <div style={cs.customItem}>
-                    <span style={cs.customLbl}>Text color</span>
-                    <div style={cs.colorWrap}>
-                      <input type="color" value={overlay.colorScheme.text}
-                        onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, text: e.target.value } })}
-                        style={cs.colorInput} />
-                      <span style={cs.colorHex}>{overlay.colorScheme.text}</span>
+
+                {/* Body & Muted row */}
+                <div style={cs.groupLabel}>Body &amp; Secondary</div>
+                <div style={cs.colorGrid}>
+                  {([
+                    ["Body",    "body",  "Detail values, wish text, captions"] as const,
+                    ["Muted",   "muted", "Dates, venue, dimmed secondary text"] as const,
+                  ]).map(([lbl, key, hint]) => (
+                    <div key={key} style={cs.customItem}>
+                      <span style={cs.customLbl}>{lbl}</span>
+                      <div style={cs.hintTxt}>{hint}</div>
+                      <div style={cs.colorWrap}>
+                        <input type="color"
+                          value={toHex(overlay.colorScheme[key])}
+                          onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, [key]: e.target.value } })}
+                          style={cs.colorInput} />
+                        <span style={cs.colorHex}>{overlay.colorScheme[key]}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div style={cs.customItem}>
-                    <span style={cs.customLbl}>Accent color</span>
-                    <div style={cs.colorWrap}>
-                      <input type="color" value={overlay.colorScheme.accent}
-                        onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, accent: e.target.value } })}
-                        style={cs.colorInput} />
-                      <span style={cs.colorHex}>{overlay.colorScheme.accent}</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.625rem", alignItems: "center" }}>
-                  <div style={{ background: overlay.colorScheme.accent, color: overlay.colorScheme.text, borderRadius: 6, padding: "0.3rem 0.875rem", fontSize: "0.8125rem", fontWeight: 600 }}>
-                    Aa Accent
-                  </div>
-                  <div style={{ background: "rgba(0,0,0,0.7)", color: overlay.colorScheme.text, borderRadius: 6, padding: "0.3rem 0.875rem", fontSize: "0.8125rem" }}>
-                    Text preview
-                  </div>
+
+                {/* Header & Accent row */}
+                <div style={cs.groupLabel}>Header &amp; Accent</div>
+                <div style={cs.colorGrid}>
+                  {([
+                    ["Section Header", "header", "Section labels — DETAILS, COUNTDOWN…"] as const,
+                    ["Accent",         "accent", "Borders, buttons, decorative dividers"] as const,
+                  ]).map(([lbl, key, hint]) => (
+                    <div key={key} style={cs.customItem}>
+                      <span style={cs.customLbl}>{lbl}</span>
+                      <div style={cs.hintTxt}>{hint}</div>
+                      <div style={cs.colorWrap}>
+                        <input type="color"
+                          value={toHex(overlay.colorScheme[key])}
+                          onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, [key]: e.target.value } })}
+                          style={cs.colorInput} />
+                        <span style={cs.colorHex}>{overlay.colorScheme[key]}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Live preview strip */}
+                <div style={{ ...cs.preview, background: "rgba(0,0,0,0.72)" }}>
+                  <span style={{ color: overlay.colorScheme.title, fontFamily: "Georgia, serif", fontSize: "1.1rem", fontWeight: 300, fontStyle: "italic" }}>Our Big Day</span>
+                  <span style={{ color: overlay.colorScheme.subtitle, fontSize: "0.8rem" }}>You are cordially invited</span>
+                  <span style={{ color: overlay.colorScheme.header, fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase" }}>Details</span>
+                  <span style={{ color: overlay.colorScheme.body, fontSize: "0.8rem" }}>Phnom Penh · 18:00</span>
+                  <span style={{ color: overlay.colorScheme.muted, fontSize: "0.75rem" }}>Saturday, 21 June 2026</span>
+                  <span style={{ background: overlay.colorScheme.accent, color: "#fff", borderRadius: 4, padding: "0.15rem 0.6rem", fontSize: "0.75rem" }}>Accent</span>
                 </div>
               </div>
             </div>
@@ -896,6 +1050,23 @@ export function NewThemeWizard({ onClose, theme }: Props) {
           {error && <p style={w.err}>{error}</p>}
         </div>
 
+        <div style={w.previewPane}>
+          <PhonePreview
+            contentType={contentType}
+            sections={sections}
+            colorScheme={overlay.colorScheme}
+            overlay={overlay}
+            bgImageFile={bgImageFile}
+            bgVideoFile={bgVideoFile}
+            bgAssetType={bgAssetType}
+            coverFile={coverFile}
+            existingBgUrl={theme?.backgroundUrl ?? null}
+            existingBgVideoUrl={theme?.backgroundVideoUrl ?? null}
+            existingCoverUrl={theme?.coverUrl ?? null}
+          />
+        </div>
+        </div>
+
         <div style={w.footer}>
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <button type="button" style={w.backBtn}
@@ -925,7 +1096,7 @@ export function NewThemeWizard({ onClose, theme }: Props) {
 // ─── Wizard styles ────────────────────────────────────────────────────────────
 const w = {
   overlay:  { position: "fixed" as const, inset: 0, zIndex: 50, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" },
-  modal:    { background: "var(--c-surface)", color: "var(--c-text)", borderRadius: 16, width: "100%", maxWidth: 660, maxHeight: "92vh", overflowY: "auto" as const, boxShadow: "0 24px 80px rgba(0,0,0,0.45)", border: "1px solid var(--c-border)", display: "flex", flexDirection: "column" as const },
+  modal:    { background: "var(--c-surface)", color: "var(--c-text)", borderRadius: 16, width: "100%", maxWidth: 1060, maxHeight: "92vh", boxShadow: "0 24px 80px rgba(0,0,0,0.45)", border: "1px solid var(--c-border)", display: "flex", flexDirection: "column" as const },
   header:   { display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "1.5rem 1.5rem 1rem", flexShrink: 0 },
   title:    { margin: 0, fontSize: "1.125rem", fontWeight: 700 },
   subtitle: { margin: "0.25rem 0 0", fontSize: "0.875rem", color: "var(--c-muted)" },
@@ -943,6 +1114,9 @@ const w = {
   fill:     { height: "100%", background: "var(--c-accent)", borderRadius: 2, transition: "width 0.3s ease" },
 
   body:     { padding: "1.25rem 1.5rem", flex: 1, overflowY: "auto" as const },
+  contentRow: { display: "flex", flex: 1, overflow: "hidden" as const, minHeight: 0 },
+  editPane:   { padding: "1.25rem 1.5rem", flex: 1, overflowY: "auto" as const, minWidth: 0 },
+  previewPane:{ width: 308, flexShrink: 0, overflowY: "auto" as const },
   col:      { display: "flex", flexDirection: "column" as const, gap: "1.25rem" },
   note:     { margin: 0, fontSize: "0.875rem", color: "var(--c-muted)", lineHeight: 1.55 },
 

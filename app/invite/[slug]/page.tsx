@@ -1,9 +1,11 @@
 import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
+import { getSession } from "@/lib/services/auth.service";
 import { getCachedInvite, setCachedInvite, type InviteData } from "@/lib/utils/invite-cache";
-import { getTheme, buildInviteCss, buildFontsHref, standardLayout } from "@/lib/themes/registry";
-import type { SectionComponents, SectionType, ThemeTokens } from "@/lib/themes/types";
+import { STANDARD_CSS } from "@/lib/themes/shared/standard-css";
+import type { SectionComponents, SectionType, ThemeTokens, ThemeLayout } from "@/lib/themes/types";
+import { DB_SECTIONS } from "./_components/DbThemeSections";
 import { CoverSection } from "./_components/sections/CoverSection";
 import { CountdownSection } from "./_components/sections/CountdownSection";
 import { AgendaSection } from "./_components/sections/AgendaSection";
@@ -18,11 +20,15 @@ import { RsvpModal } from "./_components/RsvpModal";
 import { InviteActions } from "./_components/InviteActions";
 import { Watermark } from "./_components/Watermark";
 import { InviteGate } from "./_components/InviteGate";
+import dynamic from "next/dynamic";
 
-// Default section renderers (the shared `.inv-*` design system). A theme may
-// override any of these via its `sections` map; unspecified sections fall back
-// to these.
-const STANDARD_SECTIONS = {
+// ssr: false — avoids PathnameContext not being ready during SSR of the invite page
+const ThemePoller = dynamic(
+  () => import("./_components/ThemePoller").then((m) => ({ default: m.ThemePoller })),
+  { ssr: false }
+);
+
+const STANDARD_SECTIONS: SectionComponents = {
   cover: CoverSection,
   countdown: CountdownSection,
   agenda: AgendaSection,
@@ -33,7 +39,30 @@ const STANDARD_SECTIONS = {
   wishing: WishingSection,
   image: ImageSection,
   guestlist: GuestlistSection,
-} satisfies SectionComponents;
+};
+
+// ── Fallback token defaults ────────────────────────────────────────────────────
+
+const DEFAULT_TOKENS: ThemeTokens = {
+  font: "'Georgia','Times New Roman',serif",
+  bg: "transparent",
+  altBg: "rgba(0,0,0,0.10)",
+  cardBg: "rgba(255,255,255,0.10)",
+  coverGradient: "linear-gradient(to bottom, rgba(0,0,0,0.32), rgba(0,0,0,0.08))",
+  text: "#ffffff",
+  primary: "#ffffff",
+  muted: "rgba(255,255,255,0.55)",
+  accent: "#c9a96e",
+  border: "rgba(201,169,110,0.44)",
+  btnBg: "#c9a96e",
+  btnText: "#fff",
+  musicBg: "rgba(0,0,0,0.50)",
+  musicColor: "#c9a96e",
+  title:    "#ffffff",
+  subtitle: "rgba(255,255,255,0.88)",
+  header:   "#c9a96e",
+  body:     "rgba(255,255,255,0.85)",
+};
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
@@ -46,10 +75,9 @@ async function loadInviteData(slug: string): Promise<InviteData | null> {
     include: {
       invitation: {
         include: {
-          theme: true,
           sections: { where: { isVisible: true }, orderBy: { sortOrder: "asc" } },
-          photos: { orderBy: { sortOrder: "asc" } },
-          wishes: { orderBy: { createdAt: "desc" }, take: 50 },
+          photos:   { orderBy: { sortOrder: "asc" } },
+          wishes:   { orderBy: { createdAt: "desc" }, take: 50 },
         },
       },
       user: {
@@ -71,39 +99,41 @@ async function loadInviteData(slug: string): Promise<InviteData | null> {
 
   const data: InviteData = {
     event: {
-      id: event.id,
-      title: event.title,
-      eventType: event.eventType,
-      eventDate: event.eventDate.toISOString(),
-      venueName: event.venueName,
+      id:          event.id,
+      title:       event.title,
+      eventType:   event.eventType,
+      eventDate:   event.eventDate.toISOString(),
+      venueName:   event.venueName,
       venueMapUrl: event.venueMapUrl,
-      slug: event.slug,
+      slug:        event.slug,
     },
     invitation: {
-      id: inv.id,
-      themeId: inv.themeId,
-      thumbnailUrl: inv.thumbnailUrl,
-      backgroundUrl: inv.backgroundUrl,
-      musicUrl: inv.musicUrl,
-      shareLink: inv.shareLink,
-      showWatermark: inv.showWatermark,
-      isPublished: inv.isPublished,
+      id:                 inv.id,
+      contentType:        inv.contentType,
+      defaultSections:    inv.defaultSections,
+      overlayConfig:      inv.overlayConfig as Record<string, unknown> | null,
+      backgroundUrl:      inv.backgroundUrl,
+      backgroundVideoUrl: inv.backgroundVideoUrl,
+      coverUrl:           inv.coverUrl,
+      musicUrl:           inv.musicUrl,
+      thumbnailUrl:       inv.thumbnailUrl,
+      shareLink:          inv.shareLink,
+      showWatermark:      inv.showWatermark,
+      isPublished:        inv.isPublished,
+      isAnimated:         inv.isAnimated,
     },
-    theme: { id: inv.theme.id, name: inv.theme.name },
     sections: inv.sections.map((s) => ({ id: s.id, type: s.type, sortOrder: s.sortOrder, content: s.content })),
-    photos: inv.photos.map((p) => ({ id: p.id, url: p.url, sortOrder: p.sortOrder })),
-    pkg: pkg
-      ? {
-          hasWishing: pkg.hasWishing,
-          hasGuestControl: pkg.hasGuestControl,
-          hasMusic: pkg.hasMusic,
-          hasKhqr: pkg.hasKhqr,
-          hasLocation: pkg.hasLocation,
-          hasOpeningCover: pkg.hasOpeningCover,
-          hasWatermark: pkg.hasWatermark,
-          galleryType: pkg.galleryType,
-        }
-      : null,
+    photos:   inv.photos.map((p) => ({ id: p.id, url: p.url, sortOrder: p.sortOrder })),
+    pkg: pkg ? {
+      hasWishing:      pkg.hasWishing,
+      hasGuestControl: pkg.hasGuestControl,
+      hasMusic:        pkg.hasMusic,
+      hasKhqr:         pkg.hasKhqr,
+      hasLocation:     pkg.hasLocation,
+      hasOpeningCover: pkg.hasOpeningCover,
+      hasWatermark:    pkg.hasWatermark,
+      galleryType:     pkg.galleryType,
+    } : null,
     wishes: inv.wishes.map((w) => ({ id: w.id, guestName: w.guestName, message: w.message, createdAt: w.createdAt.toISOString() })),
   };
 
@@ -111,7 +141,7 @@ async function loadInviteData(slug: string): Promise<InviteData | null> {
   return data;
 }
 
-// ── Section rendering ───────────────────────────────────────────────────────────
+// ── Section rendering ─────────────────────────────────────────────────────────
 
 function renderSection(
   sec: InviteData["sections"][number],
@@ -125,7 +155,6 @@ function renderSection(
 ): React.ReactNode {
   const c = sec.content as Record<string, unknown>;
 
-  // Image-based section: the uploaded image IS the content (any section type).
   if (c.mode === "image" && c.imageUrl && components.image) {
     const C = components.image;
     return <C content={c as never} theme={tokens} />;
@@ -159,7 +188,9 @@ function renderSection(
     }
     case "agenda": {
       const C = components.agenda;
-      return C ? <C content={c as never} theme={tokens} /> : null;
+      return C ? (
+        <C content={c as never} venueName={data.event.venueName} venueMapUrl={data.event.venueMapUrl} theme={tokens} />
+      ) : null;
     }
     case "details": {
       const C = components.details;
@@ -206,25 +237,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!data) return { title: "Invitation" };
 
   const description = `You're invited to ${data.event.title}`;
-  // Per-event social preview image. Each invitation can carry its own thumbnail
-  // (set by admin / on packages that allow custom thumbnails); fall back to none.
   const images = data.invitation.thumbnailUrl ? [{ url: data.invitation.thumbnailUrl }] : undefined;
 
   return {
     title: data.event.title,
     description,
-    openGraph: {
-      title: data.event.title,
-      description,
-      type: "website",
-      images,
-    },
-    twitter: {
-      card: images ? "summary_large_image" : "summary",
-      title: data.event.title,
-      description,
-      images,
-    },
+    openGraph: { title: data.event.title, description, type: "website", images },
+    twitter: { card: images ? "summary_large_image" : "summary", title: data.event.title, description, images },
   };
 }
 
@@ -233,21 +252,70 @@ export default async function InvitePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ g?: string }>;
+  searchParams: Promise<{ g?: string; preview?: string }>;
 }) {
   const { slug } = await params;
   const data = await loadInviteData(slug);
+  const loadedAt = Date.now();
 
-  if (!data || !data.invitation.isPublished) notFound();
+  // Admin preview — bypass isPublished gate so admin can preview before publish
+  const { g, preview } = await searchParams;
+  let viewerIsAdmin = false;
+  if (preview === "1") {
+    const session = await getSession();
+    viewerIsAdmin = session?.role === "admin";
+  }
 
-  const theme = getTheme(data.invitation.themeId);
-  const tokens = theme.tokens;
-  const components: SectionComponents = { ...STANDARD_SECTIONS, ...theme.sections };
-  const layout = theme.layout ?? standardLayout;
+  if (!data || (!data.invitation.isPublished && !viewerIsAdmin)) notFound();
 
-  // Personalized guest name from the per-guest link (?g=<token>). Looked up
-  // outside the cached invite payload so it's always fresh per visitor.
-  const { g } = await searchParams;
+  const inv = data.invitation;
+  const isPhotoMode = inv.contentType === "photo";
+
+  // Build tokens from the invitation's overlayConfig.colorScheme
+  const oc = inv.overlayConfig as {
+    colorScheme?: {
+      text?: string; accent?: string;
+      title?: string; subtitle?: string; header?: string; body?: string; muted?: string;
+    };
+  } | null;
+  const cs = oc?.colorScheme ?? {};
+  const tokens: ThemeTokens = {
+    ...DEFAULT_TOKENS,
+    text:     cs.text     ?? DEFAULT_TOKENS.text,
+    primary:  cs.text     ?? DEFAULT_TOKENS.primary,
+    accent:   cs.accent   ?? DEFAULT_TOKENS.accent,
+    border:   cs.accent   ? cs.accent + "44" : DEFAULT_TOKENS.border,
+    btnBg:    cs.accent   ?? DEFAULT_TOKENS.btnBg,
+    musicColor: cs.accent ?? DEFAULT_TOKENS.musicColor,
+    muted:    cs.muted    ?? DEFAULT_TOKENS.muted,
+    title:    cs.title    ?? cs.text    ?? DEFAULT_TOKENS.title,
+    subtitle: cs.subtitle ?? cs.text    ?? DEFAULT_TOKENS.subtitle,
+    header:   cs.header   ?? cs.accent  ?? DEFAULT_TOKENS.header,
+    body:     cs.body     ?? cs.text    ?? DEFAULT_TOKENS.body,
+    coverGradient: isPhotoMode ? "transparent"
+      : "linear-gradient(to bottom, rgba(0,0,0,0.32), rgba(0,0,0,0.08))",
+  };
+
+  const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS };
+  const layout: ThemeLayout = {};
+
+  // Active sections come from invitation.defaultSections (admin-configured via EventWizard)
+  const rawDs = inv.defaultSections as Array<{ type: string; included: boolean; content: unknown }> | null;
+  const activeSections: InviteData["sections"] = rawDs
+    ? rawDs.filter((s) => s.included).map((s, i) => ({ id: `ds-${i}`, type: s.type, sortOrder: i, content: s.content }))
+    : data.sections;
+
+  const activeMusicUrl = inv.musicUrl ?? null;
+
+  // Background asset
+  const bgUrl = inv.backgroundVideoUrl || inv.backgroundUrl || null;
+  const bgIsVideo = !!bgUrl && /\.(mp4|webm|mov)$/i.test(bgUrl);
+  const showBgScrim = !isPhotoMode || bgIsVideo;
+
+  // Cover asset passed to cover section renderer
+  const themeAssets = inv.coverUrl ? { cover: inv.coverUrl } : undefined;
+
+  // Personalized guest name (g is already destructured above)
   let guestName: string | null = null;
   if (g) {
     const guest = await prisma.guest.findFirst({
@@ -257,9 +325,8 @@ export default async function InvitePage({
     guestName = guest?.name ?? null;
   }
 
-  // Guestlist widget data — loaded fresh (outside the cache) so counts are live.
-  // Full names are only revealed on a personal (?g=) link; otherwise counts only.
-  const hasGuestlist = data.sections.some((s) => s.type === "guestlist");
+  // Guestlist widget — loaded fresh so counts are live
+  const hasGuestlist = activeSections.some((s) => s.type === "guestlist");
   const guests = hasGuestlist
     ? await prisma.guest.findMany({
         where: { eventId: data.event.id },
@@ -269,55 +336,37 @@ export default async function InvitePage({
     : [];
   const showGuestNames = !!guestName;
 
-  // Single fixed background (Spotlight-style themes): admin-set invitation
-  // background, falling back to the cover section's uploaded background.
-  const coverBg = data.sections.find((s) => s.type === "cover")?.content as
-    | { bgUrl?: string; bgVideo?: string }
-    | undefined;
-  const bgUrl = theme.singleBackground
-    ? data.invitation.backgroundUrl || coverBg?.bgVideo || coverBg?.bgUrl || null
-    : null;
-  const bgIsVideo = !!bgUrl && /\.(mp4|webm|mov)$/i.test(bgUrl);
-
-  // Running index of rendered non-cover sections, for background alternation.
-  let altIndex = 0;
-
-  // Greeting fallback for the opening gate (when there's no personalized guest).
-  const coverContent = data.sections.find((s) => s.type === "cover")?.content as
-    | { guestLabel?: string }
-    | undefined;
-
-  // ── Package-driven feature gating ──
   const pkg = data.pkg;
-  const showOpeningCover = pkg?.hasOpeningCover ?? false;
-  const showWatermark = (pkg?.hasWatermark ?? true) && data.invitation.showWatermark;
-  // ABA/KHQR floating action: package includes KHQR AND a QR section exists.
+  // Gate always shows — if a cover/bg image is uploaded it appears as backdrop;
+  // without an image the theme gradient is used instead.
+  const showOpeningCover = true;
+  const showWatermark = (pkg?.hasWatermark ?? true) && inv.showWatermark;
   const hasKhqr =
     (pkg?.hasKhqr ?? false) &&
-    data.sections.some(
-      (sec) => sec.type === "khqr" && !!(sec.content as { qrImageUrl?: string })?.qrImageUrl
-    );
+    activeSections.some((sec) => sec.type === "khqr" && !!(sec.content as { qrImageUrl?: string })?.qrImageUrl);
+
+  const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string } | undefined;
+
+  let altIndex = 0;
 
   const shell = (
     <div
-      className={`invite-shell${layout.shellClass ? " " + layout.shellClass : ""}`}
+      className="invite-shell"
       style={{ background: bgUrl ? "transparent" : tokens.bg }}
     >
-      {data.sections.map((sec) => {
-        const node = renderSection(sec, data, tokens, components, theme.assets, guestName, guests, showGuestNames);
+      {activeSections.map((sec) => {
+        const node = renderSection(sec, data, tokens, components, themeAssets, guestName, guests, showGuestNames);
         if (!node) return null;
 
         if (sec.type === "cover") {
-          const cover = layout.wrapCover ? layout.wrapCover(node, tokens) : node;
-          return <Fragment key={sec.id}>{cover}</Fragment>;
+          return <Fragment key={sec.id}>{node}</Fragment>;
         }
 
         const wrapped = layout.wrapSection
           ? layout.wrapSection(node, { type: sec.type as SectionType, index: altIndex, tokens })
           : node;
         altIndex++;
-        // The KHQR section gets a scroll anchor so the floating ABA button can
-        // jump to it (theme-agnostic — sits outside the theme's own chrome).
+
         if (sec.type === "khqr") {
           return <div key={sec.id} id="inv-khqr">{wrapped}</div>;
         }
@@ -326,34 +375,28 @@ export default async function InvitePage({
 
       {layout.footer?.({ tokens, eventTitle: data.event.title })}
 
-      {/* RSVP button + modal */}
       <RsvpModal
         eventId={data.event.id}
         hasGuestControl={pkg?.hasGuestControl ?? false}
         theme={tokens}
       />
 
-      {/* Floating action stack — each button gated by the client's package */}
       <InviteActions
         venueMapUrl={pkg?.hasLocation ? data.event.venueMapUrl : null}
-        musicUrl={pkg?.hasMusic ? data.invitation.musicUrl : null}
+        musicUrl={pkg?.hasMusic ? activeMusicUrl : null}
         hasKhqr={hasKhqr}
         theme={{ btnBg: tokens.musicBg, btnText: tokens.musicColor }}
       />
 
-      {/* Powered-by watermark (Saving / Standard tiers) */}
       {showWatermark && <Watermark />}
     </div>
   );
 
   return (
     <>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link rel="stylesheet" href={buildFontsHref(theme.fonts)} />
-      <style dangerouslySetInnerHTML={{ __html: buildInviteCss(theme) }} />
+      <ThemePoller slug={slug} loadedAt={loadedAt} />
+      <style dangerouslySetInnerHTML={{ __html: STANDARD_CSS }} />
 
-      {/* Single fixed background behind the whole invite (admin-controlled). */}
       {bgUrl && (
         <div className="inv-fixed-bg">
           {bgIsVideo ? (
@@ -361,18 +404,17 @@ export default async function InvitePage({
           ) : (
             <div className="inv-fixed-bg-media" style={{ backgroundImage: `url(${bgUrl})` }} />
           )}
-          <div className="inv-fixed-bg-scrim" />
+          {showBgScrim && <div className="inv-fixed-bg-scrim" />}
         </div>
       )}
 
-      {/* Opening cover (Royalty's motion opening screen) — only when the package
-          includes it; otherwise the letter shows immediately. */}
       {showOpeningCover ? (
         <InviteGate
           eventTitle={data.event.title}
           guestName={guestName}
           guestLabel={coverContent?.guestLabel}
           theme={tokens}
+          bgUrl={inv.coverUrl || inv.backgroundUrl}
         >
           {shell}
         </InviteGate>

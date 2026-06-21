@@ -1,9 +1,6 @@
-import { ThemeService } from "@/lib/services/theme.service";
-import { ThemesPageClient } from "./_components/ThemesPageClient";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Admin — Themes" };
-
-export default async function ThemesPage() {
-  const themes = await ThemeService.getAllThemes();
-  return <ThemesPageClient themes={themes} />;
+// Theme model has been removed. Admin now manages events directly via EventWizard.
+export default function ThemesPage() {
+  redirect("/admin/events");
 }

@@ -1,25 +1,18 @@
 import { prisma } from "../db/prisma";
-import type { PackageWithThemes } from "../../types";
 
 export class PackageService {
-  static async getAll(): Promise<PackageWithThemes[]> {
-    return prisma.package.findMany({
-      include: { packageThemes: { include: { theme: true } } },
-      orderBy: { priceUsd: "asc" },
-    }) as Promise<PackageWithThemes[]>;
+  static async getAll() {
+    return prisma.package.findMany({ orderBy: { priceUsd: "asc" } });
   }
 
-  static async getBySlug(slug: string): Promise<PackageWithThemes | null> {
-    return prisma.package.findUnique({
-      where: { slug },
-      include: { packageThemes: { include: { theme: true } } },
-    }) as Promise<PackageWithThemes | null>;
+  static async getBySlug(slug: string) {
+    return prisma.package.findUnique({ where: { slug } });
   }
 
   static async getUserActivePackage(userId: string) {
     return prisma.userPackage.findFirst({
       where: { userId, status: "active" },
-      include: { package: { include: { packageThemes: { include: { theme: true } } } } },
+      include: { package: true },
       orderBy: { grantedAt: "desc" },
     });
   }

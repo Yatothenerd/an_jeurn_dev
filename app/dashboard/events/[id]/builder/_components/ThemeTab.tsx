@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { BuilderTheme } from "./BuilderClient";
-import { ThemeThumbnail, ThemePalette } from "./ThemeThumbnail";
 
 interface Props {
   invitationId: string;
@@ -17,17 +16,27 @@ export function ThemeTab({ invitationId, currentThemeId, allowedThemes, exclusiv
   const router = useRouter();
   const [selected, setSelected] = useState(currentThemeId);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const canSwitch = allowedThemes.length > 1;
 
   async function selectTheme(themeId: string) {
-    if (themeId === selected) return;
+    if (themeId === selected || saving) return;
+    setError("");
     setSelected(themeId);
     setSaving(true);
-    await fetch(`/api/dashboard/invitation/${invitationId}/theme`, {
+    const res = await fetch(`/api/dashboard/invitation/${invitationId}/theme`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ themeId }),
     });
     setSaving(false);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError((d as { error?: string }).error ?? "Failed to update theme");
+      setSelected(currentThemeId);
+      return;
+    }
     router.refresh();
   }
 
@@ -42,32 +51,42 @@ export function ThemeTab({ invitationId, currentThemeId, allowedThemes, exclusiv
   return (
     <div>
       <div style={s.header}>
-        <h2 style={s.heading}>Choose a Theme</h2>
+        <h2 style={s.heading}>{canSwitch ? "Choose a Theme" : "Your Theme"}</h2>
         {saving && <span style={s.saving}>Saving…</span>}
       </div>
       <div style={s.grid}>
         {allowedThemes.map((theme) => {
           const active = theme.id === selected;
+          const imgUrl = theme.thumbnailUrl ?? theme.previewUrl ?? null;
           return (
-            <button key={theme.id} onClick={() => selectTheme(theme.id)} style={s.card}>
+            <button
+              key={theme.id}
+              onClick={() => canSwitch ? selectTheme(theme.id) : undefined}
+              disabled={!canSwitch || saving}
+              style={{ ...s.card, cursor: canSwitch ? "pointer" : "default" }}
+            >
               <div style={{ ...s.imgWrap, ...(active ? s.imgWrapActive : {}) }}>
-                {theme.previewUrl ? (
-                  <img src={theme.previewUrl} alt={theme.name} style={s.img} />
+                {imgUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imgUrl} alt={theme.name} style={s.img} />
                 ) : (
-                  <ThemeThumbnail themeId={theme.id} />
+                  <div style={s.imgFallback}>🎨</div>
                 )}
                 {active && <div style={s.checkmark}>✓</div>}
-                {exclusive.has(theme.id) && <span style={s.exclBadge}>★ Exclusive</span>}
+                {exclusive.has(theme.id) && <span style={s.exclBadge}>★ Assigned</span>}
                 {theme.isAnimated && <span style={s.animBadge}>Animated</span>}
               </div>
               <div style={s.themeName}>{theme.name}</div>
-              <div style={{ marginTop: "0.375rem" }}>
-                <ThemePalette themeId={theme.id} size={14} />
-              </div>
             </button>
           );
         })}
       </div>
+      {!canSwitch && (
+        <p style={s.singleNote}>
+          Your current package includes one theme. Contact your administrator to unlock more options.
+        </p>
+      )}
+      {error && <p style={s.error}>{error}</p>}
     </div>
   );
 }
@@ -89,8 +108,8 @@ const s = {
     background: "none",
     border: "none",
     padding: 0,
-    cursor: "pointer",
     textAlign: "left" as const,
+    fontFamily: "inherit",
   },
   imgWrap: {
     borderRadius: "8px",
@@ -155,4 +174,6 @@ const s = {
     boxShadow: "0 1px 4px rgba(124,58,237,0.4)",
   },
   themeName: { marginTop: "0.5rem", fontSize: "0.875rem", fontWeight: 500, color: "var(--c-text)" },
+  singleNote: { marginTop: "1rem", fontSize: "0.8125rem", color: "var(--c-muted)" },
+  error: { marginTop: "0.75rem", fontSize: "0.875rem", color: "#dc2626" },
 } as const;

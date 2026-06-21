@@ -6,6 +6,7 @@ import { SectionsTab } from "./SectionsTab";
 import { PhotosTab } from "./PhotosTab";
 import { MusicTab } from "./MusicTab";
 import { SettingsTab } from "./SettingsTab";
+import { ThemeTab } from "./ThemeTab";
 
 export interface BuilderSection {
   id: string;
@@ -59,11 +60,10 @@ interface Props {
   pkg: BuilderPkg | null;
 }
 
-type Tab = "sections" | "photos" | "music" | "settings";
+type Tab = "theme" | "sections" | "photos" | "music" | "settings";
 
-// Theme is admin-assigned — clients cannot select it. Clients manage sections
-// (incl. show/hide), photos, music, and sharing.
 const ALL_TABS: Array<{ id: Tab; label: string }> = [
+  { id: "theme", label: "Theme" },
   { id: "sections", label: "Sections" },
   { id: "photos", label: "Photos" },
   { id: "music", label: "Music" },
@@ -75,6 +75,7 @@ export function BuilderClient(props: Props) {
 
   const visibleTabs = ALL_TABS.filter((t) => {
     if (t.id === "music") return props.pkg?.hasMusic ?? false;
+    if (t.id === "theme") return props.allowedThemes.length > 0;
     return true;
   });
 
@@ -110,6 +111,14 @@ export function BuilderClient(props: Props) {
 
       {/* Tab Content */}
       <div style={s.content}>
+        {activeTab === "theme" && (
+          <ThemeTab
+            invitationId={props.invitationId}
+            currentThemeId={props.currentThemeId}
+            allowedThemes={props.allowedThemes}
+            exclusiveThemeIds={props.exclusiveThemeIds}
+          />
+        )}
         {activeTab === "sections" && (
           <SectionsTab
             invitationId={props.invitationId}

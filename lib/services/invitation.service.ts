@@ -12,7 +12,7 @@ export class InvitationService {
     return inv;
   }
 
-  static async createInvitation(eventId: string, themeId: string, userId: string) {
+  static async createInvitation(eventId: string, userId: string) {
     const event = await prisma.event.findFirst({ where: { id: eventId, userId } });
     if (!event) throw new Error("Event not found");
 
@@ -20,12 +20,7 @@ export class InvitationService {
     if (existing) return existing;
 
     const shareLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${event.slug}`;
-    return prisma.invitation.create({ data: { eventId, themeId, shareLink } });
-  }
-
-  static async updateTheme(invitationId: string, themeId: string, userId: string) {
-    await this.verifyOwnership(invitationId, userId);
-    return prisma.invitation.update({ where: { id: invitationId }, data: { themeId } });
+    return prisma.invitation.create({ data: { eventId, shareLink, contentType: "photo" } });
   }
 
   static async addSection(
@@ -68,7 +63,6 @@ export class InvitationService {
     });
   }
 
-  // Show/hide a section — the one design control clients are allowed.
   static async setSectionVisibility(
     sectionId: string,
     invitationId: string,
@@ -159,7 +153,6 @@ export class InvitationService {
       if (pkg && !pkg.package.hasHosting) {
         throw new Error("Your package does not include hosting");
       }
-      // Generate share link if missing
       if (!inv.shareLink) {
         const event = await prisma.event.findUnique({ where: { id: inv.eventId } });
         const shareLink = `${process.env.NEXT_PUBLIC_APP_URL}/invite/${event?.slug}`;
