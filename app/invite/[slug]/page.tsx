@@ -447,12 +447,9 @@ export default async function InvitePage({
           guestLabel={coverContent?.guestLabel}
           theme={gateTokens}
           bgUrl={inv.coverUrl || inv.backgroundUrl}
-<<<<<<< HEAD
           coverUrl={inv.coverUrl}
-=======
           position={gatePosition}
           blur={backgroundBlur}
->>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
         >
           {shell}
         </InviteGate>

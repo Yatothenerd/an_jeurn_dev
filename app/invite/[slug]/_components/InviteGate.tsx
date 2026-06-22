@@ -12,26 +12,19 @@ interface Props {
   theme: ThemeTokens;
   /** Cover or background image shown as the gate's full-screen backdrop. */
   bgUrl?: string | null;
-<<<<<<< HEAD
   /** Monogram / cover circle image shown at the top of the gate. */
   coverUrl?: string | null;
-=======
   /** Vertical placement of the gate content. */
   position?: "top" | "center" | "bottom";
   /** Background image blur in px. */
   blur?: number;
->>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
   children: React.ReactNode;
 }
 
 // Universal opening "envelope" that wraps every invitation: a landing page
 // (event title + guest greeting + Open Letter button), then the letter itself,
 // then a one-time scroll-guide overlay.
-<<<<<<< HEAD
-export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, children }: Props) {
-=======
-export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, position = "center", blur = 0, children }: Props) {
->>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
+export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, position = "center", blur = 0, children }: Props) {
   const [phase, setPhase] = useState<"closed" | "opening" | "open">("closed");
   const [guide, setGuide] = useState(false);
 
@@ -82,7 +75,7 @@ export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, po
           style={{
             fontFamily: theme.font,
             color: theme.text,
-            justifyContent: position === "top" ? "flex-start" : position === "bottom" ? "flex-end" : "center",
+            justifyContent: "space-between",
             ...(bgUrl ? {} : { background: theme.coverGradient }),
           }}
         >
@@ -99,10 +92,9 @@ export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, po
           {/* Scrim over image so text stays readable */}
           {bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />}
 
-<<<<<<< HEAD
-          {/* TOP ZONE: monogram or pretitle */}
+          {/* TOP ZONE: monogram + pretitle */}
           <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
-            {coverUrl ? (
+            {coverUrl && (
               <img
                 src={coverUrl}
                 alt="Monogram"
@@ -114,14 +106,9 @@ export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, po
                   boxShadow: "0 4px 28px rgba(0,0,0,0.5)",
                 }}
               />
-            ) : null}
+            )}
             <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>You are invited to</p>
           </div>
-=======
-          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-            <p className="inv-pretitle" style={{ color: theme.accent }}>You are invited to</p>
-            <div className="inv-script" style={{ color: theme.primary, fontFamily: theme.headingFont }}>{eventTitle}</div>
->>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
 
           {/* MIDDLE ZONE: event title + ornament */}
           <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>

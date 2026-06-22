@@ -109,7 +109,6 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
             height: 104,
             borderRadius: "50%",
             objectFit: "cover",
-            border: `2px solid ${theme.accent}`,
             marginBottom: "1.5rem",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
           }}
@@ -128,24 +127,7 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
             marginBottom: "1.25rem",
           }}
         />
-<<<<<<< HEAD
-      ) : assets?.cover ? (
-        <img
-          src={assets.cover}
-          alt="Cover"
-          style={{
-            width: 104,
-            height: 104,
-            borderRadius: "50%",
-            objectFit: "cover",
-            marginBottom: "1.75rem",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}
-        />
-      ) : null}
-=======
       )}
->>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
 
       {/* Main title */}
       <h1

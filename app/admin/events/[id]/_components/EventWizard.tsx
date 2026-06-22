@@ -1257,13 +1257,8 @@ export function EventWizard({ event, invitation }: Props) {
           </div>
         </div>
 
-<<<<<<< HEAD
-        {/* Right: live invite preview (iframe of actual invite page) */}
-        <div className="ev-wizard-preview">
-          <LivePreviewFrame iframeRef={iframeRef} slug={event.slug} hasInvitation={hasInvitation} />
-=======
         {/* Right: instant live preview — renders from local state, no DB writes */}
-        <div style={w.previewPane}>
+        <div className="ev-wizard-preview">
           <PhonePreview
             contentType={contentType}
             sections={sections as unknown as PreviewSection[]}
@@ -1291,7 +1286,6 @@ export function EventWizard({ event, invitation }: Props) {
             venueName={venueName}
             venueMapUrl={venueMapUrl}
           />
->>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
         </div>
       </div>
     </div>
