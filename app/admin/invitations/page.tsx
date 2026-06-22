@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/services/auth.service";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { ForceUnpublishButton } from "./_components/ForceUnpublishButton";
 import { ForcePublishButton } from "./_components/ForcePublishButton";
 
@@ -15,10 +16,12 @@ export default async function AdminInvitationsPage() {
     include: {
       event: {
         select: {
+          id: true,
           title: true,
           slug: true,
           eventDate: true,
           user: { select: { name: true, email: true } },
+          _count: { select: { guests: true } },
         },
       },
       _count: { select: { sections: true, photos: true } },
@@ -78,6 +81,14 @@ export default async function AdminInvitationsPage() {
                   <td data-label="Photos" className="num col-hide-sm">{inv._count.photos}</td>
                   <td data-label="Actions" className="actions">
                     <span className="cell-actions">
+                      <Link
+                        className="btn-pill btn-view"
+                        href={`/admin/guests?eventId=${inv.event.id}`}
+                        title="Guest list"
+                      >
+                        <span className="bi" aria-hidden>👥</span>
+                        <span className="bl">Guests{inv.event._count.guests > 0 ? ` (${inv.event._count.guests})` : ""}</span>
+                      </Link>
                       {inv.isPublished ? (
                         <>
                           <a

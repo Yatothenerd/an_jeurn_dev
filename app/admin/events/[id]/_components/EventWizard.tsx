@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -52,10 +52,24 @@ interface OverlayConfig {
   goToTop:{ enabled: boolean };
   gifts:  { enabled: boolean };
   fonts: EventFonts;
-  /** Background image blur in px. */
+  /** Background blur for the landing page (gate) in px. */
   backgroundBlur: number;
+  /** Background blur for content sections in px. */
+  sectionBlur: number;
+  /** Additional color overlay rendered over content sections. */
+  sectionOverlay: { enabled: boolean; color: string; opacity: number };
   /** Vertical placement of the landing-page (gate) content. */
   gatePosition: "top" | "center" | "bottom";
+  /** Show guest name area on the landing page. */
+  showGuestName: boolean;
+  /** Decorative frame image URL for the guest name area. */
+  guestFrameUrl: string | null;
+  /** Hide the cover hero photo from the sections cover. */
+  hideCoverPhoto: boolean;
+  /** Monogram circle visibility per context. */
+  monogram: { gate: boolean; sections: boolean };
+  /** Drag-positioned gate element offsets (% of gate dimensions). */
+  elementPositions?: Partial<Record<"monogram" | "pretitle" | "title" | "subtitle" | "guestName" | "openBtn", { xPct: number; yPct: number }>>;
   /** Content-section palette. */
   colorScheme: ColorScheme;
   /** Landing-page (gate) palette. */
@@ -145,7 +159,13 @@ const INITIAL_OVERLAY: OverlayConfig = {
   gifts:  { enabled: false },
   fonts:  { heading: DEFAULT_FONTS.heading, body: DEFAULT_FONTS.body, headingScale: 1, bodyScale: 1 },
   backgroundBlur: 0,
+  sectionBlur: 0,
+  sectionOverlay: { enabled: false, color: "#000000", opacity: 0.25 },
   gatePosition: "center",
+  showGuestName: true,
+  guestFrameUrl: null,
+  hideCoverPhoto: false,
+  monogram: { gate: true, sections: false },
   colorScheme:     { ...INITIAL_SCHEME },
   gateColorScheme: { ...INITIAL_SCHEME },
 };
@@ -184,8 +204,14 @@ function parseOverlay(raw: unknown): OverlayConfig {
     ...r,
     fonts: { ...INITIAL_OVERLAY.fonts, ...(r.fonts ?? {}) },
     backgroundBlur: r.backgroundBlur ?? 0,
+    sectionBlur: (r as Partial<OverlayConfig>).sectionBlur ?? 0,
+    sectionOverlay: { ...INITIAL_OVERLAY.sectionOverlay, ...((r as Partial<OverlayConfig>).sectionOverlay ?? {}) },
+    showGuestName: (r as Partial<OverlayConfig>).showGuestName ?? true,
+    guestFrameUrl: (r as Partial<OverlayConfig>).guestFrameUrl ?? null,
+    hideCoverPhoto: (r as Partial<OverlayConfig>).hideCoverPhoto ?? false,
+    monogram: { ...INITIAL_OVERLAY.monogram, ...((r as Partial<OverlayConfig>).monogram ?? {}) },
+    elementPositions: (r as Partial<OverlayConfig>).elementPositions,
     colorScheme,
-    // Landing palette defaults to a copy of the content palette (back-compat).
     gateColorScheme: { ...colorScheme, ...(r.gateColorScheme ?? {}) },
   };
 }
@@ -576,40 +602,29 @@ function ColorSchemeEditor({ content, gate, onContent, onGate }: {
   content: ColorScheme; gate: ColorScheme;
   onContent: (s: ColorScheme) => void; onGate: (s: ColorScheme) => void;
 }) {
-  const [showCustom, setShowCustom] = useState(false);
-  const [page, setPage] = useState<"content" | "gate">("content");
-  const scheme = page === "content" ? content : gate;
-  const onChange = page === "content" ? onContent : onGate;
-  const activeName = COLOR_PRESETS.find(
-    (p) => p.accent === scheme.accent && p.title === scheme.title && p.body === scheme.body,
-  )?.name;
+  const matchName = (s: ColorScheme) =>
+    COLOR_PRESETS.find((p) => p.accent === s.accent && p.title === s.title && p.body === s.body)?.name;
+
+  function applyPreset(preset: ColorPreset) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { name: _n, ...scheme } = preset;
+    onContent(scheme);
+    onGate(scheme);
+  }
+
+  const activePreset = matchName(content) === matchName(gate) ? matchName(content) : undefined;
 
   return (
     <div style={w.sectionCard}>
       <div style={w.sectionHead}>Color Theme</div>
-      <p style={w.note}>Colors are set per page — the Landing page (gate) and the Content sections can differ. Pick a palette, then fine-tune. The preview updates live.</p>
 
-      {/* Page switch */}
-      <div style={csx.pageTabs}>
-        {([["content", "Content sections"], ["gate", "Landing page"]] as const).map(([val, lbl]) => (
-          <button key={val} type="button" onClick={() => setPage(val)}
-            style={{ ...csx.pageTab, ...(page === val ? csx.pageTabOn : {}) }}>{lbl}</button>
-        ))}
-      </div>
-
-      {/* Preset palette cards */}
+      {/* Preset palettes — applies to both at once */}
       <div style={csx.paletteGrid}>
         {COLOR_PRESETS.map((preset) => {
-          const active = activeName === preset.name;
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { name: _n, ...presetScheme } = preset;
+          const active = activePreset === preset.name;
           return (
-            <button
-              key={preset.name}
-              type="button"
-              onClick={() => onChange(presetScheme)}
-              style={{ ...csx.paletteCard, ...(active ? csx.paletteCardOn : {}) }}
-            >
+            <button key={preset.name} type="button" onClick={() => applyPreset(preset)}
+              style={{ ...csx.paletteCard, ...(active ? csx.paletteCardOn : {}) }}>
               <div style={csx.paletteSwatch}>
                 <span style={{ color: preset.title, fontFamily: "Georgia, serif", fontStyle: "italic", fontSize: "1.1rem", lineHeight: 1 }}>Aa</span>
                 <span style={{ width: 16, height: 16, borderRadius: "50%", background: preset.accent, border: "1px solid rgba(255,255,255,0.35)", flexShrink: 0 }} />
@@ -623,55 +638,47 @@ function ColorSchemeEditor({ content, gate, onContent, onGate }: {
         })}
       </div>
 
-      {/* Customize toggle */}
-      <button type="button" onClick={() => setShowCustom((v) => !v)} style={csx.customToggle}>
-        <span style={{ display: "inline-block", transition: "transform 0.15s", transform: showCustom ? "rotate(90deg)" : "none" }}>▸</span>
-        Customize colors
-      </button>
-
-      {showCustom && (
-        <div style={csx.roleList}>
-          {COLOR_ROLES.map(({ key, label, hint }) => (
-            <label key={key} style={csx.roleRow}>
-              <span style={{ ...csx.roleSwatch, background: toHex(scheme[key]) }}>
-                <input
-                  type="color"
-                  value={toHex(scheme[key])}
-                  onChange={(e) => onChange({ ...scheme, [key]: e.target.value })}
-                  style={csx.roleColorInput}
-                />
-              </span>
-              <span style={csx.roleInfo}>
-                <span style={csx.roleLabel}>{label}</span>
-                <span style={csx.roleHint}>{hint}</span>
-              </span>
-              <span style={csx.roleHex}>{toHex(scheme[key])}</span>
-            </label>
-          ))}
-        </div>
-      )}
+      {/* Side-by-side custom color pickers — always visible */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem", marginTop: "0.75rem" }}>
+        {([
+          ["Content Sections", content, onContent] as const,
+          ["Landing Page",     gate,    onGate]    as const,
+        ]).map(([groupLabel, scheme, onChange]) => (
+          <div key={groupLabel}>
+            <div style={csx.groupLabel}>{groupLabel}</div>
+            <div style={csx.roleList}>
+              {COLOR_ROLES.map(({ key, label }) => (
+                <label key={key} style={csx.roleRow}>
+                  <span style={{ ...csx.roleSwatch, background: toHex(scheme[key]) }}>
+                    <input type="color" value={toHex(scheme[key])}
+                      onChange={(e) => onChange({ ...scheme, [key]: e.target.value })}
+                      style={csx.roleColorInput} />
+                  </span>
+                  <span style={csx.roleLabel}>{label}</span>
+                  <span style={csx.roleHex}>{toHex(scheme[key])}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 const csx = {
-  paletteGrid:   { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))", gap: "0.625rem", marginBottom: "1rem" },
-  paletteCard:   { display: "flex", flexDirection: "column" as const, gap: "0.4rem", padding: "0.4rem", border: "2px solid var(--c-border)", borderRadius: 12, background: "var(--c-surface-2)", cursor: "pointer" },
+  paletteGrid:   { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: "0.5rem", marginBottom: "0.75rem" },
+  paletteCard:   { display: "flex", flexDirection: "column" as const, gap: "0.3rem", padding: "0.35rem", border: "2px solid var(--c-border)", borderRadius: 10, background: "var(--c-surface-2)", cursor: "pointer" },
   paletteCardOn: { borderColor: "var(--c-accent)", background: "var(--c-accent-soft)" },
-  paletteSwatch: { display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", height: 48, borderRadius: 8, background: "linear-gradient(135deg, #1b1b22 0%, #2c2c36 100%)" },
-  paletteName:   { display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontSize: "0.6875rem", fontWeight: 600, color: "var(--c-text)" },
-  customToggle:  { display: "inline-flex", alignItems: "center", gap: "0.45rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, color: "var(--c-accent)", padding: "0.25rem 0" },
-  roleList:      { display: "flex", flexDirection: "column" as const, gap: "0.5rem", marginTop: "0.75rem" },
-  roleRow:       { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.625rem", borderRadius: 9, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", cursor: "pointer" },
-  roleSwatch:    { position: "relative" as const, width: 34, height: 34, borderRadius: 8, border: "1px solid var(--c-border)", flexShrink: 0, overflow: "hidden" as const },
+  paletteSwatch: { display: "flex", alignItems: "center", justifyContent: "center", gap: "0.3rem", height: 40, borderRadius: 7, background: "linear-gradient(135deg, #1b1b22 0%, #2c2c36 100%)" },
+  paletteName:   { display: "flex", alignItems: "center", justifyContent: "center", gap: "0.2rem", fontSize: "0.625rem", fontWeight: 600, color: "var(--c-text)" },
+  groupLabel:    { fontSize: "0.6875rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: "0.4rem" },
+  roleList:      { display: "flex", flexDirection: "column" as const, gap: "0.3rem" },
+  roleRow:       { display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.3rem 0.5rem", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", cursor: "pointer" },
+  roleSwatch:    { position: "relative" as const, width: 26, height: 26, borderRadius: 6, border: "1px solid var(--c-border)", flexShrink: 0, overflow: "hidden" as const },
   roleColorInput:{ position: "absolute" as const, inset: 0, width: "150%", height: "150%", top: "-25%", left: "-25%", opacity: 0, border: "none", padding: 0, cursor: "pointer" },
-  roleInfo:      { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: 1 },
-  roleLabel:     { fontSize: "0.875rem", fontWeight: 600, color: "var(--c-text)" },
-  roleHint:      { fontSize: "0.75rem", color: "var(--c-muted)" },
-  roleHex:       { fontSize: "0.75rem", fontFamily: "monospace", color: "var(--c-muted)", textTransform: "uppercase" as const, flexShrink: 0 },
-  pageTabs:      { display: "flex", gap: "0.375rem", marginBottom: "1rem", padding: 3, background: "var(--c-surface-2)", border: "1px solid var(--c-border)", borderRadius: 9 },
-  pageTab:       { flex: 1, padding: "0.4rem 0.75rem", borderRadius: 7, border: "none", background: "transparent", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, color: "var(--c-muted)" },
-  pageTabOn:     { background: "var(--c-accent)", color: "#fff" },
+  roleLabel:     { flex: 1, fontSize: "0.8125rem", fontWeight: 600, color: "var(--c-text)" },
+  roleHex:       { fontSize: "0.6875rem", fontFamily: "monospace", color: "var(--c-muted)", textTransform: "uppercase" as const, flexShrink: 0 },
 } as const;
 
 // ── Font picker ───────────────────────────────────────────────────────────────
@@ -682,26 +689,17 @@ function FontSelect({ label, options, value, onChange }: {
   return (
     <div>
       <label style={ed.lbl}>{label}</label>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "0.375rem" }}>
-        {options.map((opt) => {
-          const active = value === opt.stack;
-          return (
-            <button
-              key={opt.label}
-              type="button"
-              onClick={() => onChange(opt.stack)}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "0.5rem 0.75rem", borderRadius: 8,
-                border: active ? "2px solid var(--c-accent)" : "1px solid var(--c-border)",
-                background: active ? "var(--c-accent-soft)" : "var(--c-surface-2)", cursor: "pointer",
-              }}
-            >
-              <span style={{ fontFamily: opt.stack, fontSize: "1.125rem", color: "var(--c-text)" }}>{opt.label}</span>
-              {active && <span style={{ color: "var(--c-accent)", fontWeight: 700 }}>✓</span>}
-            </button>
-          );
-        })}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ ...w.inp, fontFamily: value, marginTop: "0.375rem", fontSize: "0.9375rem", height: 36 }}
+      >
+        {options.map((opt) => (
+          <option key={opt.label} value={opt.stack}>{opt.label}</option>
+        ))}
+      </select>
+      <div style={{ marginTop: "0.3rem", fontFamily: value, fontSize: "1rem", color: "var(--c-muted)", pointerEvents: "none" }}>
+        The quick brown fox
       </div>
     </div>
   );
@@ -770,7 +768,8 @@ export function EventWizard({ event, invitation }: Props) {
   const [contentType, setContentType]   = useState<ContentType>((invitation?.contentType as ContentType) ?? "photo");
   const [sections, setSections]         = useState<WizardSection[]>(parseSections(invitation?.defaultSections));
   const [overlay, setOverlay]           = useState<OverlayConfig>(parseOverlay(invitation?.overlayConfig));
-  const [mapImageFile, setMapImageFile] = useState<File | null>(null);
+  const [mapImageFile, setMapImageFile]     = useState<File | null>(null);
+  const [guestFrameFile, setGuestFrameFile] = useState<File | null>(null);
 
   // ── Asset files
   const [bgAssetType, setBgAssetType] = useState<BgAssetType>(invitation?.backgroundVideoUrl ? "video" : "image");
@@ -853,12 +852,13 @@ export function EventWizard({ event, invitation }: Props) {
       let mapImageUrl = overlay.map.imageUrl;
       if (mapImageFile) mapImageUrl = await upload(mapImageFile, "themes/map");
 
-      const [bgImageUrl, bgVideoUrl, thumbUrl, previewUrl, musicUrl] = await Promise.all([
+      const [bgImageUrl, bgVideoUrl, thumbUrl, previewUrl, musicUrl, guestFrameUrl] = await Promise.all([
         bgAssetType === "image" && bgImageFile ? upload(bgImageFile, "themes/backgrounds") : Promise.resolve(invitation?.backgroundUrl ?? null),
         bgAssetType === "video" && bgVideoFile ? upload(bgVideoFile, "themes/backgrounds/video") : Promise.resolve(invitation?.backgroundVideoUrl ?? null),
-        thumbFile   ? upload(thumbFile,   "themes/thumbnails") : Promise.resolve(invitation?.thumbnailUrl ?? null),
-        previewFile ? upload(previewFile, "themes/preview")    : Promise.resolve(invitation?.previewUrl ?? null),
-        musicFile   ? upload(musicFile,   "themes/music")      : Promise.resolve(invitation?.musicUrl ?? null),
+        thumbFile      ? upload(thumbFile,      "themes/thumbnails") : Promise.resolve(invitation?.thumbnailUrl ?? null),
+        previewFile    ? upload(previewFile,    "themes/preview")    : Promise.resolve(invitation?.previewUrl ?? null),
+        musicFile      ? upload(musicFile,      "themes/music")      : Promise.resolve(invitation?.musicUrl ?? null),
+        guestFrameFile ? upload(guestFrameFile, "themes/frames")     : Promise.resolve(overlay.guestFrameUrl),
       ]);
 
       // Single source of truth for the cover image: the Cover section's uploaded
@@ -869,6 +869,7 @@ export function EventWizard({ event, invitation }: Props) {
 
       const finalOverlay: OverlayConfig = {
         ...overlay,
+        guestFrameUrl,
         map: { ...overlay.map, imageUrl: mapImageUrl, url: overlay.map.inputType === "url" ? venueMapUrl : overlay.map.url },
       };
 
@@ -1016,13 +1017,12 @@ export function EventWizard({ event, invitation }: Props) {
               />
 
               <div style={w.sectionCard}>
-                <div style={w.sectionHead}>Landing Page</div>
-                <p style={w.note}>Where the title &amp; “Open Letter” button sit on the landing page, and how much the background image is blurred. The preview updates live.</p>
+                <div style={w.sectionHead}>Background &amp; Overlay</div>
 
-                <div style={{ ...w.field, marginTop: "1rem" }}>
-                  <label style={w.flbl}>Title &amp; button position</label>
+                <div style={{ ...w.field }}>
+                  <label style={w.flbl}>Landing page content position</label>
                   <div style={{ display: "flex", gap: "0.5rem" }}>
-                    {([["top", "⬆ Top"], ["center", "⬍ Middle"], ["bottom", "⬇ Bottom"]] as const).map(([val, lbl]) => (
+                    {([["top", "⬆ Top"], ["center", "⬍ Center"], ["bottom", "⬇ Bottom"]] as const).map(([val, lbl]) => (
                       <button key={val} type="button" onClick={() => patchOverlay({ gatePosition: val })}
                         style={{ ...ed.layoutBtn, ...(overlay.gatePosition === val ? ed.layoutBtnOn : {}), flex: 1 }}>
                         {lbl}
@@ -1031,24 +1031,105 @@ export function EventWizard({ event, invitation }: Props) {
                   </div>
                 </div>
 
-                <div style={{ marginTop: "1rem" }}>
-                  <Toggle
-                    on={overlay.backgroundBlur > 0}
-                    onChange={(v) => patchOverlay({ backgroundBlur: v ? 8 : 0 })}
-                    label="Blur background"
-                    sub="Soften the background image behind the content"
-                  />
-                  {overlay.backgroundBlur > 0 && (
-                    <div style={{ marginTop: "0.625rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
-                        <span style={ed.lbl}>Blur amount</span>
-                        <span style={{ fontSize: "0.6875rem", color: "var(--c-muted)", fontFamily: "monospace" }}>{overlay.backgroundBlur}px</span>
+                <div style={{ marginTop: "0.875rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+                  {([
+                    ["Landing page blur", "backgroundBlur"] as const,
+                    ["Sections blur",     "sectionBlur"]    as const,
+                  ]).map(([lbl, key]) => (
+                    <div key={key}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                        <span style={w.flbl}>{lbl}</span>
+                        <input
+                          type="number" min={0} max={40} step={1}
+                          value={overlay[key]}
+                          onChange={(e) => patchOverlay({ [key]: Math.max(0, Math.min(40, +e.target.value || 0)) })}
+                          style={{ width: 44, padding: "0.125rem 0.25rem", border: "1px solid var(--c-border)", borderRadius: 5, background: "var(--c-surface)", color: "var(--c-text)", fontSize: "0.75rem", textAlign: "center" }}
+                        />
                       </div>
-                      <input type="range" min={1} max={24} step={1} value={overlay.backgroundBlur}
-                        onChange={(e) => patchOverlay({ backgroundBlur: +e.target.value })}
+                      <input type="range" min={0} max={40} step={1} value={overlay[key]}
+                        onChange={(e) => patchOverlay({ [key]: +e.target.value })}
                         style={{ width: "100%", accentColor: "var(--c-accent)" }} />
                     </div>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: "0.875rem" }}>
+                  <Toggle
+                    on={overlay.sectionOverlay.enabled}
+                    onChange={(v) => patchOverlay({ sectionOverlay: { ...overlay.sectionOverlay, enabled: v } })}
+                    label="Section color overlay"
+                    sub="Tint the content sections with a color layer"
+                  />
+                  {overlay.sectionOverlay.enabled && (
+                    <div style={{ marginTop: "0.625rem", display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--c-text)" }}>
+                        Color
+                        <input type="color" value={overlay.sectionOverlay.color}
+                          onChange={(e) => patchOverlay({ sectionOverlay: { ...overlay.sectionOverlay, color: e.target.value } })}
+                          style={{ width: 36, height: 28, border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
+                      </label>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
+                          <span style={{ fontSize: "0.8125rem", color: "var(--c-text)" }}>Opacity</span>
+                          <span style={{ fontSize: "0.6875rem", fontFamily: "monospace", color: "var(--c-muted)" }}>{Math.round(overlay.sectionOverlay.opacity * 100)}%</span>
+                        </div>
+                        <input type="range" min={0} max={0.8} step={0.05} value={overlay.sectionOverlay.opacity}
+                          onChange={(e) => patchOverlay({ sectionOverlay: { ...overlay.sectionOverlay, opacity: +e.target.value } })}
+                          style={{ width: "100%", accentColor: "var(--c-accent)" }} />
+                      </div>
+                    </div>
                   )}
+                </div>
+              </div>
+
+              {/* Guest Greeting & Monogram card */}
+              <div style={w.sectionCard}>
+                <div style={w.sectionHead}>Guest Greeting & Monogram</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                  <Toggle
+                    on={overlay.showGuestName}
+                    onChange={(v) => patchOverlay({ showGuestName: v })}
+                    label="Show guest name on landing page"
+                    sub="Displays the personalised guest name below the event title"
+                  />
+                  <Toggle
+                    on={overlay.monogram.gate}
+                    onChange={(v) => patchOverlay({ monogram: { ...overlay.monogram, gate: v } })}
+                    label="Show monogram on landing page"
+                    sub="Circular cover photo shown at the top of the gate"
+                  />
+                  <Toggle
+                    on={overlay.monogram.sections}
+                    onChange={(v) => patchOverlay({ monogram: { ...overlay.monogram, sections: v } })}
+                    label="Show monogram in sections"
+                    sub="Circular photo shown at the top of the cover section"
+                  />
+                  <Toggle
+                    on={overlay.hideCoverPhoto}
+                    onChange={(v) => patchOverlay({ hideCoverPhoto: v })}
+                    label="Hide cover photo in sections"
+                    sub="Removes the large hero photo from the cover section"
+                  />
+                  <div style={{ marginTop: "0.375rem" }}>
+                    <FilePicker
+                      label="Guest name frame image"
+                      hint="Decorative frame overlaid on the guest name area (PNG with transparency recommended)"
+                      accept="image/png,image/webp"
+                      file={guestFrameFile}
+                      setFile={setGuestFrameFile}
+                      preview
+                    />
+                    {overlay.guestFrameUrl && !guestFrameFile && (
+                      <p style={{ fontSize: "0.75rem", color: "var(--c-muted)", marginTop: "0.25rem" }}>
+                        Current frame: <a href={overlay.guestFrameUrl} target="_blank" rel="noreferrer" style={{ color: "var(--c-accent)" }}>view</a>
+                        {" "}&mdash;{" "}
+                        <button type="button" onClick={() => patchOverlay({ guestFrameUrl: null })}
+                          style={{ background: "none", border: "none", color: "var(--c-muted)", cursor: "pointer", fontSize: "0.75rem", textDecoration: "underline", padding: 0 }}>
+                          remove
+                        </button>
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1140,6 +1221,40 @@ export function EventWizard({ event, invitation }: Props) {
                 ? <FilePicker label="Background image" hint="Full-page background shown behind all sections (≤ 10 MB)" accept="image/jpeg,image/png,image/webp" file={bgImageFile} setFile={setBgImageFile} preview />
                 : <FilePicker label="Background video" hint="Motion video shown as background — MP4 or WebM (≤ 200 MB)" accept="video/mp4,video/webm,video/quicktime" file={bgVideoFile} setFile={setBgVideoFile} preview />
               }
+
+              {/* Blur controls — shown next to the background upload for immediate feedback */}
+              {bgAssetType === "image" && (
+                <div style={w.sectionCard}>
+                  <div style={w.sectionHead}>Background Blur</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.875rem" }}>
+                    {([
+                      ["Landing page", "backgroundBlur"] as const,
+                      ["Sections",     "sectionBlur"]    as const,
+                    ]).map(([lbl, key]) => (
+                      <div key={key}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                          <span style={w.flbl}>{lbl}</span>
+                          <input
+                            type="number" min={0} max={40} step={1}
+                            value={overlay[key]}
+                            onChange={(e) => patchOverlay({ [key]: Math.max(0, Math.min(40, +e.target.value || 0)) })}
+                            style={{ width: 48, padding: "0.125rem 0.25rem", border: "1px solid var(--c-border)", borderRadius: 5, background: "var(--c-surface)", color: "var(--c-text)", fontSize: "0.75rem", textAlign: "center" }}
+                          />
+                        </div>
+                        <input type="range" min={0} max={40} step={1} value={overlay[key]}
+                          onChange={(e) => patchOverlay({ [key]: +e.target.value })}
+                          style={{ width: "100%", accentColor: "var(--c-accent)" }} />
+                        <div style={{ fontSize: "0.6875rem", color: "var(--c-muted)", marginTop: "0.125rem" }}>
+                          {lbl === "Landing page" ? "Gate background blur" : "Sections background blur"} — {overlay[key]}px
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ ...w.note, marginTop: "0.625rem", marginBottom: 0 }}>
+                    Switch the preview to <strong>Gate</strong> view to test landing page blur, <strong>Sections</strong> view for sections blur.
+                  </p>
+                </div>
+              )}
               <FilePicker label="Thumbnail" hint="Small share-card preview image shown when the invite link is sent (≤ 5 MB)" accept="image/jpeg,image/png,image/webp" file={thumbFile} setFile={setThumbFile} preview />
               <FilePicker label="Background music" hint="Ambient audio played while guests browse — MP3, WAV, AAC (≤ 20 MB)" accept="audio/mpeg,audio/mp3,audio/wav,audio/aac,audio/ogg" file={musicFile} setFile={setMusicFile} />
               <p style={{ ...w.note, fontSize: "0.8125rem" }}>The cover image is set in <strong>Sections → Cover</strong>; it also becomes the landing-page background.</p>
@@ -1266,6 +1381,8 @@ export function EventWizard({ event, invitation }: Props) {
             gateColorScheme={overlay.gateColorScheme}
             fonts={overlay.fonts}
             backgroundBlur={overlay.backgroundBlur}
+            sectionBlur={overlay.sectionBlur}
+            sectionOverlay={overlay.sectionOverlay}
             gatePosition={overlay.gatePosition}
             overlay={{
               style:   overlay.style,
@@ -1285,6 +1402,19 @@ export function EventWizard({ event, invitation }: Props) {
             eventDate={eventDate ? new Date(eventDate).toISOString() : null}
             venueName={venueName}
             venueMapUrl={venueMapUrl}
+            showGuestName={overlay.showGuestName}
+            showMonogram={overlay.monogram.gate}
+            guestFrameUrl={overlay.guestFrameUrl}
+            elementPositions={overlay.elementPositions}
+            onPositionsChange={(pos) => patchOverlay({ elementPositions: pos })}
+            onSectionsReorder={(newOrder) => {
+              const includedTypes = newOrder.map((s) => s.type);
+              const reordered = includedTypes
+                .map((t) => sections.find((s) => s.type === t))
+                .filter((s): s is WizardSection => !!s);
+              const excluded = sections.filter((s) => !s.included);
+              setSections([...reordered, ...excluded]);
+            }}
           />
         </div>
       </div>
@@ -1324,8 +1454,8 @@ const w = {
   previewPane: { width: 330, flexShrink: 0, position: "sticky" as const, top: "1rem" },
 
   col:        { display: "flex", flexDirection: "column" as const, gap: "1rem" },
-  sectionCard:{ background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "1.25rem" },
-  sectionHead:{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: "0.875rem" },
+  sectionCard:{ background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 10, padding: "0.875rem" },
+  sectionHead:{ fontSize: "0.75rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: "0.625rem" },
   note:       { margin: 0, fontSize: "0.875rem", color: "var(--c-muted)", lineHeight: 1.55 },
   modeBanner: { display: "flex", alignItems: "center", gap: "0.625rem", padding: "0.625rem 0.875rem", background: "var(--c-accent-soft)", borderRadius: 8, border: "1px solid var(--c-border)" },
 

@@ -81,9 +81,8 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
     day: "numeric",
   });
 
-  const contentImageUrl = content.imageUrl;
-  // Monogram / logo — the small circular emblem on the cover section.
-  const monogramUrl = content.logoUrl ?? assets?.cover;
+  const contentImageUrl = theme.hideCoverPhoto ? null : content.imageUrl;
+  const monogramUrl = theme.showMonogramInSections ? (content.logoUrl ?? assets?.cover) : null;
 
   return (
     <section

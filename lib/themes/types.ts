@@ -57,6 +57,10 @@ export interface ThemeTokens {
   cornerStyle?: "line" | "damask";
   /** Optional decorative band below the cover. */
   decoBand?: { pattern: "floral" | "lace"; blend: "mul" | "screen" } | null;
+  /** When true, the cover section hides its content/hero photo. */
+  hideCoverPhoto?: boolean;
+  /** When true, the cover section shows the monogram circle. */
+  showMonogramInSections?: boolean;
 }
 
 /** @deprecated Back-compat alias. Prefer {@link ThemeTokens}. */

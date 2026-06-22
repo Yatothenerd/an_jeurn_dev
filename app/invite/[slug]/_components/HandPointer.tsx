@@ -2,9 +2,8 @@
 
 import type { CSSProperties } from "react";
 
-// A stylized "tap / point" hand, drawn as inline SVG so its color is fully
-// themeable (replaces the old raster /hand.webp). The silhouette is composed
-// of an extended index finger, a rounded palm, and a thumb.
+// Redesigned flat-design pointing hand: smooth bezier finger curves, proper
+// proportions, and a pinky for a natural look.
 export function HandPointer({
   color = "currentColor",
   className,
@@ -16,7 +15,7 @@ export function HandPointer({
 }) {
   return (
     <svg
-      viewBox="0 0 56 78"
+      viewBox="0 0 48 72"
       className={className}
       style={style}
       xmlns="http://www.w3.org/2000/svg"
@@ -24,16 +23,18 @@ export function HandPointer({
       aria-hidden="true"
     >
       <g fill={color}>
-        {/* extended index finger — offset to the left, not centered */}
-        <rect x="13" y="5" width="11" height="40" rx="5.5" />
-        {/* folded finger knuckles stepping down across the top of the fist */}
-        <rect x="25" y="30" width="9" height="15" rx="4.5" />
-        <rect x="33" y="33" width="9" height="13" rx="4.5" />
-        <rect x="41" y="36" width="8" height="11" rx="4" />
-        {/* palm / fist */}
-        <rect x="13" y="38" width="36" height="31" rx="13" />
-        {/* thumb */}
-        <rect x="5" y="42" width="11" height="21" rx="5.5" transform="rotate(-22 10 52)" />
+        {/* Index finger — tall, slender, smooth top */}
+        <path d="M13 2Q13 0 17 0Q21 0 21 2L21 38Q21 42 17 42Q13 42 13 38Z" />
+        {/* Middle finger — folded, stepped down */}
+        <path d="M21 22Q21 18 25 18Q29 18 29 22L29 37Q29 40 25 40Q21 40 21 37Z" />
+        {/* Ring finger */}
+        <path d="M29 26Q29 23 33 23Q37 23 37 26L37 37Q37 40 33 40Q29 40 29 37Z" />
+        {/* Pinky — subtle tip visible */}
+        <path d="M37 30Q37 28 40 28Q43 28 43 30L43 37Q43 39 40 39Q37 39 37 37Z" />
+        {/* Palm — wide, rounded base */}
+        <rect x="9" y="38" width="34" height="26" rx="13" />
+        {/* Thumb */}
+        <rect x="3" y="43" width="10" height="19" rx="5" transform="rotate(-20 8 52)" />
       </g>
     </svg>
   );

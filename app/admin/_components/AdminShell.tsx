@@ -18,20 +18,20 @@ const GROUPS: { label: string; items: { href: string; icon: string; label: strin
     ],
   },
   {
-    label: "Events",
+    label: "Event",
     items: [
       { href: "/admin/events/new", icon: "new-invitation", label: "New Event" },
+      { href: "/admin/events", icon: "theme", label: "Event Format" },
       { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
     ],
   },
-  { label: "Events", items: [{ href: "/admin/events", icon: "theme", label: "All Events" }] },
 ];
 
 const BOTTOM_NAV = [
   { href: "/admin", icon: "dashboard", label: "Overview" },
   { href: "/admin/clients", icon: "client", label: "Clients" },
-  { href: "/admin/invitations", icon: "invitation", label: "Events" },
   { href: "/admin/events", icon: "theme", label: "Events" },
+  { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
 ];
 
 export function AdminShell({ children, userName = "Admin" }: { children: React.ReactNode; userName?: string }) {

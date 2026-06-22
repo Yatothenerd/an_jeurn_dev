@@ -3,24 +3,62 @@
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
-  /** Map button — shown when the event has a venue map link. */
   venueMapUrl?: string | null;
-  /** Music toggle — shown when a background track is set (package: hasMusic). */
   musicUrl?: string | null;
-  /** ABA / KHQR jump — shown when a contribution section exists (package: hasKhqr). */
   hasKhqr: boolean;
   theme: { btnBg: string; btnText: string };
 }
 
-// Floating overlay action stack on the invitation. Each button only appears when
-// its underlying feature is present — which is itself gated by the client's
-// package (music uploaded, KHQR section added, venue map set).
+// ── Flat SVG icons ────────────────────────────────────────────────────────────
+
+function IconGift({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <rect x="3" y="11" width="18" height="11" rx="1.5" />
+      <rect x="2" y="7" width="20" height="5" rx="1" />
+      <rect x="11" y="7" width="2" height="15" />
+      <rect x="2" y="9" width="20" height="2" />
+      <path d="M12 7C10 7 7 4.5 8 2.5C9 0.5 12 3 12 7Z" />
+      <path d="M12 7C14 7 17 4.5 16 2.5C15 0.5 12 3 12 7Z" />
+    </svg>
+  );
+}
+
+function IconMapPin({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+      <circle cx="12" cy="9" r="2.5" fill="rgba(0,0,0,0.3)" />
+    </svg>
+  );
+}
+
+function IconSpeakerOn({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M3 9v6h4l5 5V4L7 9H3z" />
+      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+      <path d="M14 3.23v2.06C16.89 6.15 19 8.83 19 12s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+    </svg>
+  );
+}
+
+function IconSpeakerOff({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M3 9v6h4l5 5V4L7 9H3z" />
+      <path d="M19 11.29l-1.42-1.42L15 12.46l-2.58-2.59L11 11.29l2.58 2.59L11 16.46l1.42 1.42L15 15.29l2.58 2.59 1.42-1.42-2.59-2.58z" />
+    </svg>
+  );
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, theme }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [musicFailed, setMusicFailed] = useState(false);
 
-  // Attempt autoplay on mount (browsers usually block it — the user can tap).
   useEffect(() => {
     if (!musicUrl) return;
     const audio = audioRef.current;
@@ -51,7 +89,7 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, theme }: Props) 
   const showMusic = !!musicUrl && !musicFailed;
   if (!venueMapUrl && !showMusic && !hasKhqr) return null;
 
-  const btn = { ...s.btn, background: theme.btnBg, color: theme.btnText };
+  const btn: React.CSSProperties = { ...s.btn, background: theme.btnBg, color: theme.btnText };
 
   return (
     <div style={s.stack}>
@@ -59,12 +97,12 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, theme }: Props) 
 
       {hasKhqr && (
         <button onClick={scrollToKhqr} style={btn} title="Gift / ABA KHQR" aria-label="Go to contribution section">
-          🎁
+          <IconGift />
         </button>
       )}
       {venueMapUrl && (
         <button onClick={openMap} style={btn} title="Get directions" aria-label="Open venue map">
-          📍
+          <IconMapPin />
         </button>
       )}
       {showMusic && (
@@ -74,7 +112,7 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, theme }: Props) 
           title={playing ? "Mute music" : "Play music"}
           aria-label={playing ? "Mute background music" : "Play background music"}
         >
-          {playing ? "🔊" : "🔈"}
+          {playing ? <IconSpeakerOn /> : <IconSpeakerOff />}
         </button>
       )}
     </div>
@@ -97,7 +135,6 @@ const s = {
     borderRadius: "50%",
     border: "none",
     cursor: "pointer",
-    fontSize: "1.15rem",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

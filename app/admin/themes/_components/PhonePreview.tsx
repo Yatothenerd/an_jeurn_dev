@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { buildFontsHref } from "@/lib/themes/shared/standard-css";
 import {
   DbCoverSection,
@@ -48,6 +48,18 @@ const DEFAULT_TOKENS: ThemeTokens = {
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+type ElemKey = "monogram" | "pretitle" | "title" | "subtitle" | "guestName" | "openBtn";
+export type ElementPositions = Partial<Record<ElemKey, { xPct: number; yPct: number }>>;
+
+const DEF_POS: Record<ElemKey, { xPct: number; yPct: number }> = {
+  monogram:  { xPct: 50, yPct: 11 },
+  pretitle:  { xPct: 50, yPct: 22 },
+  title:     { xPct: 50, yPct: 36 },
+  subtitle:  { xPct: 50, yPct: 49 },
+  guestName: { xPct: 50, yPct: 70 },
+  openBtn:   { xPct: 50, yPct: 85 },
+};
+
 export interface PreviewColorScheme {
   text: string; accent: string;
   title: string; subtitle: string; header: string; body: string; muted: string;
@@ -82,8 +94,12 @@ export interface PhonePreviewProps {
   gateColorScheme?:    PreviewColorScheme;
   /** Event fonts: heading (display) + body, with optional size scales. */
   fonts?:              EventFonts;
-  /** Background image blur in px. */
+  /** Background image blur in px (landing page / gate). */
   backgroundBlur?:     number;
+  /** Background blur for content sections. */
+  sectionBlur?:        number;
+  /** Extra color overlay for content sections. */
+  sectionOverlay?:     { enabled: boolean; color: string; opacity: number };
   /** Landing-page (gate) content vertical placement. */
   gatePosition?:       "top" | "center" | "bottom";
   overlay:             PreviewOverlay;
@@ -98,6 +114,18 @@ export interface PhonePreviewProps {
   eventDate?:          string | null;
   venueName?:          string | null;
   venueMapUrl?:        string | null;
+  /** Whether to show the guest name area on the gate. */
+  showGuestName?:      boolean;
+  /** Whether to show the monogram circle on the gate. */
+  showMonogram?:       boolean;
+  /** Decorative frame image URL for guest name area. */
+  guestFrameUrl?:      string | null;
+  /** Custom drag positions for gate elements. */
+  elementPositions?:   ElementPositions;
+  /** Called whenever the admin drags an element to a new position. */
+  onPositionsChange?:  (pos: ElementPositions) => void;
+  /** Called when the admin reorders sections in the sections preview. */
+  onSectionsReorder?:  (newOrder: PreviewSection[]) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -324,6 +352,8 @@ export function PhonePreview({
   gateColorScheme,
   fonts,
   backgroundBlur = 0,
+  sectionBlur = 0,
+  sectionOverlay,
   gatePosition = "center",
   overlay,
   bgImageFile,
@@ -337,6 +367,12 @@ export function PhonePreview({
   eventDate,
   venueName,
   venueMapUrl,
+  showGuestName = true,
+  showMonogram = true,
+  guestFrameUrl,
+  elementPositions,
+  onPositionsChange,
+  onSectionsReorder,
 }: PhonePreviewProps) {
   // Load the event Google fonts once so the preview matches the live invite.
   useEffect(() => {
@@ -361,8 +397,78 @@ export function PhonePreview({
   const tokens      = buildTokens(colorScheme, isPhotoMode, fonts);
   const gateTokens  = buildTokens(gateColorScheme ?? colorScheme, isPhotoMode, fonts);
   const [showGate, setShowGate] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
-  const activeSections = sections.filter((s) => s.included);
+  // ── Drag positioning state ─────────────────────────────────────────────────
+  const [posMode, setPosMode] = useState(false);
+  const [localPos, setLocalPos] = useState<ElementPositions>(elementPositions ?? {});
+  const posRef = useRef<ElementPositions>(elementPositions ?? {});
+  const gateRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const next = elementPositions ?? {};
+    posRef.current = next;
+    setLocalPos(next);
+  }, [elementPositions]);
+
+  function getPos(key: ElemKey): { xPct: number; yPct: number } {
+    return localPos[key] ?? DEF_POS[key];
+  }
+
+  function startDrag(e: React.MouseEvent, key: ElemKey) {
+    e.preventDefault();
+    const rect = gateRef.current!.getBoundingClientRect();
+    const onMove = (me: MouseEvent) => {
+      const xPct = Math.round(Math.max(5, Math.min(95, ((me.clientX - rect.left) / rect.width) * 100)));
+      const yPct = Math.round(Math.max(3, Math.min(97, ((me.clientY - rect.top) / rect.height) * 100)));
+      const next: ElementPositions = { ...posRef.current, [key]: { xPct, yPct } };
+      posRef.current = next;
+      setLocalPos(next);
+      onPositionsChange?.(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+  // ── Section drag-to-reorder state ─────────────────────────────────────────
+  const [secMoveMode, setSecMoveMode] = useState(false);
+  const [localSections, setLocalSections] = useState<PreviewSection[]>(sections);
+  const [secDragIdx, setSecDragIdx] = useState<number | null>(null);
+  const secDragRef = useRef<number | null>(null);
+
+  useEffect(() => { setLocalSections(sections); }, [sections]);
+
+  function handleSecDragStart(idx: number) {
+    secDragRef.current = idx;
+    setSecDragIdx(idx);
+  }
+
+  function handleSecDragEnter(idx: number) {
+    const from = secDragRef.current;
+    if (from === null || from === idx) return;
+    setLocalSections((prev) => {
+      const active = prev.filter((s) => s.included);
+      const excluded = prev.filter((s) => !s.included);
+      const reordered = [...active];
+      const [item] = reordered.splice(from, 1);
+      reordered.splice(idx, 0, item);
+      return [...reordered, ...excluded];
+    });
+    secDragRef.current = idx;
+    setSecDragIdx(idx);
+  }
+
+  function handleSecDragEnd() {
+    secDragRef.current = null;
+    setSecDragIdx(null);
+    onSectionsReorder?.(localSections.filter((s) => s.included));
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const activeSections = localSections.filter((s) => s.included);
   const coverContent   = (activeSections.find((s) => s.type === "cover")?.content ?? {}) as { heading?: string; subheading?: string };
 
   const gateImageUrl = coverUrl || bgUrl;
@@ -375,7 +481,22 @@ export function PhonePreview({
     <div style={pp.outer}>
       <div style={pp.labelRow}>
         <span style={pp.label}>{showGate ? "Gate Preview" : "Live Preview"}</span>
-        <span style={pp.scaleHint}>Mobile · 430px</span>
+        <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setShowGuide((g) => !g)}
+            title={showGuide ? "Hide layout guide" : "Show layout guide"}
+            style={{
+              fontSize: "0.6875rem", padding: "0.1875rem 0.5rem",
+              border: `1px solid ${showGuide ? "var(--c-accent)" : "var(--c-border)"}`,
+              borderRadius: 5, background: showGuide ? "var(--c-accent)" : "transparent",
+              color: showGuide ? "#fff" : "var(--c-muted)", cursor: "pointer",
+            }}
+          >
+            Guide
+          </button>
+          <span style={pp.scaleHint}>Mobile · 430px</span>
+        </div>
       </div>
 
       {/* Phone frame */}
@@ -393,7 +514,7 @@ export function PhonePreview({
               backgroundImage:    `url(${bgUrl})`,
               backgroundSize:     "cover",
               backgroundPosition: "center",
-              ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}),
+              ...(!showGate && sectionBlur > 0 ? { filter: `blur(${sectionBlur}px)`, transform: "scale(1.06)" } : {}),
             }} />
           ) : (
             <div style={{ position: "absolute", inset: 0, zIndex: 0, background: "#0a0f1a" }} />
@@ -412,6 +533,10 @@ export function PhonePreview({
           {(bgUrl || bgVideoUrl) && !isPhotoMode && (
             <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.32)", zIndex: 1 }} />
           )}
+          {/* Section color overlay */}
+          {!showGate && sectionOverlay?.enabled && (
+            <div style={{ position: "absolute", inset: 0, zIndex: 1, background: sectionOverlay.color, opacity: sectionOverlay.opacity }} />
+          )}
 
           {/* Scrollable content area — sits above bg, contains zoom wrapper */}
           <div style={{ position: "absolute", inset: 0, overflowY: "auto", zIndex: 2, scrollbarWidth: "none" as const }}>
@@ -420,23 +545,133 @@ export function PhonePreview({
 
                 {/* Gate view — uses the landing-page (gate) palette */}
                 {showGate && (
-                  <div style={{ height: GATE_H, position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: gateJustify, padding: "3rem 0", fontFamily: gateTokens.font }}>
-                    {gateImageUrl && (
+                  <div
+                    ref={gateRef}
+                    style={{
+                      height: GATE_H, position: "relative",
+                      fontFamily: gateTokens.font,
+                      userSelect: posMode ? "none" : undefined,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Background */}
+                    {gateImageUrl ? (
                       <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center", zIndex: 0, ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}) }} />
-                    )}
+                    ) : null}
                     <div style={{ position: "absolute", inset: 0, background: gateImageUrl ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.88)", zIndex: 0 }} />
-                    <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", textAlign: "center", padding: "2rem" }}>
-                      <p style={{ margin: 0, fontSize: "0.6875rem", letterSpacing: "0.2em", textTransform: "uppercase", color: gateTokens.accent }}>
+
+                    {/* Posmode hint */}
+                    {posMode && (
+                      <div style={{ position: "absolute", top: 10, left: 0, right: 0, zIndex: 30, textAlign: "center", pointerEvents: "none" }}>
+                        <span style={{ background: "rgba(0,0,0,0.75)", color: "#fff", fontSize: 10, padding: "2px 10px", borderRadius: 4, letterSpacing: "0.05em" }}>
+                          Drag to reposition
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ── Monogram ── */}
+                    {showMonogram && gateImageUrl && (
+                      <div
+                        onMouseDown={posMode ? (e) => startDrag(e, "monogram") : undefined}
+                        style={{
+                          position: "absolute",
+                          left: getPos("monogram").xPct + "%", top: getPos("monogram").yPct + "%",
+                          transform: "translate(-50%, -50%)", zIndex: 2, textAlign: "center",
+                          cursor: posMode ? "grab" : "default",
+                          ...(posMode ? { outline: "2px dashed rgba(255,255,255,0.6)", outlineOffset: 6, borderRadius: "50%" } : {}),
+                        }}
+                      >
+                        <img src={gateImageUrl} alt="" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", display: "block" }} />
+                      </div>
+                    )}
+
+                    {/* ── Pretitle ── */}
+                    <div
+                      onMouseDown={posMode ? (e) => startDrag(e, "pretitle") : undefined}
+                      style={{
+                        position: "absolute",
+                        left: getPos("pretitle").xPct + "%", top: getPos("pretitle").yPct + "%",
+                        transform: "translate(-50%, -50%)", zIndex: 2, textAlign: "center",
+                        cursor: posMode ? "grab" : "default",
+                        ...(posMode ? { outline: "2px dashed rgba(255,255,255,0.6)", outlineOffset: 5, borderRadius: 4, padding: "2px 8px" } : {}),
+                      }}
+                    >
+                      <p style={{ margin: 0, fontSize: "0.6875rem", letterSpacing: "0.2em", textTransform: "uppercase", color: gateTokens.accent, whiteSpace: "nowrap" }}>
                         You are invited to
                       </p>
-                      <h2 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 300, fontStyle: "italic", fontFamily: gateTokens.headingFont, color: gateTokens.title, lineHeight: 1.2 }}>
+                    </div>
+
+                    {/* ── Title ── */}
+                    <div
+                      onMouseDown={posMode ? (e) => startDrag(e, "title") : undefined}
+                      style={{
+                        position: "absolute",
+                        left: getPos("title").xPct + "%", top: getPos("title").yPct + "%",
+                        transform: "translate(-50%, -50%)", zIndex: 2, textAlign: "center",
+                        cursor: posMode ? "grab" : "default",
+                        ...(posMode ? { outline: "2px dashed rgba(255,255,255,0.6)", outlineOffset: 6, borderRadius: 4, padding: "4px 10px" } : {}),
+                      }}
+                    >
+                      <h2 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 300, fontStyle: "italic", fontFamily: gateTokens.headingFont, color: gateTokens.title, lineHeight: 1.2, whiteSpace: "nowrap" }}>
                         {effectiveTitle}
                       </h2>
-                      <div style={{ width: 36, height: 1, background: gateTokens.accent, opacity: 0.7 }} />
-                      <p style={{ margin: 0, fontSize: "0.9375rem", color: gateTokens.subtitle }}>
+                    </div>
+
+                    {/* ── Subtitle ── */}
+                    <div
+                      onMouseDown={posMode ? (e) => startDrag(e, "subtitle") : undefined}
+                      style={{
+                        position: "absolute",
+                        left: getPos("subtitle").xPct + "%", top: getPos("subtitle").yPct + "%",
+                        transform: "translate(-50%, -50%)", zIndex: 2, textAlign: "center",
+                        cursor: posMode ? "grab" : "default",
+                        ...(posMode ? { outline: "2px dashed rgba(255,255,255,0.6)", outlineOffset: 6, borderRadius: 4, padding: "4px 10px" } : {}),
+                      }}
+                    >
+                      <div style={{ width: 36, height: 1, background: gateTokens.accent, opacity: 0.7, margin: "0 auto 0.5rem" }} />
+                      <p style={{ margin: 0, fontSize: "0.9375rem", color: gateTokens.subtitle, whiteSpace: "nowrap" }}>
                         {coverContent.subheading || "You are cordially invited"}
                       </p>
-                      <div style={{ marginTop: "1.5rem", padding: "0.75rem 2rem", border: `1.5px solid ${gateTokens.accent}`, borderRadius: 999, fontSize: "0.875rem", letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: gateTokens.font, color: gateTokens.accent }}>
+                    </div>
+
+                    {/* ── Guest name ── */}
+                    {showGuestName && (
+                      <div
+                        onMouseDown={posMode ? (e) => startDrag(e, "guestName") : undefined}
+                        style={{
+                          position: "absolute",
+                          left: getPos("guestName").xPct + "%", top: getPos("guestName").yPct + "%",
+                          transform: "translate(-50%, -50%)", zIndex: 2, textAlign: "center",
+                          cursor: posMode ? "grab" : "default",
+                          ...(posMode ? { outline: "2px dashed rgba(255,255,255,0.6)", outlineOffset: 6, borderRadius: 4, padding: "4px 10px" } : {}),
+                        }}
+                      >
+                        {guestFrameUrl && (
+                          <img src={guestFrameUrl} alt="" aria-hidden style={{
+                            position: "absolute", inset: "-12px -20px",
+                            width: "calc(100% + 40px)", height: "calc(100% + 24px)",
+                            objectFit: "fill", pointerEvents: "none", zIndex: 0,
+                          }} />
+                        )}
+                        <p style={{ margin: "0 0 0.25rem", fontSize: "0.625rem", color: gateTokens.accent, letterSpacing: "0.15em", position: "relative", zIndex: 1 }}>♥ Dear</p>
+                        <div style={{ fontSize: "1.25rem", fontStyle: "italic", fontFamily: gateTokens.headingFont, color: gateTokens.primary, position: "relative", zIndex: 1, whiteSpace: "nowrap" }}>
+                          Guest Name
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Open Letter ── */}
+                    <div
+                      onMouseDown={posMode ? (e) => startDrag(e, "openBtn") : undefined}
+                      style={{
+                        position: "absolute",
+                        left: getPos("openBtn").xPct + "%", top: getPos("openBtn").yPct + "%",
+                        transform: "translate(-50%, -50%)", zIndex: 2, textAlign: "center",
+                        cursor: posMode ? "grab" : "default",
+                        ...(posMode ? { outline: "2px dashed rgba(255,255,255,0.6)", outlineOffset: 5, borderRadius: 999 } : {}),
+                      }}
+                    >
+                      <div style={{ padding: "0.75rem 2rem", border: `1.5px solid ${gateTokens.accent}`, borderRadius: 999, fontSize: "0.875rem", letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: gateTokens.font, color: gateTokens.accent, whiteSpace: "nowrap" }}>
                         Open Letter
                       </div>
                     </div>
@@ -445,23 +680,50 @@ export function PhonePreview({
 
                 {/* Sections view (default — shows edits immediately) */}
                 {!showGate && (
-                  <div style={{ position: "relative", zIndex: 1 }}>
+                  <div style={{ position: "relative", zIndex: 1, userSelect: secMoveMode ? "none" : undefined }}>
                     {activeSections.length === 0 ? (
                       <div style={{ height: GATE_H, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4 }}>
                         <p style={{ color: tokens.muted, fontSize: "0.9375rem", textAlign: "center", fontFamily: tokens.font }}>No sections enabled</p>
                       </div>
                     ) : (
                       activeSections.map((sec, i) => (
-                        <PreviewSectionNode
+                        <div
                           key={`${sec.type}-${i}`}
-                          sec={sec}
-                          tokens={tokens}
-                          coverUrl={coverUrl}
-                          eventTitle={effectiveTitle}
-                          eventDate={effectiveDate}
-                          venueName={venueName ?? null}
-                          venueMapUrl={venueMapUrl ?? null}
-                        />
+                          draggable={secMoveMode}
+                          onDragStart={secMoveMode ? () => handleSecDragStart(i) : undefined}
+                          onDragEnter={secMoveMode ? (e) => { e.preventDefault(); handleSecDragEnter(i); } : undefined}
+                          onDragOver={secMoveMode ? (e) => e.preventDefault() : undefined}
+                          onDragEnd={secMoveMode ? handleSecDragEnd : undefined}
+                          style={{
+                            position: "relative",
+                            opacity: secMoveMode && secDragIdx === i ? 0.4 : 1,
+                            ...(secMoveMode ? { boxShadow: secDragIdx === i ? "inset 0 0 0 2px rgba(201,169,110,0.8)" : "inset 0 0 0 1px rgba(255,255,255,0.08)" } : {}),
+                          }}
+                        >
+                          {/* Drag handle — only visible in secMoveMode */}
+                          {secMoveMode && (
+                            <div style={{
+                              position: "absolute", top: 0, left: 0, bottom: 0,
+                              width: 28, zIndex: 10,
+                              background: "rgba(0,0,0,0.55)",
+                              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
+                              cursor: "grab",
+                            }}>
+                              {[0,1,2].map((d) => (
+                                <div key={d} style={{ width: 10, height: 2, background: "rgba(255,255,255,0.7)", borderRadius: 1 }} />
+                              ))}
+                            </div>
+                          )}
+                          <PreviewSectionNode
+                            sec={sec}
+                            tokens={tokens}
+                            coverUrl={coverUrl}
+                            eventTitle={effectiveTitle}
+                            eventDate={effectiveDate}
+                            venueName={venueName ?? null}
+                            venueMapUrl={venueMapUrl ?? null}
+                          />
+                        </div>
                       ))
                     )}
                     <div style={{ padding: "2.5rem 1.5rem", textAlign: "center", fontSize: "0.6875rem", letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.25, color: tokens.muted }}>
@@ -475,15 +737,54 @@ export function PhonePreview({
 
           {/* Overlay action buttons — at screen level, only visible in sections view */}
           {!showGate && <OverlayPreviewButtons overlay={overlay} tokens={tokens} />}
+
+          {/* Layout guide overlay */}
+          {showGuide && (
+            <div style={{ position: "absolute", inset: 0, zIndex: 20, pointerEvents: "none" }}>
+              {showGate ? (
+                <>
+                  {/* Gate zone guides: Top / Middle / Bottom thirds */}
+                  {(["Top", "Middle", "Bottom"] as const).map((zone, i) => (
+                    <div key={zone} style={{
+                      position: "absolute",
+                      top: `${i * 33.33}%`, height: "33.33%", left: 0, right: 0,
+                      borderTop: i > 0 ? "1px dashed rgba(255,255,255,0.4)" : undefined,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <span style={{
+                        fontSize: 9, fontFamily: "monospace", letterSpacing: "0.08em",
+                        padding: "1px 5px", borderRadius: 3,
+                        background: "rgba(0,0,0,0.45)", color: "rgba(255,255,255,0.7)",
+                      }}>
+                        {zone}
+                      </span>
+                    </div>
+                  ))}
+                  {/* Safe zone inset */}
+                  <div style={{ position: "absolute", inset: "12px 10px", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 4 }} />
+                </>
+              ) : (
+                <>
+                  {/* Sections: content-width guide + section boundaries */}
+                  <div style={{ position: "absolute", inset: "0 8%", borderLeft: "1px dashed rgba(255,255,255,0.25)", borderRight: "1px dashed rgba(255,255,255,0.25)" }} />
+                  <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "2px 0", display: "flex", justifyContent: "center" }}>
+                    <span style={{ fontSize: 8, fontFamily: "monospace", background: "rgba(0,0,0,0.5)", color: "rgba(255,255,255,0.65)", padding: "1px 5px", borderRadius: 3 }}>
+                      430px content width
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={pp.homeArea}><div style={pp.homeBar} /></div>
       </div>
 
-      {/* Gate / Sections toggle below the phone */}
-      <div style={{ display: "flex", gap: "0.375rem" }}>
+      {/* Gate / Sections toggle + Move mode */}
+      <div style={{ display: "flex", gap: "0.375rem", alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
         <button
-          onClick={() => setShowGate(false)}
+          onClick={() => { setShowGate(false); setPosMode(false); }}
           style={{ fontSize: "0.6875rem", padding: "0.2rem 0.625rem", borderRadius: 4, border: "1px solid var(--c-border)", cursor: "pointer", background: !showGate ? "var(--c-accent)" : "var(--c-surface)", color: !showGate ? "#fff" : "var(--c-muted)", fontWeight: !showGate ? 600 : 400 }}
         >
           Sections
@@ -494,6 +795,38 @@ export function PhonePreview({
         >
           Gate
         </button>
+        {showGate && (
+          <button
+            onClick={() => setPosMode((m) => !m)}
+            title="Drag gate elements to reposition them"
+            style={{
+              fontSize: "0.6875rem", padding: "0.2rem 0.625rem", borderRadius: 4,
+              border: `1px solid ${posMode ? "var(--c-accent)" : "var(--c-border)"}`,
+              cursor: "pointer",
+              background: posMode ? "rgba(201,169,110,0.15)" : "var(--c-surface)",
+              color: posMode ? "var(--c-accent)" : "var(--c-muted)",
+              fontWeight: posMode ? 600 : 400,
+            }}
+          >
+            ✥ Move
+          </button>
+        )}
+        {!showGate && (
+          <button
+            onClick={() => setSecMoveMode((m) => !m)}
+            title="Drag sections to reorder them"
+            style={{
+              fontSize: "0.6875rem", padding: "0.2rem 0.625rem", borderRadius: 4,
+              border: `1px solid ${secMoveMode ? "var(--c-accent)" : "var(--c-border)"}`,
+              cursor: "pointer",
+              background: secMoveMode ? "rgba(201,169,110,0.15)" : "var(--c-surface)",
+              color: secMoveMode ? "var(--c-accent)" : "var(--c-muted)",
+              fontWeight: secMoveMode ? 600 : 400,
+            }}
+          >
+            ⠿ Reorder
+          </button>
+        )}
       </div>
     </div>
   );

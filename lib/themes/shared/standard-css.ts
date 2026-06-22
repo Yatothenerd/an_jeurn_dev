@@ -219,6 +219,41 @@ img { max-width: 100%; }
 }
 
 @media (max-width: 480px) { body { font-size: 16px; } }
+
+/* ── Invite page base — dark foundation so sections look polished without a bg image ── */
+body { background: #0c0c14; }
+.invite-shell { position: relative; z-index: 1; }
+
+/* ── Section entrance animations ── */
+@keyframes inv-fade-up   { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes inv-fade-in   { from { opacity: 0; } to { opacity: 1; } }
+@keyframes inv-scale-in  { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
+@keyframes inv-slide-right { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes inv-shimmer   { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes inv-float     { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes inv-glow-pulse { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.18) drop-shadow(0 0 8px currentColor); } }
+
+.inv-animate section    { animation: inv-fade-up 0.75s ease both; }
+.inv-animate section:nth-child(1) { animation-delay: 0.05s; }
+.inv-animate section:nth-child(2) { animation-delay: 0.15s; }
+.inv-animate section:nth-child(3) { animation-delay: 0.25s; }
+.inv-animate section:nth-child(4) { animation-delay: 0.35s; }
+.inv-animate section:nth-child(5) { animation-delay: 0.45s; }
+.inv-animate section:nth-child(6) { animation-delay: 0.55s; }
+.inv-animate section:nth-child(7) { animation-delay: 0.65s; }
+.inv-animate .inv-ornament-line   { animation: inv-slide-right 0.8s ease both; animation-delay: 0.3s; }
+.inv-animate .inv-pretitle        { animation: inv-fade-in 0.7s ease both; animation-delay: 0.1s; }
+.inv-animate .inv-script          { animation: inv-scale-in 0.9s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.2s; }
+.inv-animate .inv-gate-hand       { animation: inv-tap 1.6s ease-in-out infinite, inv-glow-pulse 3s ease-in-out infinite; }
+.inv-animate .inv-gate-name       { animation: inv-scale-in 0.85s cubic-bezier(0.22,1,0.36,1) both; animation-delay: 0.45s; }
+.inv-animate .inv-gate-guest      { animation: inv-fade-up 0.7s ease both; animation-delay: 0.5s; }
+.inv-animate .inv-gate-open       { animation: inv-fade-up 0.7s ease both; animation-delay: 0.7s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-animate section, .inv-animate .inv-ornament-line, .inv-animate .inv-pretitle,
+  .inv-animate .inv-script, .inv-animate .inv-gate-name, .inv-animate .inv-gate-guest,
+  .inv-animate .inv-gate-open { animation: none; }
+}
 `;
 
 /**

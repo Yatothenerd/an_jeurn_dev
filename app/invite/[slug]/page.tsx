@@ -20,7 +20,7 @@ import { GuestlistSection } from "./_components/sections/GuestlistSection";
 import { RsvpModal } from "./_components/RsvpModal";
 import { InviteActions } from "./_components/InviteActions";
 import { Watermark } from "./_components/Watermark";
-import { InviteGate } from "./_components/InviteGate";
+import { InviteGate, type ElementPositions } from "./_components/InviteGate";
 import dynamic from "next/dynamic";
 
 // ssr: false — avoids PathnameContext not being ready during SSR of the invite page
@@ -285,15 +285,29 @@ export default async function InvitePage({
     gateColorScheme?: CS;
     fonts?: { heading?: string; body?: string; headingScale?: number; bodyScale?: number };
     backgroundBlur?: number;
+    sectionBlur?: number;
+    sectionOverlay?: { enabled: boolean; color: string; opacity: number };
     gatePosition?: "top" | "center" | "bottom";
+    showGuestName?: boolean;
+    guestFrameUrl?: string | null;
+    hideCoverPhoto?: boolean;
+    monogram?: { gate: boolean; sections: boolean };
+    elementPositions?: ElementPositions;
   } | null;
 
   const headingFont  = oc?.fonts?.heading || DEFAULT_FONTS.heading;
   const bodyFont      = oc?.fonts?.body    || DEFAULT_FONTS.body;
   const headingScale = oc?.fonts?.headingScale ?? 1;
   const bodyScale    = oc?.fonts?.bodyScale ?? 1;
-  const backgroundBlur = oc?.backgroundBlur ?? 0;
-  const gatePosition = oc?.gatePosition ?? "center";
+  const backgroundBlur    = oc?.backgroundBlur ?? 0;
+  const sectionBlur       = oc?.sectionBlur ?? 0;
+  const sectionOverlay    = oc?.sectionOverlay ?? { enabled: false, color: "#000000", opacity: 0.25 };
+  const gatePosition      = oc?.gatePosition ?? "center";
+  const showGuestName     = oc?.showGuestName ?? true;
+  const guestFrameUrl     = oc?.guestFrameUrl ?? null;
+  const hideCoverPhoto    = oc?.hideCoverPhoto ?? false;
+  const monogram          = oc?.monogram ?? { gate: true, sections: false };
+  const elementPositions  = oc?.elementPositions ?? undefined;
 
   const buildTokens = (c: CS): ThemeTokens => ({
     ...DEFAULT_TOKENS,
@@ -317,7 +331,7 @@ export default async function InvitePage({
   });
 
   const cs = oc?.colorScheme ?? {};
-  const tokens     = buildTokens(cs);
+  const tokens     = { ...buildTokens(cs), hideCoverPhoto, showMonogramInSections: monogram.sections };
   const gateTokens = buildTokens(oc?.gateColorScheme ?? cs);
 
   const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS };
@@ -376,7 +390,7 @@ export default async function InvitePage({
   const shell = (
     <div
       className="invite-shell"
-      style={{ background: bgUrl ? "transparent" : tokens.bg }}
+      style={{ background: "transparent" }}
     >
       {activeSections.map((sec) => {
         const node = renderSection(sec, data, tokens, components, themeAssets, guestName, guests, showGuestNames);
@@ -423,6 +437,7 @@ export default async function InvitePage({
       <link rel="stylesheet" href={buildFontsHref()} />
       <style dangerouslySetInnerHTML={{ __html: STANDARD_CSS }} />
 
+      {/* Sections background — always rendered; gate renders its own bg on top */}
       {bgUrl && (
         <div className="inv-fixed-bg">
           {bgIsVideo ? (
@@ -432,11 +447,14 @@ export default async function InvitePage({
               className="inv-fixed-bg-media"
               style={{
                 backgroundImage: `url(${bgUrl})`,
-                ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}),
+                ...(sectionBlur > 0 ? { filter: `blur(${sectionBlur}px)`, transform: "scale(1.06)" } : {}),
               }}
             />
           )}
           {showBgScrim && <div className="inv-fixed-bg-scrim" />}
+          {sectionOverlay.enabled && (
+            <div style={{ position: "absolute", inset: 0, background: sectionOverlay.color, opacity: sectionOverlay.opacity }} />
+          )}
         </div>
       )}
 
@@ -450,6 +468,10 @@ export default async function InvitePage({
           coverUrl={inv.coverUrl}
           position={gatePosition}
           blur={backgroundBlur}
+          showGuestName={showGuestName}
+          guestFrameUrl={guestFrameUrl}
+          showMonogram={monogram.gate}
+          elementPositions={elementPositions}
         >
           {shell}
         </InviteGate>
