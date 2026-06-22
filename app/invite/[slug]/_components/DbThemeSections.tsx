@@ -2,8 +2,9 @@
 
 import { useCountdown } from "@/lib/themes/shared/use-countdown";
 import { useWishForm } from "@/lib/themes/shared/use-wish-form";
-import type { ThemeTokens, SectionComponents } from "@/lib/themes/types";
+import type { ThemeTokens } from "@/lib/themes/types";
 import type { InviteWish } from "@/lib/utils/invite-cache";
+import { khqrItems, type KhqrContent } from "./khqr-utils";
 
 // Semantic color helpers — read optional DB-theme tokens with fallback to legacy values.
 // Keeping these inline so every section stays self-contained.
@@ -13,7 +14,13 @@ const tok = {
   header:   (t: ThemeTokens) => t.header   ?? t.accent,
   body:     (t: ThemeTokens) => t.body     ?? t.text,
   muted:    (t: ThemeTokens) => t.muted,
+  heading:  (t: ThemeTokens) => t.headingFont ?? t.font,
+  hs:       (t: ThemeTokens) => t.headingScale ?? 1,
+  bs:       (t: ThemeTokens) => t.bodyScale ?? 1,
 };
+
+/** Scale a rem size by a multiplier, e.g. remScale(1.875, theme.headingScale). */
+const remScale = (base: number, scale = 1) => `${+(base * scale).toFixed(4)}rem`;
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
@@ -24,6 +31,7 @@ function SecWrap({ children, theme }: { children: React.ReactNode; theme: ThemeT
         padding: "3.25rem 1.75rem",
         borderTop: `1px solid ${theme.border}`,
         fontFamily: theme.font,
+        fontSize: remScale(1, tok.bs(theme)),
         color: tok.body(theme),
       }}
     >
@@ -39,10 +47,11 @@ function SecHead({ icon, label, theme }: { icon: string; label: string; theme: T
       <p
         style={{
           margin: 0,
-          fontSize: "0.5625rem",
+          fontSize: remScale(0.5625, tok.hs(theme)),
           fontWeight: 600,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
+          fontFamily: tok.heading(theme),
           color: tok.header(theme),
         }}
       >
@@ -55,7 +64,7 @@ function SecHead({ icon, label, theme }: { icon: string; label: string; theme: T
 // ── Cover ─────────────────────────────────────────────────────────────────────
 
 interface CoverProps {
-  content: { heading?: string; subheading?: string; guestLabel?: string };
+  content: { heading?: string; subheading?: string; guestLabel?: string; imageUrl?: string; logoUrl?: string };
   eventTitle: string;
   eventDate: string;
   venueName?: string | null;
@@ -72,7 +81,9 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
     day: "numeric",
   });
 
-  const contentImageUrl = (content as { imageUrl?: string }).imageUrl;
+  const contentImageUrl = content.imageUrl;
+  // Monogram / logo — the small circular emblem on the cover section.
+  const monogramUrl = content.logoUrl ?? assets?.cover;
 
   return (
     <section
@@ -89,7 +100,23 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
         background: theme.coverGradient,
       }}
     >
-      {contentImageUrl ? (
+      {monogramUrl && (
+        <img
+          src={monogramUrl}
+          alt="Monogram"
+          style={{
+            width: 104,
+            height: 104,
+            borderRadius: "50%",
+            objectFit: "cover",
+            border: `2px solid ${theme.accent}`,
+            marginBottom: "1.5rem",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          }}
+        />
+      )}
+
+      {contentImageUrl && (
         <img
           src={contentImageUrl}
           alt="Cover"
@@ -101,6 +128,7 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
             marginBottom: "1.25rem",
           }}
         />
+<<<<<<< HEAD
       ) : assets?.cover ? (
         <img
           src={assets.cover}
@@ -115,16 +143,20 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
           }}
         />
       ) : null}
+=======
+      )}
+>>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
 
       {/* Main title */}
       <h1
         style={{
-          fontSize: "1.875rem",
+          fontSize: remScale(1.875, tok.hs(theme)),
           fontWeight: 300,
           letterSpacing: "0.08em",
           margin: "0 0 0.75rem",
           lineHeight: 1.2,
           fontStyle: "italic",
+          fontFamily: tok.heading(theme),
           color: tok.title(theme),
         }}
       >
@@ -132,7 +164,7 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
       </h1>
 
       {/* Subtitle / subheading */}
-      <p style={{ fontSize: "1rem", margin: "0 0 1.75rem", color: tok.subtitle(theme) }}>
+      <p style={{ fontSize: remScale(1, tok.bs(theme)), margin: "0 0 1.75rem", color: tok.subtitle(theme) }}>
         {content.subheading || "You are cordially invited"}
       </p>
 
@@ -203,14 +235,15 @@ interface CountdownProps {
   label?: string;
   eventDate: string;
   theme: ThemeTokens;
+  hideTitle?: boolean;
 }
 
-export function DbCountdownSection({ targetDate, label, eventDate, theme }: CountdownProps) {
+export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTitle }: CountdownProps) {
   const time = useCountdown(targetDate, eventDate);
 
   return (
     <SecWrap theme={theme}>
-      <SecHead icon="⏳" label={label || "Countdown"} theme={theme} />
+      {!hideTitle && <SecHead icon="⏳" label={label || "Countdown"} theme={theme} />}
       {time.expired ? (
         <p
           style={{
@@ -244,9 +277,10 @@ export function DbCountdownSection({ targetDate, label, eventDate, theme }: Coun
               {/* Number digit — title weight */}
               <div
                 style={{
-                  fontSize: "1.875rem",
+                  fontSize: remScale(1.875, tok.hs(theme)),
                   fontWeight: 700,
                   lineHeight: 1,
+                  fontFamily: tok.heading(theme),
                   color: tok.title(theme),
                 }}
               >
@@ -286,7 +320,7 @@ interface PhotoDetailItem {
 }
 
 interface DetailsProps {
-  content: { title?: string; items?: DetailItem[]; photoItems?: PhotoDetailItem[] };
+  content: { title?: string; items?: DetailItem[]; photoItems?: PhotoDetailItem[]; hideTitle?: boolean };
   venueName: string | null;
   venueMapUrl: string | null;
   theme: ThemeTokens;
@@ -305,7 +339,7 @@ export function DbDetailsSection({ content, venueName, venueMapUrl, theme }: Det
 
   return (
     <SecWrap theme={theme}>
-      <SecHead icon="📋" label={content.title || "Details"} theme={theme} />
+      {!content.hideTitle && <SecHead icon="📋" label={content.title || "Details"} theme={theme} />}
 
       {/* Photo-mode agenda items */}
       {photoItems.length > 0 && (
@@ -440,17 +474,17 @@ export function DbDetailsSection({ content, venueName, venueMapUrl, theme }: Det
 // ── Gallery ───────────────────────────────────────────────────────────────────
 
 interface GalleryProps {
-  content: { layout?: string; title?: string };
+  content: { layout?: string; title?: string; hideTitle?: boolean };
   photos: Array<{ id: string; url: string; sortOrder: number }>;
   theme: ThemeTokens;
 }
 
-export function DbGallerySection({ content: _c, photos, theme }: GalleryProps) {
+export function DbGallerySection({ content, photos, theme }: GalleryProps) {
   if (photos.length === 0) return null;
 
   return (
     <SecWrap theme={theme}>
-      <SecHead icon="🖼" label="Gallery" theme={theme} />
+      {!content.hideTitle && <SecHead icon="🖼" label={content.title || "Gallery"} theme={theme} />}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
         {photos.map((p) => (
           <div
@@ -478,7 +512,7 @@ export function DbGallerySection({ content: _c, photos, theme }: GalleryProps) {
 // ── Video ─────────────────────────────────────────────────────────────────────
 
 interface VideoProps {
-  content: { url?: string; caption?: string; title?: string };
+  content: { url?: string; caption?: string; title?: string; hideTitle?: boolean };
   theme: ThemeTokens;
 }
 
@@ -488,7 +522,7 @@ export function DbVideoSection({ content, theme }: VideoProps) {
 
   return (
     <SecWrap theme={theme}>
-      <SecHead icon="▶" label={content.title || "Video"} theme={theme} />
+      {!content.hideTitle && <SecHead icon="▶" label={content.title || "Video"} theme={theme} />}
       {content.url ? (
         <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 12, overflow: "hidden" }}>
           <iframe
@@ -556,7 +590,7 @@ export function DbVideoSection({ content, theme }: VideoProps) {
 interface WishingProps {
   invitationId: string;
   initialWishes: InviteWish[];
-  content: { placeholder?: string; title?: string };
+  content: { placeholder?: string; title?: string; hideTitle?: boolean };
   theme: ThemeTokens;
 }
 
@@ -568,7 +602,7 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
 
   return (
     <SecWrap theme={theme}>
-      <SecHead icon="✨" label={content.title || "Wishes"} theme={theme} />
+      {!content.hideTitle && <SecHead icon="✨" label={content.title || "Wishes"} theme={theme} />}
       {bgImageUrl && (
         <img
           src={bgImageUrl}
@@ -700,50 +734,48 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
 // ── KHQR ──────────────────────────────────────────────────────────────────────
 
 interface KhqrProps {
-  content: {
-    title?: string;
-    recipientName?: string;
-    amount?: string;
-    currency?: string;
-    qrImageUrl?: string;
-  };
+  content: KhqrContent;
   theme: ThemeTokens;
 }
 
 export function DbKhqrSection({ content, theme }: KhqrProps) {
-  if (!content.qrImageUrl) return null;
+  const items = khqrItems(content);
+  if (items.length === 0) return null;
 
   return (
     <SecWrap theme={theme}>
-      <SecHead icon="💳" label={content.title || "Contribution"} theme={theme} />
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-        <div
-          style={{
-            padding: 8,
-            borderRadius: 12,
-            background: "#ffffff",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-          }}
-        >
-          <img
-            src={content.qrImageUrl}
-            alt="KHQR Code"
-            width={180}
-            height={180}
-            style={{ display: "block", borderRadius: 6 }}
-          />
-        </div>
-        {content.recipientName && (
-          <p style={{ margin: 0, fontSize: "1.0625rem", fontWeight: 600, color: tok.body(theme) }}>
-            {content.recipientName}
-          </p>
-        )}
-        {content.amount && (
-          <p style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: theme.accent }}>
-            {content.currency || "USD"} {content.amount}
-          </p>
-        )}
-        <p style={{ margin: 0, fontSize: "0.75rem", letterSpacing: "0.06em", color: tok.muted(theme) }}>
+      {!content.hideTitle && <SecHead icon="💳" label={content.title || "Contribution"} theme={theme} />}
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        {items.map((item, i) => (
+          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+            {item.currency && (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.625rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: tok.header(theme),
+                }}
+              >
+                {item.currency}
+              </p>
+            )}
+            <div style={{ padding: 8, borderRadius: 12, background: "#ffffff", boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}>
+              <img src={item.qrImageUrl} alt={`${item.currency || "Payment"} QR`} width={180} height={180} style={{ display: "block", borderRadius: 6 }} />
+            </div>
+            {item.recipientName && (
+              <p style={{ margin: 0, fontSize: "1.0625rem", fontWeight: 600, color: tok.body(theme) }}>{item.recipientName}</p>
+            )}
+            {item.amount && (
+              <p style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: theme.accent }}>
+                {item.currency || "USD"} {item.amount}
+              </p>
+            )}
+          </div>
+        ))}
+        <p style={{ margin: 0, textAlign: "center", fontSize: "0.75rem", letterSpacing: "0.06em", color: tok.muted(theme) }}>
           Scan with your banking app
         </p>
       </div>
@@ -751,24 +783,6 @@ export function DbKhqrSection({ content, theme }: KhqrProps) {
   );
 }
 
-// ── Section map ───────────────────────────────────────────────────────────────
-
-export const DB_SECTIONS: SectionComponents = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  cover: DbCoverSection as any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  countdown: DbCountdownSection as any,
-  // "agenda" (legacy InvitationSection type) and "details" (wizard type) share the same renderer
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agenda: DbDetailsSection as any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  details: DbDetailsSection as any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  gallery: DbGallerySection as any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  video: DbVideoSection as any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  wishing: DbWishingSection as any,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  khqr: DbKhqrSection as any,
-};
+// The DB section renderer map lives in ./db-section-map (a non-"use client"
+// module) so it stays a real, spreadable object when imported by the server
+// component. See that file for why it cannot be defined here.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { buildFontsHref } from "@/lib/themes/shared/standard-css";
 import {
   DbCoverSection,
   DbCountdownSection,
@@ -52,6 +53,13 @@ export interface PreviewColorScheme {
   title: string; subtitle: string; header: string; body: string; muted: string;
 }
 
+export interface EventFonts {
+  heading: string;
+  body: string;
+  headingScale?: number;
+  bodyScale?: number;
+}
+
 export interface PreviewOverlay {
   style:   "floating" | "bottomBar";
   map:     { enabled: boolean };
@@ -70,6 +78,14 @@ export interface PhonePreviewProps {
   contentType:         "photo" | "text";
   sections:            PreviewSection[];
   colorScheme:         PreviewColorScheme;
+  /** Landing-page (gate) palette; falls back to colorScheme. */
+  gateColorScheme?:    PreviewColorScheme;
+  /** Event fonts: heading (display) + body, with optional size scales. */
+  fonts?:              EventFonts;
+  /** Background image blur in px. */
+  backgroundBlur?:     number;
+  /** Landing-page (gate) content vertical placement. */
+  gatePosition?:       "top" | "center" | "bottom";
   overlay:             PreviewOverlay;
   bgImageFile:         File | null;
   bgVideoFile:         File | null;
@@ -97,9 +113,13 @@ function useObjectUrl(file: File | null): string | null {
   return url;
 }
 
-function buildTokens(c: PreviewColorScheme, isPhotoMode: boolean): ThemeTokens {
+function buildTokens(c: PreviewColorScheme, isPhotoMode: boolean, fonts?: EventFonts): ThemeTokens {
   return {
     ...DEFAULT_TOKENS,
+    font:          fonts?.body    || DEFAULT_TOKENS.font,
+    headingFont:   fonts?.heading || DEFAULT_TOKENS.font,
+    headingScale:  fonts?.headingScale ?? 1,
+    bodyScale:     fonts?.bodyScale ?? 1,
     text:          c.text,
     primary:       c.text,
     accent:        c.accent,
@@ -159,6 +179,7 @@ function PreviewSectionNode({ sec, tokens, coverUrl, eventTitle, eventDate, venu
           label={c.label as string | undefined}
           eventDate={eventDate}
           theme={tokens}
+          hideTitle={c.hideTitle as boolean | undefined}
         />
       );
 
@@ -300,6 +321,10 @@ export function PhonePreview({
   contentType,
   sections,
   colorScheme,
+  gateColorScheme,
+  fonts,
+  backgroundBlur = 0,
+  gatePosition = "center",
   overlay,
   bgImageFile,
   bgVideoFile,
@@ -313,6 +338,17 @@ export function PhonePreview({
   venueName,
   venueMapUrl,
 }: PhonePreviewProps) {
+  // Load the event Google fonts once so the preview matches the live invite.
+  useEffect(() => {
+    const href = buildFontsHref();
+    if (document.querySelector(`link[data-anjeurn-fonts]`)) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.setAttribute("data-anjeurn-fonts", "1");
+    document.head.appendChild(link);
+  }, []);
+
   const bgImageObjUrl = useObjectUrl(bgAssetType === "image" ? bgImageFile : null);
   const bgVideoObjUrl = useObjectUrl(bgAssetType === "video" ? bgVideoFile : null);
   const coverObjUrl   = useObjectUrl(coverFile);
@@ -322,13 +358,15 @@ export function PhonePreview({
   const coverUrl   = coverObjUrl ?? existingCoverUrl ?? null;
 
   const isPhotoMode = contentType === "photo";
-  const tokens      = buildTokens(colorScheme, isPhotoMode);
+  const tokens      = buildTokens(colorScheme, isPhotoMode, fonts);
+  const gateTokens  = buildTokens(gateColorScheme ?? colorScheme, isPhotoMode, fonts);
   const [showGate, setShowGate] = useState(false);
 
   const activeSections = sections.filter((s) => s.included);
   const coverContent   = (activeSections.find((s) => s.type === "cover")?.content ?? {}) as { heading?: string; subheading?: string };
 
   const gateImageUrl = coverUrl || bgUrl;
+  const gateJustify = gatePosition === "top" ? "flex-start" : gatePosition === "bottom" ? "flex-end" : "center";
 
   const effectiveTitle = eventTitle || coverContent.heading || "Our Special Day";
   const effectiveDate  = eventDate  || new Date(Date.now() + 30 * 86400000).toISOString();
@@ -355,6 +393,7 @@ export function PhonePreview({
               backgroundImage:    `url(${bgUrl})`,
               backgroundSize:     "cover",
               backgroundPosition: "center",
+              ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}),
             }} />
           ) : (
             <div style={{ position: "absolute", inset: 0, zIndex: 0, background: "#0a0f1a" }} />
@@ -379,25 +418,25 @@ export function PhonePreview({
             <div style={{ width: CONTENT_W, zoom: SCALE as unknown as string }}>
               <div style={{ position: "relative", fontFamily: tokens.font, color: tokens.body }}>
 
-                {/* Gate view */}
+                {/* Gate view — uses the landing-page (gate) palette */}
                 {showGate && (
-                  <div style={{ height: GATE_H, position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ height: GATE_H, position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: gateJustify, padding: "3rem 0", fontFamily: gateTokens.font }}>
                     {gateImageUrl && (
-                      <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center", zIndex: 0 }} />
+                      <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center", zIndex: 0, ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}) }} />
                     )}
                     <div style={{ position: "absolute", inset: 0, background: gateImageUrl ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.88)", zIndex: 0 }} />
                     <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem", textAlign: "center", padding: "2rem" }}>
-                      <p style={{ margin: 0, fontSize: "0.6875rem", letterSpacing: "0.2em", textTransform: "uppercase", color: tokens.accent }}>
+                      <p style={{ margin: 0, fontSize: "0.6875rem", letterSpacing: "0.2em", textTransform: "uppercase", color: gateTokens.accent }}>
                         You are invited to
                       </p>
-                      <h2 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 300, fontStyle: "italic", color: tokens.title, lineHeight: 1.2 }}>
+                      <h2 style={{ margin: 0, fontSize: "1.875rem", fontWeight: 300, fontStyle: "italic", fontFamily: gateTokens.headingFont, color: gateTokens.title, lineHeight: 1.2 }}>
                         {effectiveTitle}
                       </h2>
-                      <div style={{ width: 36, height: 1, background: tokens.accent, opacity: 0.7 }} />
-                      <p style={{ margin: 0, fontSize: "0.9375rem", color: tokens.subtitle }}>
+                      <div style={{ width: 36, height: 1, background: gateTokens.accent, opacity: 0.7 }} />
+                      <p style={{ margin: 0, fontSize: "0.9375rem", color: gateTokens.subtitle }}>
                         {coverContent.subheading || "You are cordially invited"}
                       </p>
-                      <div style={{ marginTop: "1.5rem", padding: "0.75rem 2rem", border: `1.5px solid ${tokens.accent}`, borderRadius: 999, fontSize: "0.875rem", letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: tokens.font, color: tokens.accent }}>
+                      <div style={{ marginTop: "1.5rem", padding: "0.75rem 2rem", border: `1.5px solid ${gateTokens.accent}`, borderRadius: 999, fontSize: "0.875rem", letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: gateTokens.font, color: gateTokens.accent }}>
                         Open Letter
                       </div>
                     </div>

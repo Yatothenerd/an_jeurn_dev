@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { PhonePreview, type PreviewSection } from "@/app/admin/themes/_components/PhonePreview";
+import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib/themes/shared/standard-css";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -13,15 +15,17 @@ type MapInputType = "url" | "image";
 
 interface DetailItem { icon: string; label: string; value: string }
 interface PhotoDetailItem { imageUrl: string; caption: string }
+interface KhqrItem { currency: string; qrImageUrl: string; recipientName: string; amount: string }
 
+// Every section may carry an optional `hideTitle` flag (photo-mode title toggle).
 type SectionContent =
-  | { heading: string; subheading: string; imageUrl?: string }
-  | { targetDate: string; label: string }
-  | { items: DetailItem[]; photoItems?: PhotoDetailItem[] }
-  | { layout: "grid" | "masonry" | "slideshow" }
-  | { url: string; caption: string; thumbnailUrl?: string }
-  | { placeholder: string; backgroundImageUrl?: string }
-  | { recipientName: string; amount: string; currency: "KHR" | "USD"; qrImageUrl?: string };
+  | { heading: string; subheading: string; imageUrl?: string; logoUrl?: string }
+  | { targetDate: string; label: string; hideTitle?: boolean }
+  | { items: DetailItem[]; photoItems?: PhotoDetailItem[]; hideTitle?: boolean }
+  | { layout: "grid" | "masonry" | "slideshow"; hideTitle?: boolean }
+  | { url: string; caption: string; thumbnailUrl?: string; hideTitle?: boolean }
+  | { placeholder: string; backgroundImageUrl?: string; hideTitle?: boolean }
+  | { items: KhqrItem[]; title?: string; hideTitle?: boolean };
 
 interface WizardSection {
   type: SectionType;
@@ -39,13 +43,23 @@ interface ColorScheme {
   muted: string;
 }
 
+interface EventFonts { heading: string; body: string; headingScale: number; bodyScale: number }
+
 interface OverlayConfig {
   style: OverlayStyle;
   map:    { enabled: boolean; inputType: MapInputType; url: string; imageUrl: string };
   music:  { enabled: boolean };
   goToTop:{ enabled: boolean };
   gifts:  { enabled: boolean };
+  fonts: EventFonts;
+  /** Background image blur in px. */
+  backgroundBlur: number;
+  /** Vertical placement of the landing-page (gate) content. */
+  gatePosition: "top" | "center" | "bottom";
+  /** Content-section palette. */
   colorScheme: ColorScheme;
+  /** Landing-page (gate) palette. */
+  gateColorScheme: ColorScheme;
 }
 
 export interface EventData {
@@ -99,7 +113,7 @@ const INITIAL_SECTIONS: WizardSection[] = [
   { type: "gallery",   included: false, content: { layout: "grid" } },
   { type: "video",     included: false, content: { url: "", caption: "" } },
   { type: "wishing",   included: false, content: { placeholder: "Leave us a sweet message…" } },
-  { type: "khqr",      included: false, content: { recipientName: "", amount: "", currency: "KHR" } },
+  { type: "khqr",      included: false, content: { items: [] } },
 ];
 
 type ColorPreset = { name: string } & ColorScheme;
@@ -113,21 +127,27 @@ const COLOR_PRESETS: ColorPreset[] = [
   { name: "Warm Ivory",      text: "#fffff0", accent: "#d69e2e", title: "#fffff0",   subtitle: "rgba(255,255,240,0.9)",  header: "#d69e2e",   body: "rgba(255,255,240,0.85)", muted: "rgba(255,255,240,0.52)" },
 ];
 
+const INITIAL_SCHEME: ColorScheme = {
+  text:     "#ffffff",
+  accent:   "#c9a96e",
+  title:    "#ffffff",
+  subtitle: "rgba(255,255,255,0.88)",
+  header:   "#c9a96e",
+  body:     "rgba(255,255,255,0.85)",
+  muted:    "rgba(255,255,255,0.52)",
+};
+
 const INITIAL_OVERLAY: OverlayConfig = {
   style:   "floating",
   map:    { enabled: false, inputType: "url", url: "", imageUrl: "" },
   music:  { enabled: true },
   goToTop:{ enabled: true },
   gifts:  { enabled: false },
-  colorScheme: {
-    text:     "#ffffff",
-    accent:   "#c9a96e",
-    title:    "#ffffff",
-    subtitle: "rgba(255,255,255,0.88)",
-    header:   "#c9a96e",
-    body:     "rgba(255,255,255,0.85)",
-    muted:    "rgba(255,255,255,0.52)",
-  },
+  fonts:  { heading: DEFAULT_FONTS.heading, body: DEFAULT_FONTS.body, headingScale: 1, bodyScale: 1 },
+  backgroundBlur: 0,
+  gatePosition: "center",
+  colorScheme:     { ...INITIAL_SCHEME },
+  gateColorScheme: { ...INITIAL_SCHEME },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -158,10 +178,15 @@ function parseSections(raw: unknown): WizardSection[] {
 function parseOverlay(raw: unknown): OverlayConfig {
   if (!raw || typeof raw !== "object") return INITIAL_OVERLAY;
   const r = raw as Partial<OverlayConfig>;
+  const colorScheme = { ...INITIAL_OVERLAY.colorScheme, ...(r.colorScheme ?? {}) };
   return {
     ...INITIAL_OVERLAY,
     ...r,
-    colorScheme: { ...INITIAL_OVERLAY.colorScheme, ...(r.colorScheme ?? {}) },
+    fonts: { ...INITIAL_OVERLAY.fonts, ...(r.fonts ?? {}) },
+    backgroundBlur: r.backgroundBlur ?? 0,
+    colorScheme,
+    // Landing palette defaults to a copy of the content palette (back-compat).
+    gateColorScheme: { ...colorScheme, ...(r.gateColorScheme ?? {}) },
   };
 }
 
@@ -340,23 +365,43 @@ function WishingEditor({ c, set }: { c: { placeholder: string }; set: (v: Sectio
     <textarea style={{ ...ed.inp, minHeight: 60, resize: "vertical" }} value={c.placeholder} onChange={e => set({ ...c, placeholder: e.target.value })} />
   </Field>;
 }
-function KhqrEditor({ c, set }: { c: { recipientName: string; amount: string; currency: "KHR" | "USD"; qrImageUrl?: string }; set: (v: SectionContent) => void }) {
+// Normalize legacy single-QR content into the new items list.
+function khqrItemsOf(c: { items?: KhqrItem[]; recipientName?: string; amount?: string; currency?: string; qrImageUrl?: string }): KhqrItem[] {
+  if (Array.isArray(c.items)) return c.items;
+  if (c.qrImageUrl) return [{ currency: c.currency || "USD", qrImageUrl: c.qrImageUrl, recipientName: c.recipientName || "", amount: c.amount || "" }];
+  return [];
+}
+
+function KhqrEditor({ c, set }: { c: { items?: KhqrItem[]; title?: string; recipientName?: string; amount?: string; currency?: string; qrImageUrl?: string }; set: (v: SectionContent) => void }) {
+  const items = khqrItemsOf(c);
+  const update = (i: number, patch: Partial<KhqrItem>) =>
+    set({ title: c.title, items: items.map((it, idx) => idx === i ? { ...it, ...patch } : it) });
+  const remove = (i: number) => set({ title: c.title, items: items.filter((_, idx) => idx !== i) });
+  const add = () => set({ title: c.title, items: [...items, { currency: "USD", qrImageUrl: "", recipientName: "", amount: "" }] });
+
   return <div style={ed.col}>
-    <SectionImagePicker label="QR code image" value={c.qrImageUrl} onChange={url => set({ ...c, qrImageUrl: url })} />
-    <div style={{ display: "flex", gap: "0.625rem", flexWrap: "wrap" }}>
-      <Field label="Recipient name" style={{ flex: 2 }}><input style={ed.inp} placeholder="Sophea & Dara" value={c.recipientName} onChange={e => set({ ...c, recipientName: e.target.value })} /></Field>
-      <Field label="Default amount"><input style={ed.inp} type="number" placeholder="0" value={c.amount} onChange={e => set({ ...c, amount: e.target.value })} /></Field>
-      <Field label="Currency">
-        <select style={ed.sel} value={c.currency} onChange={e => set({ ...c, currency: e.target.value as "KHR" | "USD" })}>
-          <option value="KHR">KHR (Riel)</option><option value="USD">USD ($)</option>
-        </select>
-      </Field>
-    </div>
+    {items.length === 0 && <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--c-muted)" }}>Add one or more payment QR codes — e.g. one for USD and one for KHR.</p>}
+    {items.map((item, i) => (
+      <div key={i} style={{ border: "1px solid var(--c-border)", borderRadius: 8, padding: "0.75rem", background: "var(--c-surface-2)", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--c-muted)" }}>QR {i + 1}</span>
+          <button type="button" style={ed.rmBtn} onClick={() => remove(i)}>✕ Remove</button>
+        </div>
+        <SectionImagePicker label="QR code image" value={item.qrImageUrl} onChange={url => update(i, { qrImageUrl: url ?? "" })} optional={false} />
+        <div style={{ display: "flex", gap: "0.625rem", flexWrap: "wrap" }}>
+          <Field label="Currency"><input style={{ ...ed.inp, width: 90 }} placeholder="USD" value={item.currency} onChange={e => update(i, { currency: e.target.value })} /></Field>
+          <Field label="Recipient name" style={{ flex: 2 }}><input style={ed.inp} placeholder="Sophea & Dara" value={item.recipientName} onChange={e => update(i, { recipientName: e.target.value })} /></Field>
+          <Field label="Amount"><input style={ed.inp} placeholder="0" value={item.amount} onChange={e => update(i, { amount: e.target.value })} /></Field>
+        </div>
+      </div>
+    ))}
+    <button type="button" style={ed.addBtn} onClick={add}>+ Add QR</button>
   </div>;
 }
-function PhotoCoverEditor({ c, set }: { c: { heading: string; subheading: string; imageUrl?: string }; set: (v: SectionContent) => void }) {
+function PhotoCoverEditor({ c, set }: { c: { heading: string; subheading: string; imageUrl?: string; logoUrl?: string }; set: (v: SectionContent) => void }) {
   return <div style={ed.col}>
-    <SectionImagePicker label="Cover photo" value={c.imageUrl} onChange={url => set({ ...c, imageUrl: url })} />
+    <SectionImagePicker label="Cover photo — also the landing-page background" value={c.imageUrl} onChange={url => set({ ...c, imageUrl: url })} />
+    <SectionImagePicker label="Monogram / logo (optional)" value={c.logoUrl} onChange={url => set({ ...c, logoUrl: url })} />
     <div style={ed.g2}>
       <Field label="Heading"><input style={ed.inp} placeholder="We're Getting Married" value={c.heading} onChange={e => set({ ...c, heading: e.target.value })} /></Field>
       <Field label="Subheading"><input style={ed.inp} placeholder="Join us for our special day" value={c.subheading} onChange={e => set({ ...c, subheading: e.target.value })} /></Field>
@@ -457,6 +502,16 @@ function SectionRow({ sec, contentType, onChange }: {
       </div>
       {sec.included && (
         <div style={sr.editor}>
+          {sec.type !== "cover" && (
+            <div style={{ marginBottom: "0.875rem", paddingBottom: "0.875rem", borderBottom: "1px solid var(--c-border)" }}>
+              <Toggle
+                on={!(sec.content as { hideTitle?: boolean }).hideTitle}
+                onChange={(v) => onChange({ content: { ...sec.content, hideTitle: !v } as SectionContent })}
+                label="Show section title"
+                sub="The icon + label header shown above this section"
+              />
+            </div>
+          )}
           {getEditor(sec.type, contentType)({ content: sec.content, onChange: (content) => onChange({ content }) })}
         </div>
       )}
@@ -506,21 +561,186 @@ const ov = {
   body:   { padding: "0.875rem 1rem", borderTop: "1px solid var(--c-border)", background: "var(--c-surface)", display: "flex", flexDirection: "column" as const, gap: "0.75rem" },
 } as const;
 
-// ── Color-scheme styles ───────────────────────────────────────────────────────
+// ── Color scheme editor ───────────────────────────────────────────────────────
 
-const cs = {
-  presets:    { display: "flex", gap: "0.5rem", flexWrap: "wrap" as const, marginBottom: "0.75rem" },
-  swatch:     { width: 28, height: 28, borderRadius: "50%", border: "2px solid rgba(0,0,0,0.12)", cursor: "pointer", flexShrink: 0, padding: 0 },
-  groupLabel: { fontSize: "0.6875rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.08em", marginTop: "0.875rem", marginBottom: "0.375rem" },
-  colorGrid:  { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.625rem" },
-  customItem: { display: "flex", flexDirection: "column" as const, gap: "0.2rem" },
-  customLbl:  { fontSize: "0.6875rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase" as const, letterSpacing: "0.04em" },
-  hintTxt:    { fontSize: "0.6875rem", color: "var(--c-muted)", marginBottom: "0.1rem" },
-  colorWrap:  { display: "flex", alignItems: "center", gap: "0.5rem" },
-  colorInput: { width: 36, height: 28, padding: 2, border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", background: "none" },
-  colorHex:   { fontSize: "0.75rem", color: "var(--c-text)", fontFamily: "monospace" },
-  preview:    { display: "flex", alignItems: "center", flexWrap: "wrap" as const, gap: "0.625rem", padding: "0.75rem 1rem", borderRadius: 8, marginTop: "1rem", border: "1px solid var(--c-border)" },
+const COLOR_ROLES: { key: keyof ColorScheme; label: string; hint: string }[] = [
+  { key: "title",    label: "Title",          hint: "Cover heading & countdown digits" },
+  { key: "subtitle", label: "Subtitle",       hint: "Subheading beneath the title" },
+  { key: "body",     label: "Body",           hint: "Detail values, captions, wishes" },
+  { key: "header",   label: "Section header", hint: "Labels — DETAILS, COUNTDOWN…" },
+  { key: "accent",   label: "Accent",         hint: "Buttons, borders, dividers" },
+  { key: "muted",    label: "Muted",          hint: "Dates, venue, dimmed text" },
+];
+
+function ColorSchemeEditor({ content, gate, onContent, onGate }: {
+  content: ColorScheme; gate: ColorScheme;
+  onContent: (s: ColorScheme) => void; onGate: (s: ColorScheme) => void;
+}) {
+  const [showCustom, setShowCustom] = useState(false);
+  const [page, setPage] = useState<"content" | "gate">("content");
+  const scheme = page === "content" ? content : gate;
+  const onChange = page === "content" ? onContent : onGate;
+  const activeName = COLOR_PRESETS.find(
+    (p) => p.accent === scheme.accent && p.title === scheme.title && p.body === scheme.body,
+  )?.name;
+
+  return (
+    <div style={w.sectionCard}>
+      <div style={w.sectionHead}>Color Theme</div>
+      <p style={w.note}>Colors are set per page — the Landing page (gate) and the Content sections can differ. Pick a palette, then fine-tune. The preview updates live.</p>
+
+      {/* Page switch */}
+      <div style={csx.pageTabs}>
+        {([["content", "Content sections"], ["gate", "Landing page"]] as const).map(([val, lbl]) => (
+          <button key={val} type="button" onClick={() => setPage(val)}
+            style={{ ...csx.pageTab, ...(page === val ? csx.pageTabOn : {}) }}>{lbl}</button>
+        ))}
+      </div>
+
+      {/* Preset palette cards */}
+      <div style={csx.paletteGrid}>
+        {COLOR_PRESETS.map((preset) => {
+          const active = activeName === preset.name;
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { name: _n, ...presetScheme } = preset;
+          return (
+            <button
+              key={preset.name}
+              type="button"
+              onClick={() => onChange(presetScheme)}
+              style={{ ...csx.paletteCard, ...(active ? csx.paletteCardOn : {}) }}
+            >
+              <div style={csx.paletteSwatch}>
+                <span style={{ color: preset.title, fontFamily: "Georgia, serif", fontStyle: "italic", fontSize: "1.1rem", lineHeight: 1 }}>Aa</span>
+                <span style={{ width: 16, height: 16, borderRadius: "50%", background: preset.accent, border: "1px solid rgba(255,255,255,0.35)", flexShrink: 0 }} />
+              </div>
+              <div style={csx.paletteName}>
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{preset.name}</span>
+                {active && <span style={{ color: "var(--c-accent)", fontWeight: 700 }}>✓</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Customize toggle */}
+      <button type="button" onClick={() => setShowCustom((v) => !v)} style={csx.customToggle}>
+        <span style={{ display: "inline-block", transition: "transform 0.15s", transform: showCustom ? "rotate(90deg)" : "none" }}>▸</span>
+        Customize colors
+      </button>
+
+      {showCustom && (
+        <div style={csx.roleList}>
+          {COLOR_ROLES.map(({ key, label, hint }) => (
+            <label key={key} style={csx.roleRow}>
+              <span style={{ ...csx.roleSwatch, background: toHex(scheme[key]) }}>
+                <input
+                  type="color"
+                  value={toHex(scheme[key])}
+                  onChange={(e) => onChange({ ...scheme, [key]: e.target.value })}
+                  style={csx.roleColorInput}
+                />
+              </span>
+              <span style={csx.roleInfo}>
+                <span style={csx.roleLabel}>{label}</span>
+                <span style={csx.roleHint}>{hint}</span>
+              </span>
+              <span style={csx.roleHex}>{toHex(scheme[key])}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const csx = {
+  paletteGrid:   { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(92px, 1fr))", gap: "0.625rem", marginBottom: "1rem" },
+  paletteCard:   { display: "flex", flexDirection: "column" as const, gap: "0.4rem", padding: "0.4rem", border: "2px solid var(--c-border)", borderRadius: 12, background: "var(--c-surface-2)", cursor: "pointer" },
+  paletteCardOn: { borderColor: "var(--c-accent)", background: "var(--c-accent-soft)" },
+  paletteSwatch: { display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", height: 48, borderRadius: 8, background: "linear-gradient(135deg, #1b1b22 0%, #2c2c36 100%)" },
+  paletteName:   { display: "flex", alignItems: "center", justifyContent: "center", gap: "0.25rem", fontSize: "0.6875rem", fontWeight: 600, color: "var(--c-text)" },
+  customToggle:  { display: "inline-flex", alignItems: "center", gap: "0.45rem", background: "none", border: "none", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, color: "var(--c-accent)", padding: "0.25rem 0" },
+  roleList:      { display: "flex", flexDirection: "column" as const, gap: "0.5rem", marginTop: "0.75rem" },
+  roleRow:       { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0.625rem", borderRadius: 9, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", cursor: "pointer" },
+  roleSwatch:    { position: "relative" as const, width: 34, height: 34, borderRadius: 8, border: "1px solid var(--c-border)", flexShrink: 0, overflow: "hidden" as const },
+  roleColorInput:{ position: "absolute" as const, inset: 0, width: "150%", height: "150%", top: "-25%", left: "-25%", opacity: 0, border: "none", padding: 0, cursor: "pointer" },
+  roleInfo:      { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: 1 },
+  roleLabel:     { fontSize: "0.875rem", fontWeight: 600, color: "var(--c-text)" },
+  roleHint:      { fontSize: "0.75rem", color: "var(--c-muted)" },
+  roleHex:       { fontSize: "0.75rem", fontFamily: "monospace", color: "var(--c-muted)", textTransform: "uppercase" as const, flexShrink: 0 },
+  pageTabs:      { display: "flex", gap: "0.375rem", marginBottom: "1rem", padding: 3, background: "var(--c-surface-2)", border: "1px solid var(--c-border)", borderRadius: 9 },
+  pageTab:       { flex: 1, padding: "0.4rem 0.75rem", borderRadius: 7, border: "none", background: "transparent", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, color: "var(--c-muted)" },
+  pageTabOn:     { background: "var(--c-accent)", color: "#fff" },
 } as const;
+
+// ── Font picker ───────────────────────────────────────────────────────────────
+
+function FontSelect({ label, options, value, onChange }: {
+  label: string; options: FontOption[]; value: string; onChange: (stack: string) => void;
+}) {
+  return (
+    <div>
+      <label style={ed.lbl}>{label}</label>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem", marginTop: "0.375rem" }}>
+        {options.map((opt) => {
+          const active = value === opt.stack;
+          return (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => onChange(opt.stack)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "0.5rem 0.75rem", borderRadius: 8,
+                border: active ? "2px solid var(--c-accent)" : "1px solid var(--c-border)",
+                background: active ? "var(--c-accent-soft)" : "var(--c-surface-2)", cursor: "pointer",
+              }}
+            >
+              <span style={{ fontFamily: opt.stack, fontSize: "1.125rem", color: "var(--c-text)" }}>{opt.label}</span>
+              {active && <span style={{ color: "var(--c-accent)", fontWeight: 700 }}>✓</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SizeSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div style={{ marginTop: "0.5rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
+        <span style={ed.lbl}>{label}</span>
+        <span style={{ fontSize: "0.6875rem", color: "var(--c-muted)", fontFamily: "monospace" }}>{Math.round(value * 100)}%</span>
+      </div>
+      <input
+        type="range" min={0.8} max={1.4} step={0.05} value={value}
+        onChange={(e) => onChange(+e.target.value)}
+        style={{ width: "100%", accentColor: "var(--c-accent)" }}
+      />
+    </div>
+  );
+}
+
+function FontPicker({ fonts, onChange }: { fonts: EventFonts; onChange: (f: EventFonts) => void }) {
+  return (
+    <div style={w.sectionCard}>
+      <div style={w.sectionHead}>Typography</div>
+      <p style={w.note}>Choose fonts and sizes for titles and body text. Each option is shown in its own font; the preview updates live.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
+        <div>
+          <FontSelect label="Heading font" options={HEADING_FONTS} value={fonts.heading} onChange={(s) => onChange({ ...fonts, heading: s })} />
+          <SizeSlider label="Heading size" value={fonts.headingScale ?? 1} onChange={(v) => onChange({ ...fonts, headingScale: v })} />
+        </div>
+        <div>
+          <FontSelect label="Body font" options={BODY_FONTS} value={fonts.body} onChange={(s) => onChange({ ...fonts, body: s })} />
+          <SizeSlider label="Body size" value={fonts.bodyScale ?? 1} onChange={(v) => onChange({ ...fonts, bodyScale: v })} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Main Wizard Component ─────────────────────────────────────────────────────
 
@@ -531,7 +751,6 @@ interface Props {
 
 export function EventWizard({ event, invitation }: Props) {
   const router = useRouter();
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const STEPS = 4;
   const [step, setStep] = useState(1);
   const [maxVisited, setMaxVisited] = useState(STEPS); // all steps accessible immediately
@@ -557,7 +776,6 @@ export function EventWizard({ event, invitation }: Props) {
   const [bgAssetType, setBgAssetType] = useState<BgAssetType>(invitation?.backgroundVideoUrl ? "video" : "image");
   const [bgImageFile, setBgImageFile] = useState<File | null>(null);
   const [bgVideoFile, setBgVideoFile] = useState<File | null>(null);
-  const [coverFile, setCoverFile]     = useState<File | null>(null);
   const [thumbFile, setThumbFile]     = useState<File | null>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [musicFile, setMusicFile]     = useState<File | null>(null);
@@ -590,7 +808,6 @@ export function EventWizard({ event, invitation }: Props) {
       const data = await res.json() as { photo?: { id: string; url: string; sortOrder: number } };
       if (data.photo) {
         setPhotos(prev => [...prev, data.photo!]);
-        iframeRef.current?.contentWindow?.location.reload();
       }
     } catch { /* ignore */ }
     finally { setPhotoUploading(false); }
@@ -599,7 +816,6 @@ export function EventWizard({ event, invitation }: Props) {
   async function deletePhoto(photoId: string) {
     await fetch(`/api/admin/events/${event.id}/photos?photoId=${photoId}`, { method: "DELETE" });
     setPhotos(prev => prev.filter(p => p.id !== photoId));
-    iframeRef.current?.contentWindow?.location.reload();
   }
 
   // ── Save state
@@ -637,16 +853,24 @@ export function EventWizard({ event, invitation }: Props) {
       let mapImageUrl = overlay.map.imageUrl;
       if (mapImageFile) mapImageUrl = await upload(mapImageFile, "themes/map");
 
-      const [bgImageUrl, bgVideoUrl, coverUrl, thumbUrl, previewUrl, musicUrl] = await Promise.all([
+      const [bgImageUrl, bgVideoUrl, thumbUrl, previewUrl, musicUrl] = await Promise.all([
         bgAssetType === "image" && bgImageFile ? upload(bgImageFile, "themes/backgrounds") : Promise.resolve(invitation?.backgroundUrl ?? null),
         bgAssetType === "video" && bgVideoFile ? upload(bgVideoFile, "themes/backgrounds/video") : Promise.resolve(invitation?.backgroundVideoUrl ?? null),
-        coverFile   ? upload(coverFile,   "themes/covers")     : Promise.resolve(invitation?.coverUrl ?? null),
         thumbFile   ? upload(thumbFile,   "themes/thumbnails") : Promise.resolve(invitation?.thumbnailUrl ?? null),
         previewFile ? upload(previewFile, "themes/preview")    : Promise.resolve(invitation?.previewUrl ?? null),
         musicFile   ? upload(musicFile,   "themes/music")      : Promise.resolve(invitation?.musicUrl ?? null),
       ]);
 
-      const finalOverlay: OverlayConfig = { ...overlay, map: { ...overlay.map, imageUrl: mapImageUrl } };
+      // Single source of truth for the cover image: the Cover section's uploaded
+      // photo. Mirror it onto invitation.coverUrl so the landing-page gate
+      // (InviteGate reads inv.coverUrl) shows it too.
+      const coverSection = sections.find((s) => s.type === "cover");
+      const coverUrl = (coverSection?.content as { imageUrl?: string })?.imageUrl ?? null;
+
+      const finalOverlay: OverlayConfig = {
+        ...overlay,
+        map: { ...overlay.map, imageUrl: mapImageUrl, url: overlay.map.inputType === "url" ? venueMapUrl : overlay.map.url },
+      };
 
       const payload: Record<string, unknown> = {
         title: eventTitle.trim(), eventType, eventDate, venueName, venueMapUrl,
@@ -662,17 +886,13 @@ export function EventWizard({ event, invitation }: Props) {
       });
       if (!res.ok) { const d = await res.json() as { error?: string }; setError(d.error ?? "Failed to save"); return; }
 
-      const wasFirstSave = !hasInvitation;
       setHasInvitation(true);
       setIsDirty(false);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2500);
+      // The live preview renders from local state (instant), so no iframe reload
+      // is needed. Refresh server data so the saved invitation prop is current.
       router.refresh();
-      if (!wasFirstSave) {
-        // Invitation already existed — iframe is mounted, reload it to reflect changes
-        iframeRef.current?.contentWindow?.location.reload();
-      }
-      // On first save: router.refresh() mounts the iframe fresh, which auto-loads the invite
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -682,6 +902,11 @@ export function EventWizard({ event, invitation }: Props) {
 
   const stepLabels = ["Setup", "Sections", "Overlays", "Assets"];
   const shareUrl = invitation?.shareLink ?? `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${event.slug}`;
+
+  // The single cover image lives on the Cover section. Feed it to the preview's
+  // gate (existingCoverUrl) so the landing page reflects it instantly.
+  const coverImageUrl =
+    (sections.find((s) => s.type === "cover")?.content as { imageUrl?: string })?.imageUrl ?? null;
 
   return (
     <>
@@ -760,10 +985,7 @@ export function EventWizard({ event, invitation }: Props) {
                       <input value={venueName} onChange={e => setVenueName(e.target.value)} placeholder="Hall / venue name" style={w.inp} />
                     </div>
                   </div>
-                  <div style={w.field}>
-                    <label style={w.flbl}>Venue map URL</label>
-                    <input value={venueMapUrl} onChange={e => setVenueMapUrl(e.target.value)} placeholder="https://maps.google.com/…" style={w.inp} />
-                  </div>
+                  <p style={{ ...w.note, fontSize: "0.8125rem" }}>The venue map link is set under <strong>Overlays → Map button</strong>.</p>
                 </div>
               </div>
 
@@ -784,74 +1006,49 @@ export function EventWizard({ event, invitation }: Props) {
                 </div>
               </div>
 
+              <FontPicker fonts={overlay.fonts} onChange={(f) => patchOverlay({ fonts: f })} />
+
+              <ColorSchemeEditor
+                content={overlay.colorScheme}
+                gate={overlay.gateColorScheme}
+                onContent={(s) => patchOverlay({ colorScheme: s })}
+                onGate={(s) => patchOverlay({ gateColorScheme: s })}
+              />
+
               <div style={w.sectionCard}>
-                <div style={w.sectionHead}>Color Scheme</div>
-                <p style={w.note}>Set each text role independently — changes propagate instantly to the live invitation.</p>
-                <div style={cs.presets}>
-                  {COLOR_PRESETS.map(preset => {
-                    const active = overlay.colorScheme.accent === preset.accent && overlay.colorScheme.title === preset.title;
-                    return (
-                      <button key={preset.name} type="button" title={preset.name}
-                        onClick={() => patchOverlay({ colorScheme: { ...preset } })}
-                        style={{ ...cs.swatch, background: `linear-gradient(135deg, ${preset.accent} 50%, ${preset.title} 50%)`, outline: active ? "2px solid var(--c-accent)" : "none", outlineOffset: 2 }} />
-                    );
-                  })}
+                <div style={w.sectionHead}>Landing Page</div>
+                <p style={w.note}>Where the title &amp; “Open Letter” button sit on the landing page, and how much the background image is blurred. The preview updates live.</p>
+
+                <div style={{ ...w.field, marginTop: "1rem" }}>
+                  <label style={w.flbl}>Title &amp; button position</label>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    {([["top", "⬆ Top"], ["center", "⬍ Middle"], ["bottom", "⬇ Bottom"]] as const).map(([val, lbl]) => (
+                      <button key={val} type="button" onClick={() => patchOverlay({ gatePosition: val })}
+                        style={{ ...ed.layoutBtn, ...(overlay.gatePosition === val ? ed.layoutBtnOn : {}), flex: 1 }}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={cs.groupLabel}>Title &amp; Subtitle</div>
-                <div style={cs.colorGrid}>
-                  {([["Title","title","Cover h1, countdown digits"],["Subtitle","subtitle","Subheading below title"]] as const).map(([lbl,key,hint]) => (
-                    <div key={key} style={cs.customItem}>
-                      <span style={cs.customLbl}>{lbl}</span>
-                      <div style={cs.hintTxt}>{hint}</div>
-                      <div style={cs.colorWrap}>
-                        <input type="color" value={toHex(overlay.colorScheme[key])} style={cs.colorInput}
-                          onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, [key]: e.target.value } })} />
-                        <span style={cs.colorHex}>{overlay.colorScheme[key]}</span>
+                <div style={{ marginTop: "1rem" }}>
+                  <Toggle
+                    on={overlay.backgroundBlur > 0}
+                    onChange={(v) => patchOverlay({ backgroundBlur: v ? 8 : 0 })}
+                    label="Blur background"
+                    sub="Soften the background image behind the content"
+                  />
+                  {overlay.backgroundBlur > 0 && (
+                    <div style={{ marginTop: "0.625rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.2rem" }}>
+                        <span style={ed.lbl}>Blur amount</span>
+                        <span style={{ fontSize: "0.6875rem", color: "var(--c-muted)", fontFamily: "monospace" }}>{overlay.backgroundBlur}px</span>
                       </div>
+                      <input type="range" min={1} max={24} step={1} value={overlay.backgroundBlur}
+                        onChange={(e) => patchOverlay({ backgroundBlur: +e.target.value })}
+                        style={{ width: "100%", accentColor: "var(--c-accent)" }} />
                     </div>
-                  ))}
-                </div>
-
-                <div style={cs.groupLabel}>Body &amp; Secondary</div>
-                <div style={cs.colorGrid}>
-                  {([["Body","body","Detail values, wish text, captions"],["Muted","muted","Dates, venue, dimmed secondary text"]] as const).map(([lbl,key,hint]) => (
-                    <div key={key} style={cs.customItem}>
-                      <span style={cs.customLbl}>{lbl}</span>
-                      <div style={cs.hintTxt}>{hint}</div>
-                      <div style={cs.colorWrap}>
-                        <input type="color" value={toHex(overlay.colorScheme[key])} style={cs.colorInput}
-                          onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, [key]: e.target.value } })} />
-                        <span style={cs.colorHex}>{overlay.colorScheme[key]}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={cs.groupLabel}>Header &amp; Accent</div>
-                <div style={cs.colorGrid}>
-                  {([["Section Header","header","Section labels — DETAILS, COUNTDOWN…"],["Accent","accent","Borders, buttons, decorative dividers"]] as const).map(([lbl,key,hint]) => (
-                    <div key={key} style={cs.customItem}>
-                      <span style={cs.customLbl}>{lbl}</span>
-                      <div style={cs.hintTxt}>{hint}</div>
-                      <div style={cs.colorWrap}>
-                        <input type="color" value={toHex(overlay.colorScheme[key])} style={cs.colorInput}
-                          onChange={e => patchOverlay({ colorScheme: { ...overlay.colorScheme, [key]: e.target.value } })} />
-                        <span style={cs.colorHex}>{overlay.colorScheme[key]}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={{ ...cs.preview, background: "rgba(0,0,0,0.72)" }}>
-                  <span style={{ color: overlay.colorScheme.title, fontFamily: "Georgia, serif", fontSize: "1.1rem", fontWeight: 300, fontStyle: "italic" }}>Our Big Day</span>
-                  <span style={{ color: overlay.colorScheme.subtitle, fontSize: "0.8rem" }}>You are cordially invited</span>
-                  <span style={{ color: overlay.colorScheme.header, fontSize: "0.55rem", letterSpacing: "0.2em", textTransform: "uppercase" }}>Details</span>
-                  <span style={{ color: overlay.colorScheme.body, fontSize: "0.8rem" }}>Phnom Penh · 18:00</span>
-                  <span style={{ color: overlay.colorScheme.muted, fontSize: "0.75rem" }}>
-                    {eventDate ? new Date(eventDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "Date TBA"}
-                  </span>
-                  <span style={{ background: overlay.colorScheme.accent, color: "#fff", borderRadius: 4, padding: "0.15rem 0.6rem", fontSize: "0.75rem" }}>Accent</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -906,9 +1103,9 @@ export function EventWizard({ event, invitation }: Props) {
                     ))}
                   </div>
                   {overlay.map.inputType === "url"
-                    ? <Field label="Google Maps embed URL">
-                        <input style={ed.inp} placeholder="https://maps.google.com/…" value={overlay.map.url}
-                          onChange={e => patchOverlay({ map: { ...overlay.map, url: e.target.value } })} />
+                    ? <Field label="Venue map URL (Google Maps)">
+                        <input style={ed.inp} placeholder="https://maps.google.com/…" value={venueMapUrl}
+                          onChange={e => setVenueMapUrl(e.target.value)} />
                       </Field>
                     : <FilePicker label="Map image" hint="Upload a static map image shown in the overlay (≤ 10 MB)"
                         accept="image/jpeg,image/png,image/webp" file={mapImageFile} setFile={setMapImageFile} preview />
@@ -943,11 +1140,9 @@ export function EventWizard({ event, invitation }: Props) {
                 ? <FilePicker label="Background image" hint="Full-page background shown behind all sections (≤ 10 MB)" accept="image/jpeg,image/png,image/webp" file={bgImageFile} setFile={setBgImageFile} preview />
                 : <FilePicker label="Background video" hint="Motion video shown as background — MP4 or WebM (≤ 200 MB)" accept="video/mp4,video/webm,video/quicktime" file={bgVideoFile} setFile={setBgVideoFile} preview />
               }
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
-                <FilePicker label="Cover image" hint="Hero / cover section overlay image (≤ 10 MB)" accept="image/jpeg,image/png,image/webp" file={coverFile} setFile={setCoverFile} preview />
-                <FilePicker label="Thumbnail" hint="Small card preview for the admin (≤ 5 MB)" accept="image/jpeg,image/png,image/webp" file={thumbFile} setFile={setThumbFile} preview />
-              </div>
+              <FilePicker label="Thumbnail" hint="Small share-card preview image shown when the invite link is sent (≤ 5 MB)" accept="image/jpeg,image/png,image/webp" file={thumbFile} setFile={setThumbFile} preview />
               <FilePicker label="Background music" hint="Ambient audio played while guests browse — MP3, WAV, AAC (≤ 20 MB)" accept="audio/mpeg,audio/mp3,audio/wav,audio/aac,audio/ogg" file={musicFile} setFile={setMusicFile} />
+              <p style={{ ...w.note, fontSize: "0.8125rem" }}>The cover image is set in <strong>Sections → Cover</strong>; it also becomes the landing-page background.</p>
 
               {/* Gallery photos — saved immediately, no Save button needed */}
               <div style={{ border: "1px solid var(--c-border)", borderRadius: 10, overflow: "hidden" }}>
@@ -1008,7 +1203,6 @@ export function EventWizard({ event, invitation }: Props) {
                   <div style={{ display: "flex", gap: "0.625rem", flexWrap: "wrap" }}>
                     {invitation.thumbnailUrl    && <AssetThumb label="Thumbnail"  url={invitation.thumbnailUrl} />}
                     {invitation.backgroundUrl   && <AssetThumb label="Background" url={invitation.backgroundUrl} />}
-                    {invitation.coverUrl        && <AssetThumb label="Cover"      url={invitation.coverUrl} />}
                     {invitation.backgroundVideoUrl && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.25rem" }}>
                       <video src={invitation.backgroundVideoUrl} style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 6, border: "1px solid var(--c-border)" }} muted />
                       <span style={{ fontSize: "0.6875rem", color: "var(--c-muted)" }}>Video BG</span>
@@ -1063,9 +1257,41 @@ export function EventWizard({ event, invitation }: Props) {
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Right: live invite preview (iframe of actual invite page) */}
         <div className="ev-wizard-preview">
           <LivePreviewFrame iframeRef={iframeRef} slug={event.slug} hasInvitation={hasInvitation} />
+=======
+        {/* Right: instant live preview — renders from local state, no DB writes */}
+        <div style={w.previewPane}>
+          <PhonePreview
+            contentType={contentType}
+            sections={sections as unknown as PreviewSection[]}
+            colorScheme={overlay.colorScheme}
+            gateColorScheme={overlay.gateColorScheme}
+            fonts={overlay.fonts}
+            backgroundBlur={overlay.backgroundBlur}
+            gatePosition={overlay.gatePosition}
+            overlay={{
+              style:   overlay.style,
+              map:     { enabled: overlay.map.enabled },
+              music:   { enabled: overlay.music.enabled },
+              goToTop: { enabled: overlay.goToTop.enabled },
+              gifts:   { enabled: overlay.gifts.enabled },
+            }}
+            bgImageFile={bgImageFile}
+            bgVideoFile={bgVideoFile}
+            bgAssetType={bgAssetType}
+            coverFile={null}
+            existingBgUrl={invitation?.backgroundUrl}
+            existingBgVideoUrl={invitation?.backgroundVideoUrl}
+            existingCoverUrl={coverImageUrl}
+            eventTitle={eventTitle}
+            eventDate={eventDate ? new Date(eventDate).toISOString() : null}
+            venueName={venueName}
+            venueMapUrl={venueMapUrl}
+          />
+>>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
         </div>
       </div>
     </div>
@@ -1073,84 +1299,6 @@ export function EventWizard({ event, invitation }: Props) {
   );
 }
 
-// ── Live preview iframe — shows the ACTUAL invite page scaled to a phone frame ─
-
-const IFRAME_W    = 390;
-const IFRAME_H    = 844;
-const PHONE_W     = 290;
-const PHONE_SCALE = PHONE_W / IFRAME_W;          // 0.744
-const PHONE_H     = Math.round(IFRAME_H * PHONE_SCALE); // 628
-
-function LivePreviewFrame({
-  iframeRef,
-  slug,
-  hasInvitation,
-}: {
-  iframeRef: React.RefObject<HTMLIFrameElement>;
-  slug: string;
-  hasInvitation: boolean;
-}) {
-  const phoneScreen = (
-    <div style={{ width: PHONE_W, height: PHONE_H, borderRadius: 28, overflow: "hidden", background: "#0a0f1a", position: "relative" }}>
-      {hasInvitation ? (
-        <iframe
-          ref={iframeRef}
-          src={`/invite/${slug}?preview=1`}
-          title="Live invite preview"
-          style={{
-            width:           IFRAME_W,
-            height:          IFRAME_H,
-            border:          "none",
-            transformOrigin: "top left",
-            transform:       `scale(${PHONE_SCALE})`,
-            display:         "block",
-          }}
-        />
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: "0.75rem", padding: "1.5rem", textAlign: "center" }}>
-          <span style={{ fontSize: "2rem" }}>✉</span>
-          <p style={{ margin: 0, fontSize: "0.8125rem", color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-            Save your changes to activate live preview
-          </p>
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.625rem", padding: "1rem 0.5rem", background: "var(--c-surface-2)", borderLeft: "1px solid var(--c-border)", minHeight: "100%", position: "sticky", top: 0 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", marginBottom: "0.125rem" }}>
-        <span style={{ fontSize: "0.6875rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-          {hasInvitation ? "Live Preview" : "Preview"}
-        </span>
-        {hasInvitation && (
-          <button
-            type="button"
-            onClick={() => iframeRef.current?.contentWindow?.location.reload()}
-            style={{ fontSize: "0.6875rem", padding: "0.2rem 0.5rem", borderRadius: 4, border: "1px solid var(--c-border)", cursor: "pointer", background: "var(--c-surface)", color: "var(--c-muted)" }}
-          >
-            ↺ Reload
-          </button>
-        )}
-      </div>
-
-      {/* Phone frame */}
-      <div style={{ width: PHONE_W + 18, background: "#111827", borderRadius: 44, padding: "0 9px", border: "2px solid #1f2937", boxShadow: "0 0 0 1px #374151, inset 0 0 0 1px #0a0f1a, 0 28px 72px rgba(0,0,0,0.55)", flexShrink: 0 }}>
-        <div style={{ height: 28, display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 4 }}>
-          <div style={{ width: 76, height: 20, background: "#111827", borderRadius: "0 0 16px 16px", border: "1px solid #1f2937" }} />
-        </div>
-        {phoneScreen}
-        <div style={{ height: 26, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ width: 72, height: 4, background: "#374151", borderRadius: 2 }} />
-        </div>
-      </div>
-
-      <p style={{ margin: 0, fontSize: "0.6875rem", color: "var(--c-muted)", textAlign: "center", lineHeight: 1.5 }}>
-        {hasInvitation ? <>Save → preview reloads automatically.<br />Exactly what guests see.</> : "Save once to activate the preview."}
-      </p>
-    </div>
-  );
-}
 
 // ── Asset thumbnail helper ────────────────────────────────────────────────────
 function AssetThumb({ label, url }: { label: string; url: string }) {

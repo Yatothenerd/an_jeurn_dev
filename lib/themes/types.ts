@@ -18,6 +18,12 @@ export interface ThemeTokens {
   id?: string;
   /** Body font stack for the invite. */
   font: string;
+  /** Display/heading font stack (cover title, gate title, countdown digits). Falls back to `font`. */
+  headingFont?: string;
+  /** Size multiplier for heading text (default 1). */
+  headingScale?: number;
+  /** Size multiplier for body text (default 1). */
+  bodyScale?: number;
   family?: ThemeFamily;
   /** Primary page / section background. */
   bg: string;

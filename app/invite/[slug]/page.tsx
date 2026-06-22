@@ -3,9 +3,10 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/services/auth.service";
 import { getCachedInvite, setCachedInvite, type InviteData } from "@/lib/utils/invite-cache";
-import { STANDARD_CSS } from "@/lib/themes/shared/standard-css";
+import { STANDARD_CSS, buildFontsHref, DEFAULT_FONTS } from "@/lib/themes/shared/standard-css";
+import { khqrItems } from "./_components/khqr-utils";
 import type { SectionComponents, SectionType, ThemeTokens, ThemeLayout } from "@/lib/themes/types";
-import { DB_SECTIONS } from "./_components/DbThemeSections";
+import { DB_SECTIONS } from "./_components/db-section-map";
 import { CoverSection } from "./_components/sections/CoverSection";
 import { CountdownSection } from "./_components/sections/CountdownSection";
 import { AgendaSection } from "./_components/sections/AgendaSection";
@@ -183,6 +184,7 @@ function renderSection(
           label={c.label as string | undefined}
           eventDate={data.event.eventDate}
           theme={tokens}
+          hideTitle={c.hideTitle as boolean | undefined}
         />
       ) : null;
     }
@@ -271,30 +273,52 @@ export default async function InvitePage({
   const inv = data.invitation;
   const isPhotoMode = inv.contentType === "photo";
 
-  // Build tokens from the invitation's overlayConfig.colorScheme
+  // Build tokens from the invitation's overlayConfig (colors + fonts).
+  // Two palettes: `colorScheme` drives the content sections, `gateColorScheme`
+  // drives the landing page (gate); the latter falls back to the former.
+  type CS = {
+    text?: string; accent?: string;
+    title?: string; subtitle?: string; header?: string; body?: string; muted?: string;
+  };
   const oc = inv.overlayConfig as {
-    colorScheme?: {
-      text?: string; accent?: string;
-      title?: string; subtitle?: string; header?: string; body?: string; muted?: string;
-    };
+    colorScheme?: CS;
+    gateColorScheme?: CS;
+    fonts?: { heading?: string; body?: string; headingScale?: number; bodyScale?: number };
+    backgroundBlur?: number;
+    gatePosition?: "top" | "center" | "bottom";
   } | null;
-  const cs = oc?.colorScheme ?? {};
-  const tokens: ThemeTokens = {
+
+  const headingFont  = oc?.fonts?.heading || DEFAULT_FONTS.heading;
+  const bodyFont      = oc?.fonts?.body    || DEFAULT_FONTS.body;
+  const headingScale = oc?.fonts?.headingScale ?? 1;
+  const bodyScale    = oc?.fonts?.bodyScale ?? 1;
+  const backgroundBlur = oc?.backgroundBlur ?? 0;
+  const gatePosition = oc?.gatePosition ?? "center";
+
+  const buildTokens = (c: CS): ThemeTokens => ({
     ...DEFAULT_TOKENS,
-    text:     cs.text     ?? DEFAULT_TOKENS.text,
-    primary:  cs.text     ?? DEFAULT_TOKENS.primary,
-    accent:   cs.accent   ?? DEFAULT_TOKENS.accent,
-    border:   cs.accent   ? cs.accent + "44" : DEFAULT_TOKENS.border,
-    btnBg:    cs.accent   ?? DEFAULT_TOKENS.btnBg,
-    musicColor: cs.accent ?? DEFAULT_TOKENS.musicColor,
-    muted:    cs.muted    ?? DEFAULT_TOKENS.muted,
-    title:    cs.title    ?? cs.text    ?? DEFAULT_TOKENS.title,
-    subtitle: cs.subtitle ?? cs.text    ?? DEFAULT_TOKENS.subtitle,
-    header:   cs.header   ?? cs.accent  ?? DEFAULT_TOKENS.header,
-    body:     cs.body     ?? cs.text    ?? DEFAULT_TOKENS.body,
+    font:        bodyFont,
+    headingFont,
+    headingScale,
+    bodyScale,
+    text:     c.text     ?? DEFAULT_TOKENS.text,
+    primary:  c.text     ?? DEFAULT_TOKENS.primary,
+    accent:   c.accent   ?? DEFAULT_TOKENS.accent,
+    border:   c.accent   ? c.accent + "44" : DEFAULT_TOKENS.border,
+    btnBg:    c.accent   ?? DEFAULT_TOKENS.btnBg,
+    musicColor: c.accent ?? DEFAULT_TOKENS.musicColor,
+    muted:    c.muted    ?? DEFAULT_TOKENS.muted,
+    title:    c.title    ?? c.text    ?? DEFAULT_TOKENS.title,
+    subtitle: c.subtitle ?? c.text    ?? DEFAULT_TOKENS.subtitle,
+    header:   c.header   ?? c.accent  ?? DEFAULT_TOKENS.header,
+    body:     c.body     ?? c.text    ?? DEFAULT_TOKENS.body,
     coverGradient: isPhotoMode ? "transparent"
       : "linear-gradient(to bottom, rgba(0,0,0,0.32), rgba(0,0,0,0.08))",
-  };
+  });
+
+  const cs = oc?.colorScheme ?? {};
+  const tokens     = buildTokens(cs);
+  const gateTokens = buildTokens(oc?.gateColorScheme ?? cs);
 
   const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS };
   const layout: ThemeLayout = {};
@@ -343,7 +367,7 @@ export default async function InvitePage({
   const showWatermark = (pkg?.hasWatermark ?? true) && inv.showWatermark;
   const hasKhqr =
     (pkg?.hasKhqr ?? false) &&
-    activeSections.some((sec) => sec.type === "khqr" && !!(sec.content as { qrImageUrl?: string })?.qrImageUrl);
+    activeSections.some((sec) => sec.type === "khqr" && khqrItems(sec.content as Parameters<typeof khqrItems>[0]).length > 0);
 
   const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string } | undefined;
 
@@ -395,6 +419,8 @@ export default async function InvitePage({
   return (
     <>
       <ThemePoller slug={slug} loadedAt={loadedAt} />
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link rel="stylesheet" href={buildFontsHref()} />
       <style dangerouslySetInnerHTML={{ __html: STANDARD_CSS }} />
 
       {bgUrl && (
@@ -402,7 +428,13 @@ export default async function InvitePage({
           {bgIsVideo ? (
             <video className="inv-fixed-bg-media" src={bgUrl} autoPlay muted loop playsInline />
           ) : (
-            <div className="inv-fixed-bg-media" style={{ backgroundImage: `url(${bgUrl})` }} />
+            <div
+              className="inv-fixed-bg-media"
+              style={{
+                backgroundImage: `url(${bgUrl})`,
+                ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}),
+              }}
+            />
           )}
           {showBgScrim && <div className="inv-fixed-bg-scrim" />}
         </div>
@@ -413,9 +445,14 @@ export default async function InvitePage({
           eventTitle={data.event.title}
           guestName={guestName}
           guestLabel={coverContent?.guestLabel}
-          theme={tokens}
+          theme={gateTokens}
           bgUrl={inv.coverUrl || inv.backgroundUrl}
+<<<<<<< HEAD
           coverUrl={inv.coverUrl}
+=======
+          position={gatePosition}
+          blur={backgroundBlur}
+>>>>>>> 59e5a35dcd67efa33f680d1cfc01c9be12f32dca
         >
           {shell}
         </InviteGate>

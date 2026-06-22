@@ -14,7 +14,42 @@ const BASE_FONT_FAMILIES = [
   "Great+Vibes",
   "Montserrat:wght@300;400;500;600",
   "Cinzel:wght@400;500",
+  // Extra families offered by the event font picker (see FONT_OPTIONS).
+  "Dancing+Script:wght@400;500;600;700",
+  "Lato:wght@300;400;700",
+  "EB+Garamond:ital,wght@0,400;0,500;1,400",
+  "Marcellus",
 ];
+
+// ── Event font picker ─────────────────────────────────────────────────────────
+// Curated font choices surfaced in the EventWizard. Each maps a friendly label
+// to a CSS font stack. Every family here is loaded via BASE_FONT_FAMILIES, so
+// any pick renders without extra network work.
+
+export interface FontOption { label: string; stack: string }
+
+export const HEADING_FONTS: FontOption[] = [
+  { label: "Playfair Display",   stack: "'Playfair Display', Georgia, serif" },
+  { label: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif" },
+  { label: "Cinzel",             stack: "'Cinzel', Georgia, serif" },
+  { label: "Marcellus",          stack: "'Marcellus', Georgia, serif" },
+  { label: "EB Garamond",        stack: "'EB Garamond', Georgia, serif" },
+  { label: "Great Vibes",        stack: "'Great Vibes', cursive" },
+  { label: "Dancing Script",     stack: "'Dancing Script', cursive" },
+];
+
+export const BODY_FONTS: FontOption[] = [
+  { label: "Montserrat",         stack: "'Montserrat', sans-serif" },
+  { label: "Lato",               stack: "'Lato', sans-serif" },
+  { label: "EB Garamond",        stack: "'EB Garamond', Georgia, serif" },
+  { label: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif" },
+  { label: "Georgia",            stack: "Georgia, 'Times New Roman', serif" },
+];
+
+export const DEFAULT_FONTS = {
+  heading: "'Playfair Display', Georgia, serif",
+  body:    "Georgia, 'Times New Roman', serif",
+};
 
 /** Build the Google Fonts stylesheet href: base families + the theme's extras. */
 export function buildFontsHref(extra: string[] = []): string {
