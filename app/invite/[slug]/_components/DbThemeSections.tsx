@@ -110,7 +110,6 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
             height: 104,
             borderRadius: "50%",
             objectFit: "cover",
-            border: `2px solid ${theme.accent}`,
             marginBottom: "1.75rem",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
           }}

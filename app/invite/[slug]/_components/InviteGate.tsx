@@ -11,13 +11,15 @@ interface Props {
   theme: ThemeTokens;
   /** Cover or background image shown as the gate's full-screen backdrop. */
   bgUrl?: string | null;
+  /** Monogram / cover circle image shown at the top of the gate. */
+  coverUrl?: string | null;
   children: React.ReactNode;
 }
 
 // Universal opening "envelope" that wraps every invitation: a landing page
 // (event title + guest greeting + Open Letter button), then the letter itself,
 // then a one-time scroll-guide overlay.
-export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, children }: Props) {
+export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, children }: Props) {
   const [phase, setPhase] = useState<"closed" | "opening" | "open">("closed");
   const [guide, setGuide] = useState(false);
 
@@ -76,23 +78,42 @@ export function InviteGate({ eventTitle, guestName, guestLabel, theme, bgUrl, ch
           {/* Scrim over image so text stays readable */}
           {bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />}
 
-          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-            <p className="inv-pretitle" style={{ color: theme.accent }}>You are invited to</p>
-            <div className="inv-script" style={{ color: theme.primary }}>{eventTitle}</div>
+          {/* TOP ZONE: monogram or pretitle */}
+          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
+            {coverUrl ? (
+              <img
+                src={coverUrl}
+                alt="Monogram"
+                style={{
+                  width: 96,
+                  height: 96,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  boxShadow: "0 4px 28px rgba(0,0,0,0.5)",
+                }}
+              />
+            ) : null}
+            <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>You are invited to</p>
+          </div>
 
+          {/* MIDDLE ZONE: event title + ornament */}
+          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
+            <div className="inv-script" style={{ color: theme.primary }}>{eventTitle}</div>
             <div className="inv-ornament-line" style={{ color: theme.accent }}>
               <div className="line" />
               {theme.gem && <span className="gem">{theme.gem}</span>}
               <div className="line" />
             </div>
+          </div>
 
+          {/* BOTTOM ZONE: guest greeting + open button */}
+          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "1.1rem" }}>
             <div className="inv-gate-guest">
               <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent }}>
                 ♥ Dear
               </span>
               <div className="inv-gate-name" style={{ color: theme.primary }}>{label}</div>
             </div>
-
             <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
               <img className="inv-gate-hand" src="/hand.webp" alt="" />
               <span className="inv-gate-open-label" style={{ color: theme.accent, borderColor: theme.accent }}>

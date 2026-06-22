@@ -310,7 +310,7 @@ export default async function InvitePage({
   // Background asset
   const bgUrl = inv.backgroundVideoUrl || inv.backgroundUrl || null;
   const bgIsVideo = !!bgUrl && /\.(mp4|webm|mov)$/i.test(bgUrl);
-  const showBgScrim = !isPhotoMode || bgIsVideo;
+  const showBgScrim = !!bgUrl;
 
   // Cover asset passed to cover section renderer
   const themeAssets = inv.coverUrl ? { cover: inv.coverUrl } : undefined;
@@ -415,6 +415,7 @@ export default async function InvitePage({
           guestLabel={coverContent?.guestLabel}
           theme={tokens}
           bgUrl={inv.coverUrl || inv.backgroundUrl}
+          coverUrl={inv.coverUrl}
         >
           {shell}
         </InviteGate>

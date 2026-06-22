@@ -684,6 +684,15 @@ export function EventWizard({ event, invitation }: Props) {
   const shareUrl = invitation?.shareLink ?? `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${event.slug}`;
 
   return (
+    <>
+    <style>{`
+      .ev-wizard-row { display: flex; gap: 1.5rem; align-items: flex-start; }
+      .ev-wizard-preview { width: 330px; flex-shrink: 0; position: sticky; top: 1rem; }
+      @media (max-width: 960px) {
+        .ev-wizard-row { flex-direction: column; }
+        .ev-wizard-preview { width: 100% !important; position: static !important; display: flex; justify-content: center; }
+      }
+    `}</style>
     <div style={w.page}>
       {/* Step bar */}
       <div style={w.topBar}>
@@ -720,7 +729,7 @@ export function EventWizard({ event, invitation }: Props) {
       </div>
 
       {/* Two-column layout: edit | preview */}
-      <div style={w.contentRow}>
+      <div className="ev-wizard-row">
 
         {/* Left: form */}
         <div style={w.editPane}>
@@ -1055,11 +1064,12 @@ export function EventWizard({ event, invitation }: Props) {
         </div>
 
         {/* Right: live invite preview (iframe of actual invite page) */}
-        <div style={w.previewPane}>
+        <div className="ev-wizard-preview">
           <LivePreviewFrame iframeRef={iframeRef} slug={event.slug} hasInvitation={hasInvitation} />
         </div>
       </div>
     </div>
+    </>
   );
 }
 

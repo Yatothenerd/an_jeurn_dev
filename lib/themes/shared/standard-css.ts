@@ -164,7 +164,7 @@ img { max-width: 100%; }
 .inv-deco-band.lace { background-image: url('/themes/patterns/thai-lace-border.jpg'); }
 
 /* ── Opening gate + scroll guide (universal — every theme opens with this) ── */
-.inv-gate { position: fixed; inset: 0; z-index: 2000; max-width: 430px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 1.1rem; padding: 3rem 1.5rem; }
+.inv-gate { position: fixed; inset: 0; z-index: 2000; max-width: 430px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 3.5rem 1.5rem; }
 .inv-gate.is-opening { animation: inv-gate-out 0.7s ease forwards; }
 @keyframes inv-gate-out { to { opacity: 0; transform: scale(1.06); visibility: hidden; } }
 .inv-gate-guest { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.4rem; }
