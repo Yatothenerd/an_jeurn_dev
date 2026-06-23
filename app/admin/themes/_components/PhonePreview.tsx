@@ -135,6 +135,9 @@ export interface PhonePreviewProps {
   onPositionsChange?:  (pos: ElementPositions) => void;
   /** Called when the admin reorders sections in the sections preview. */
   onSectionsReorder?:  (newOrder: PreviewSection[]) => void;
+  /** Controlled Gate/Sections view — keeps the preview in sync with the wizard tabs. */
+  showGate?:           boolean;
+  onShowGateChange?:   (gate: boolean) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -387,6 +390,8 @@ export function PhonePreview({
   elementPositions,
   onPositionsChange,
   onSectionsReorder,
+  showGate: showGateProp,
+  onShowGateChange,
 }: PhonePreviewProps) {
   // Load the event Google fonts once so the preview matches the live invite.
   useEffect(() => {
@@ -411,7 +416,9 @@ export function PhonePreview({
   // Mirror the live invite: the cover section honors this section-scoped toggle.
   const tokens      = { ...buildTokens(colorScheme, isPhotoMode, fonts), showMonogramInSections };
   const gateTokens  = buildTokens(gateColorScheme ?? colorScheme, isPhotoMode, fonts);
-  const [showGate, setShowGate] = useState(false);
+  const [showGateInternal, setShowGateInternal] = useState(false);
+  const showGate = showGateProp ?? showGateInternal;
+  const setShowGate = (v: boolean) => { if (onShowGateChange) onShowGateChange(v); else setShowGateInternal(v); };
   const [showGuide, setShowGuide] = useState(false);
   // "Play open" — replays the chosen reveal animation on the preview gate.
   const [playOpen, setPlayOpen] = useState(false);

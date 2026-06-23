@@ -775,6 +775,24 @@ function FontPicker({ fonts, onChange }: { fonts: EventFonts; onChange: (f: Even
 
 // ── Main Wizard Component ─────────────────────────────────────────────────────
 
+type WizardView = "setup" | "landing" | "sections" | "buttons" | "assets";
+
+const TABS: { id: WizardView; label: string }[] = [
+  { id: "setup",    label: "Setup" },
+  { id: "landing",  label: "Landing" },
+  { id: "sections", label: "Sections" },
+  { id: "buttons",  label: "Buttons" },
+  { id: "assets",   label: "Assets" },
+];
+
+const TAB_DESC: Record<WizardView, string> = {
+  setup:    "Event name, date, venue and content style.",
+  landing:  "The opening page — colors, fonts, background, monogram and opening animation.",
+  sections: "Choose and edit the sections guests scroll through.",
+  buttons:  "Floating action buttons (RSVP, map, music) and the scroll guide.",
+  assets:   "Background, music and other media; copy your share link.",
+};
+
 interface Props {
   event: EventData;
   invitation: InvitationData | null;
@@ -782,13 +800,10 @@ interface Props {
 
 export function EventWizard({ event, invitation }: Props) {
   const router = useRouter();
-  const STEPS = 4;
-  const [step, setStep] = useState(1);
-  const [maxVisited, setMaxVisited] = useState(STEPS); // all steps accessible immediately
-
-  function goToStep(idx: number) {
-    if (idx >= 1 && idx <= maxVisited) setStep(idx);
-  }
+  // The editor follows the live preview: "landing" controls show when the preview
+  // is on the Gate; everything else shows the sections view. Buttons & Assets get
+  // their own tabs.
+  const [view, setView] = useState<WizardView>("setup");
 
   // ── Event identity state
   const [eventTitle, setEventTitle]     = useState(event.title);
@@ -934,13 +949,6 @@ export function EventWizard({ event, invitation }: Props) {
     }
   }
 
-  const stepLabels = ["Setup", "Sections", "Overlays", "Assets"];
-  const stepDesc = [
-    "Name your event, set the date and venue, and choose the invitation type.",
-    "Choose which sections appear on the invitation and edit their content.",
-    "Style the landing page — colors, fonts, monogram, frame and action buttons.",
-    "Upload media (background, cover, music) and copy your shareable link.",
-  ];
   const shareUrl = invitation?.shareLink ?? `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${event.slug}`;
 
   // The single cover image lives on the Cover section. Feed it to the preview's
@@ -959,24 +967,23 @@ export function EventWizard({ event, invitation }: Props) {
       }
     `}</style>
     <div style={w.page}>
-      {/* Step bar */}
+      {/* Tab bar — follows the live preview (Landing = Gate view) */}
       <div style={w.topBar}>
-        <div style={w.stepRow}>
-          {stepLabels.map((lbl, i) => {
-            const idx = i + 1; const done = step > idx; const active = step === idx;
+        <div style={w.tabRow}>
+          {TABS.map((t) => {
+            const active = view === t.id;
             return (
-              <div key={lbl} style={w.stepItem}>
-                <button type="button" onClick={() => goToStep(idx)}
-                  style={{ ...w.dot, ...(done ? w.dotDone : active ? w.dotActive : w.dotFuture), border: "none", padding: 0, cursor: "pointer" }}>
-                  {done ? "✓" : idx}
-                </button>
-                <span style={{ ...w.dotLbl, fontWeight: active ? 600 : 400, color: active ? "var(--c-text)" : "var(--c-muted)" }}>{lbl}</span>
-                {i < stepLabels.length - 1 && <div style={w.line} />}
-              </div>
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setView(t.id)}
+                style={{ ...w.tab, ...(active ? w.tabActive : {}) }}
+              >
+                {t.label}
+              </button>
             );
           })}
         </div>
-        <div style={w.trackWrap}><div style={{ ...w.fill, width: `${((step - 1) / (STEPS - 1)) * 100}%` }} /></div>
 
         {/* Save status badge */}
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "0.375rem", minHeight: "1.25rem" }}>
@@ -993,12 +1000,12 @@ export function EventWizard({ event, invitation }: Props) {
         </div>
       </div>
 
-      {/* Per-step orientation — keeps the user oriented on where they are */}
+      {/* Tab orientation */}
       <div style={w.stepIntro}>
-        <div style={w.stepIntroTitle}>Step {step} of {STEPS} · {stepLabels[step - 1]}</div>
-        <p style={w.stepIntroDesc}>{stepDesc[step - 1]}</p>
-        {step === 2 && <p style={w.stepIntroHint}>Tip: use <strong>⠿ Reorder</strong> in the preview to drag sections into order.</p>}
-        {step === 3 && <p style={w.stepIntroHint}>Tip: switch the preview to the gate and use <strong>✥ Move</strong> to drag landing elements.</p>}
+        <div style={w.stepIntroTitle}>{TABS.find((t) => t.id === view)?.label}</div>
+        <p style={w.stepIntroDesc}>{TAB_DESC[view]}</p>
+        {view === "sections" && <p style={w.stepIntroHint}>Tip: use <strong>⠿ Reorder</strong> in the preview to drag sections into order.</p>}
+        {view === "landing" && <p style={w.stepIntroHint}>Tip: use <strong>✥ Move</strong> in the preview to drag the gate elements.</p>}
       </div>
 
       {/* Two-column layout: edit | preview */}
@@ -1008,7 +1015,7 @@ export function EventWizard({ event, invitation }: Props) {
         <div style={w.editPane}>
 
           {/* Step 1 — Event Setup */}
-          {step === 1 && (
+          {view === "setup" && (
             <div style={w.col}>
               <div style={w.sectionCard}>
                 <div style={w.sectionHead}>Event Identity</div>
@@ -1053,7 +1060,12 @@ export function EventWizard({ event, invitation }: Props) {
                   ))}
                 </div>
               </div>
+            </div>
+          )}
 
+          {/* Landing — styling for the opening page (preview shows the Gate) */}
+          {view === "landing" && (
+            <div style={w.col}>
               <FontPicker fonts={overlay.fonts} onChange={(f) => patchOverlay({ fonts: f })} />
 
               <ColorSchemeEditor
@@ -1230,7 +1242,7 @@ export function EventWizard({ event, invitation }: Props) {
           )}
 
           {/* Step 2 — Sections */}
-          {step === 2 && (
+          {view === "sections" && (
             <div style={w.col}>
               <div style={w.modeBanner}>
                 <span style={{ fontSize: "1rem" }}>{contentType === "photo" ? "🖼" : "✏️"}</span>
@@ -1247,7 +1259,7 @@ export function EventWizard({ event, invitation }: Props) {
           )}
 
           {/* Step 3 — Overlays */}
-          {step === 3 && (
+          {view === "buttons" && (
             <div style={w.col}>
               <p style={w.note}>Choose which floating buttons appear on the invitation page.</p>
               <div style={w.field}>
@@ -1317,7 +1329,7 @@ export function EventWizard({ event, invitation }: Props) {
           )}
 
           {/* Step 4 — Assets */}
-          {step === 4 && (
+          {view === "assets" && (
             <div style={w.col}>
               <p style={w.note}>Upload the visual assets for this event. These appear directly on the live invitation.</p>
               <div style={w.field}>
@@ -1456,15 +1468,14 @@ export function EventWizard({ event, invitation }: Props) {
             </div>
           )}
 
-          {error && step !== 4 && <p style={w.err}>{error}</p>}
+          {error && <p style={w.err}>{error}</p>}
 
-          {/* Step nav */}
+          {/* Save / publish — always available, no step gating */}
           <div style={w.footer}>
-            <button type="button" style={w.backBtn} onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}>
-              ← Back
-            </button>
+            <span style={{ fontSize: "0.8125rem", color: "var(--c-muted)" }}>
+              {isDirty ? "Unsaved changes" : "All changes saved"}
+            </span>
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-              {/* Save is always visible when there are unsaved changes */}
               <button
                 type="button"
                 disabled={loading || !isDirty || !eventTitle.trim()}
@@ -1473,15 +1484,11 @@ export function EventWizard({ event, invitation }: Props) {
               >
                 {loading ? "Saving…" : "Save"}
               </button>
-
-              {step < STEPS
-                ? <button type="button" style={w.nextBtn} onClick={() => { setMaxVisited(m => Math.max(m, step + 1)); setStep(s => s + 1); }}>Next →</button>
-                : !invitation?.isPublished && (
-                    <button type="button" disabled={loading} onClick={() => handleSave(true)} style={w.nextBtn}>
-                      {loading ? "Publishing…" : "Save & Publish ↗"}
-                    </button>
-                  )
-              }
+              {!invitation?.isPublished && (
+                <button type="button" disabled={loading} onClick={() => handleSave(true)} style={w.nextBtn}>
+                  {loading ? "Publishing…" : "Save & Publish ↗"}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1489,6 +1496,8 @@ export function EventWizard({ event, invitation }: Props) {
         {/* Right: instant live preview — renders from local state, no DB writes */}
         <div className="ev-wizard-preview">
           <PhonePreview
+            showGate={view === "landing"}
+            onShowGateChange={(gate) => setView(gate ? "landing" : "sections")}
             contentType={contentType}
             sections={sections as unknown as PreviewSection[]}
             colorScheme={overlay.colorScheme}
@@ -1556,7 +1565,10 @@ function AssetThumb({ label, url }: { label: string; url: string }) {
 // ── Wizard styles ─────────────────────────────────────────────────────────────
 const w = {
   page:        { display: "flex", flexDirection: "column" as const, gap: "1rem" },
-  topBar:      { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "1rem 1.25rem" },
+  topBar:      { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "0.75rem 1rem" },
+  tabRow:      { display: "flex", gap: "0.25rem", flexWrap: "wrap" as const },
+  tab:         { flex: "1 1 auto", padding: "0.5rem 0.75rem", borderRadius: 8, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-muted)", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, fontFamily: "inherit" },
+  tabActive:   { background: "var(--c-accent)", color: "#fff", borderColor: "var(--c-accent)" },
   stepRow:     { display: "flex", alignItems: "center" },
   stepItem:    { display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 },
   dot:         { width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", fontWeight: 700, flexShrink: 0 },
