@@ -24,6 +24,14 @@ function IconGift({ size = 22 }: { size?: number }) {
   );
 }
 
+function IconRsvp({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M3 5h18a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1.4 1.5L12 12l7.6-5.5H4.4z" />
+    </svg>
+  );
+}
+
 function IconMapPin({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -87,13 +95,21 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, theme }: Props) 
   }
 
   const showMusic = !!musicUrl && !musicFailed;
-  if (!venueMapUrl && !showMusic && !hasKhqr) return null;
+
+  function openRsvp() {
+    window.dispatchEvent(new CustomEvent("anjeurn:open-rsvp"));
+  }
 
   const btn: React.CSSProperties = { ...s.btn, background: theme.btnBg, color: theme.btnText };
 
   return (
     <div style={s.stack}>
       {musicUrl && <audio ref={audioRef} src={musicUrl} loop preload="none" />}
+
+      {/* RSVP — always available, grouped with the other action buttons */}
+      <button onClick={openRsvp} style={btn} title="RSVP" aria-label="Open RSVP form">
+        <IconRsvp />
+      </button>
 
       {hasKhqr && (
         <button onClick={scrollToKhqr} style={btn} title="Gift / ABA KHQR" aria-label="Go to contribution section">

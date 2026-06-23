@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   eventId: string;
@@ -28,6 +28,13 @@ export function RsvpModal({ eventId, hasGuestControl, theme }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+
+  // Opened from the floating RSVP action button (InviteActions dispatches this).
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener("anjeurn:open-rsvp", handler);
+    return () => window.removeEventListener("anjeurn:open-rsvp", handler);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,15 +72,7 @@ export function RsvpModal({ eventId, hasGuestControl, theme }: Props) {
 
   return (
     <>
-      {/* Sticky RSVP button */}
-      <div style={s.stickyBar}>
-        <button
-          onClick={() => setOpen(true)}
-          style={{ ...s.rsvpBtn, background: theme.btnBg, color: theme.btnText, fontFamily: theme.font }}
-        >
-          RSVP Now
-        </button>
-      </div>
+      {/* RSVP is opened from the floating action button group (see InviteActions). */}
 
       {/* Modal overlay */}
       {open && (

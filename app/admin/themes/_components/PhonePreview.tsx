@@ -78,6 +78,7 @@ export interface PreviewOverlay {
   music:   { enabled: boolean };
   goToTop: { enabled: boolean };
   gifts:   { enabled: boolean };
+  actionButton?: { bg: string; color: string };
 }
 
 export interface PreviewSection {
@@ -100,6 +101,8 @@ export interface PhonePreviewProps {
   sectionBlur?:        number;
   /** Extra color overlay for content sections. */
   sectionOverlay?:     { enabled: boolean; color: string; opacity: number };
+  /** Color overlay for the landing page (gate). */
+  gateOverlay?:        { enabled: boolean; color: string; opacity: number };
   /** Landing-page (gate) content vertical placement. */
   gatePosition?:       "top" | "center" | "bottom";
   overlay:             PreviewOverlay;
@@ -118,6 +121,8 @@ export interface PhonePreviewProps {
   showGuestName?:      boolean;
   /** Whether to show the monogram circle on the gate. */
   showMonogram?:       boolean;
+  /** Show the monogram circle at the top of the cover section. */
+  showMonogramInSections?: boolean;
   /** Decorative frame image URL for guest name area. */
   guestFrameUrl?:      string | null;
   /** Custom drag positions for gate elements. */
@@ -302,18 +307,17 @@ function WishingPlaceholder({ tokens, placeholder }: { tokens: ThemeTokens; plac
 
 // ── Overlay buttons preview (mirrors InviteActions, positioned at screen level) ─
 
-function OverlayPreviewButtons({ overlay, tokens }: { overlay: PreviewOverlay; tokens: ThemeTokens }) {
+function OverlayPreviewButtons({ overlay }: { overlay: PreviewOverlay }) {
   const showGifts = overlay.gifts.enabled;
   const showMap   = overlay.map.enabled;
   const showMusic = overlay.music.enabled;
-  if (!showGifts && !showMap && !showMusic) return null;
 
   const btn: React.CSSProperties = {
     width:           BTN_SIZE,
     height:          BTN_SIZE,
     borderRadius:    "50%",
-    background:      tokens.musicBg,
-    color:           tokens.musicColor,
+    background:      overlay.actionButton?.bg ?? "rgba(0,0,0,0.5)",
+    color:           overlay.actionButton?.color ?? "#c9a96e",
     border:          "none",
     display:         "flex",
     alignItems:      "center",
@@ -336,6 +340,8 @@ function OverlayPreviewButtons({ overlay, tokens }: { overlay: PreviewOverlay; t
       gap:            BTN_GAP,
       pointerEvents:  "none",
     }}>
+      {/* RSVP — always part of the group */}
+      <div style={btn}>✉</div>
       {showGifts && <div style={btn}>🎁</div>}
       {showMap   && <div style={btn}>📍</div>}
       {showMusic && <div style={btn}>🔊</div>}
@@ -354,6 +360,7 @@ export function PhonePreview({
   backgroundBlur = 0,
   sectionBlur = 0,
   sectionOverlay,
+  gateOverlay,
   gatePosition = "center",
   overlay,
   bgImageFile,
@@ -369,6 +376,7 @@ export function PhonePreview({
   venueMapUrl,
   showGuestName = true,
   showMonogram = true,
+  showMonogramInSections = false,
   guestFrameUrl,
   elementPositions,
   onPositionsChange,
@@ -394,7 +402,8 @@ export function PhonePreview({
   const coverUrl   = coverObjUrl ?? existingCoverUrl ?? null;
 
   const isPhotoMode = contentType === "photo";
-  const tokens      = buildTokens(colorScheme, isPhotoMode, fonts);
+  // Mirror the live invite: the cover section honors this section-scoped toggle.
+  const tokens      = { ...buildTokens(colorScheme, isPhotoMode, fonts), showMonogramInSections };
   const gateTokens  = buildTokens(gateColorScheme ?? colorScheme, isPhotoMode, fonts);
   const [showGate, setShowGate] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -404,6 +413,9 @@ export function PhonePreview({
   const [localPos, setLocalPos] = useState<ElementPositions>(elementPositions ?? {});
   const posRef = useRef<ElementPositions>(elementPositions ?? {});
   const gateRef = useRef<HTMLDivElement>(null);
+  const screenRef = useRef<HTMLDivElement>(null);
+  // Alignment guide lines (in % of screen) highlighted while dragging.
+  const [guides, setGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
 
   useEffect(() => {
     const next = elementPositions ?? {};
@@ -415,23 +427,61 @@ export function PhonePreview({
     return localPos[key] ?? DEF_POS[key];
   }
 
-  function startDrag(e: React.MouseEvent, key: ElemKey) {
+  // Smart snapping: a light free-move grid plus "guides" that snap to the screen
+  // grid lines (25/50/75%) and to other elements' centers for clean alignment.
+  const GRID = 2.5;            // free-move step (%)
+  const SNAP = 3.5;            // distance to lock onto a guide line (%)
+  const GRID_LINES = [25, 50, 75];
+
+  function nearestGuide(value: number, targets: number[]): number | null {
+    let best: number | null = null;
+    let bestDist = SNAP;
+    for (const t of targets) {
+      const d = Math.abs(value - t);
+      if (d <= bestDist) { bestDist = d; best = t; }
+    }
+    return best;
+  }
+
+  function startDrag(e: React.PointerEvent, key: ElemKey) {
     e.preventDefault();
-    const rect = gateRef.current!.getBoundingClientRect();
-    const onMove = (me: MouseEvent) => {
-      const xPct = Math.round(Math.max(5, Math.min(95, ((me.clientX - rect.left) / rect.width) * 100)));
-      const yPct = Math.round(Math.max(3, Math.min(97, ((me.clientY - rect.top) / rect.height) * 100)));
+    try { (e.target as Element).setPointerCapture?.(e.pointerId); } catch { /* ignore */ }
+
+    // Other visible elements act as alignment targets so items line up cleanly.
+    const others: ElemKey[] = (["monogram", "pretitle", "title", "subtitle", "guestName", "openBtn"] as ElemKey[])
+      .filter((k) => k !== key)
+      .filter((k) => (k === "monogram" ? showMonogram && !!gateImageUrl : k === "guestName" ? showGuestName : true));
+
+    const onMove = (me: PointerEvent) => {
+      // Measure against the NON-zoomed screen so coordinates stay exact under `zoom`.
+      const rect = screenRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const rawX = Math.max(4, Math.min(96, ((me.clientX - rect.left) / rect.width) * 100));
+      const rawY = Math.max(3, Math.min(97, ((me.clientY - rect.top) / rect.height) * 100));
+
+      const xTargets = [...GRID_LINES, ...others.map((k) => (posRef.current[k] ?? DEF_POS[k]).xPct)];
+      const yTargets = [...GRID_LINES, ...others.map((k) => (posRef.current[k] ?? DEF_POS[k]).yPct)];
+
+      const gx = nearestGuide(rawX, xTargets);
+      const gy = nearestGuide(rawY, yTargets);
+      const xPct = gx ?? Math.round(rawX / GRID) * GRID;
+      const yPct = gy ?? Math.round(rawY / GRID) * GRID;
+
       const next: ElementPositions = { ...posRef.current, [key]: { xPct, yPct } };
       posRef.current = next;
       setLocalPos(next);
+      setGuides({ x: gx, y: gy });
       onPositionsChange?.(next);
     };
     const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      setGuides({ x: null, y: null });
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
   // ── Section drag-to-reorder state ─────────────────────────────────────────
   const [secMoveMode, setSecMoveMode] = useState(false);
@@ -504,7 +554,7 @@ export function PhonePreview({
         <div style={pp.statusBar}><div style={pp.notch} /></div>
 
         {/* Screen — overflow:hidden clips rounded corners; bg + scroll are separate children */}
-        <div style={pp.screen}>
+        <div ref={screenRef} style={pp.screen}>
 
           {/* Background layer — position:absolute, does NOT scroll.
               Mirrors real app's .inv-fixed-bg { position: fixed } */}
@@ -551,6 +601,7 @@ export function PhonePreview({
                       height: GATE_H, position: "relative",
                       fontFamily: gateTokens.font,
                       userSelect: posMode ? "none" : undefined,
+                      touchAction: posMode ? "none" : undefined,
                       overflow: "hidden",
                     }}
                   >
@@ -558,13 +609,36 @@ export function PhonePreview({
                     {gateImageUrl ? (
                       <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center", zIndex: 0, ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}) }} />
                     ) : null}
-                    <div style={{ position: "absolute", inset: 0, background: gateImageUrl ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.88)", zIndex: 0 }} />
+                    <div style={{
+                      position: "absolute", inset: 0, zIndex: 0,
+                      ...(gateOverlay?.enabled
+                        ? { background: gateOverlay.color, opacity: gateOverlay.opacity }
+                        : { background: gateImageUrl ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.88)" }),
+                    }} />
+
+                    {/* Smart grid + alignment guides (only while positioning) */}
+                    {posMode && (
+                      <div style={{ position: "absolute", inset: 0, zIndex: 25, pointerEvents: "none" }}>
+                        {GRID_LINES.map((p) => (
+                          <div key={`v${p}`} style={{ position: "absolute", left: `${p}%`, top: 0, bottom: 0, width: 1, background: p === 50 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.10)" }} />
+                        ))}
+                        {GRID_LINES.map((p) => (
+                          <div key={`h${p}`} style={{ position: "absolute", top: `${p}%`, left: 0, right: 0, height: 1, background: p === 50 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.10)" }} />
+                        ))}
+                        {guides.x != null && (
+                          <div style={{ position: "absolute", left: `${guides.x}%`, top: 0, bottom: 0, width: 2, transform: "translateX(-1px)", background: "var(--c-accent)", boxShadow: "0 0 5px var(--c-accent)" }} />
+                        )}
+                        {guides.y != null && (
+                          <div style={{ position: "absolute", top: `${guides.y}%`, left: 0, right: 0, height: 2, transform: "translateY(-1px)", background: "var(--c-accent)", boxShadow: "0 0 5px var(--c-accent)" }} />
+                        )}
+                      </div>
+                    )}
 
                     {/* Posmode hint */}
                     {posMode && (
                       <div style={{ position: "absolute", top: 10, left: 0, right: 0, zIndex: 30, textAlign: "center", pointerEvents: "none" }}>
                         <span style={{ background: "rgba(0,0,0,0.75)", color: "#fff", fontSize: 10, padding: "2px 10px", borderRadius: 4, letterSpacing: "0.05em" }}>
-                          Drag to reposition
+                          Drag to reposition · snaps to grid &amp; center
                         </span>
                       </div>
                     )}
@@ -572,7 +646,7 @@ export function PhonePreview({
                     {/* ── Monogram ── */}
                     {showMonogram && gateImageUrl && (
                       <div
-                        onMouseDown={posMode ? (e) => startDrag(e, "monogram") : undefined}
+                        onPointerDown={posMode ? (e) => startDrag(e, "monogram") : undefined}
                         style={{
                           position: "absolute",
                           left: getPos("monogram").xPct + "%", top: getPos("monogram").yPct + "%",
@@ -587,7 +661,7 @@ export function PhonePreview({
 
                     {/* ── Pretitle ── */}
                     <div
-                      onMouseDown={posMode ? (e) => startDrag(e, "pretitle") : undefined}
+                      onPointerDown={posMode ? (e) => startDrag(e, "pretitle") : undefined}
                       style={{
                         position: "absolute",
                         left: getPos("pretitle").xPct + "%", top: getPos("pretitle").yPct + "%",
@@ -603,7 +677,7 @@ export function PhonePreview({
 
                     {/* ── Title ── */}
                     <div
-                      onMouseDown={posMode ? (e) => startDrag(e, "title") : undefined}
+                      onPointerDown={posMode ? (e) => startDrag(e, "title") : undefined}
                       style={{
                         position: "absolute",
                         left: getPos("title").xPct + "%", top: getPos("title").yPct + "%",
@@ -619,7 +693,7 @@ export function PhonePreview({
 
                     {/* ── Subtitle ── */}
                     <div
-                      onMouseDown={posMode ? (e) => startDrag(e, "subtitle") : undefined}
+                      onPointerDown={posMode ? (e) => startDrag(e, "subtitle") : undefined}
                       style={{
                         position: "absolute",
                         left: getPos("subtitle").xPct + "%", top: getPos("subtitle").yPct + "%",
@@ -637,7 +711,7 @@ export function PhonePreview({
                     {/* ── Guest name ── */}
                     {showGuestName && (
                       <div
-                        onMouseDown={posMode ? (e) => startDrag(e, "guestName") : undefined}
+                        onPointerDown={posMode ? (e) => startDrag(e, "guestName") : undefined}
                         style={{
                           position: "absolute",
                           left: getPos("guestName").xPct + "%", top: getPos("guestName").yPct + "%",
@@ -648,9 +722,9 @@ export function PhonePreview({
                       >
                         {guestFrameUrl && (
                           <img src={guestFrameUrl} alt="" aria-hidden style={{
-                            position: "absolute", inset: "-12px -20px",
-                            width: "calc(100% + 40px)", height: "calc(100% + 24px)",
-                            objectFit: "fill", pointerEvents: "none", zIndex: 0,
+                            position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+                            width: "100vw", maxWidth: CONTENT_W, height: "auto",
+                            pointerEvents: "none", zIndex: 0,
                           }} />
                         )}
                         <p style={{ margin: "0 0 0.25rem", fontSize: "0.625rem", color: gateTokens.accent, letterSpacing: "0.15em", position: "relative", zIndex: 1 }}>♥ Dear</p>
@@ -662,7 +736,7 @@ export function PhonePreview({
 
                     {/* ── Open Letter ── */}
                     <div
-                      onMouseDown={posMode ? (e) => startDrag(e, "openBtn") : undefined}
+                      onPointerDown={posMode ? (e) => startDrag(e, "openBtn") : undefined}
                       style={{
                         position: "absolute",
                         left: getPos("openBtn").xPct + "%", top: getPos("openBtn").yPct + "%",
@@ -736,7 +810,7 @@ export function PhonePreview({
           </div>
 
           {/* Overlay action buttons — at screen level, only visible in sections view */}
-          {!showGate && <OverlayPreviewButtons overlay={overlay} tokens={tokens} />}
+          {!showGate && <OverlayPreviewButtons overlay={overlay} />}
 
           {/* Layout guide overlay */}
           {showGuide && (

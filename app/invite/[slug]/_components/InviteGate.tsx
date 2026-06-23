@@ -23,6 +23,7 @@ interface Props {
   theme: ThemeTokens;
   bgUrl?: string | null;
   coverUrl?: string | null;
+  gateOverlay?: { enabled: boolean; color: string; opacity: number };
   position?: "top" | "center" | "bottom";
   blur?: number;
   showGuestName?: boolean;
@@ -33,7 +34,7 @@ interface Props {
 }
 
 export function InviteGate({
-  eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl,
+  eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, gateOverlay,
   position = "center", blur = 0,
   showGuestName = true, guestFrameUrl, showMonogram = true,
   elementPositions,
@@ -89,6 +90,16 @@ export function InviteGate({
   const label = guestName || guestLabel || "Dear Guest";
   const gateJustify = position === "top" ? "flex-start" : position === "bottom" ? "flex-end" : "space-between";
 
+  // Decorative frame behind the guest name: full screen width, natural height
+  // (height auto so the artwork is never stretched). Capped at the gate width.
+  const guestFrame = guestFrameUrl ? (
+    <img src={guestFrameUrl} alt="" aria-hidden style={{
+      position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+      width: "100vw", maxWidth: 430, height: "auto",
+      pointerEvents: "none", zIndex: 0,
+    }} />
+  ) : null;
+
   return (
     <>
       {/* Shell ref — inv-animate class added after gate opens to trigger section animations */}
@@ -114,7 +125,9 @@ export function InviteGate({
               ...(blur > 0 ? { filter: `blur(${blur}px)`, transform: "scale(1.06)" } : {}),
             }} />
           )}
-          {bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />}
+          {gateOverlay?.enabled
+            ? <div style={{ position: "absolute", inset: 0, background: gateOverlay.color, opacity: gateOverlay.opacity }} />
+            : bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />}
 
           {hasCustomPos ? (
             /* ── Absolute-position layout (custom drag positions) ── */
@@ -151,13 +164,7 @@ export function InviteGate({
               {showGuestName && (
                 <div style={ep("guestName")}>
                   <div className="inv-gate-guest" style={{ position: "relative" }}>
-                    {guestFrameUrl && (
-                      <img src={guestFrameUrl} alt="" aria-hidden style={{
-                        position: "absolute", inset: "-12px -20px",
-                        width: "calc(100% + 40px)", height: "calc(100% + 24px)",
-                        objectFit: "fill", pointerEvents: "none", zIndex: 0,
-                      }} />
-                    )}
+                    {guestFrame}
                     <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent, position: "relative", zIndex: 1 }}>♥ Dear</span>
                     <div className="inv-gate-name" style={{ color: theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
                   </div>
@@ -198,13 +205,7 @@ export function InviteGate({
               <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "1.1rem" }}>
                 {showGuestName && (
                   <div className="inv-gate-guest" style={{ position: "relative" }}>
-                    {guestFrameUrl && (
-                      <img src={guestFrameUrl} alt="" aria-hidden style={{
-                        position: "absolute", inset: "-12px -20px",
-                        width: "calc(100% + 40px)", height: "calc(100% + 24px)",
-                        objectFit: "fill", pointerEvents: "none", zIndex: 0,
-                      }} />
-                    )}
+                    {guestFrame}
                     <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent, position: "relative", zIndex: 1 }}>♥ Dear</span>
                     <div className="inv-gate-name" style={{ color: theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
                   </div>

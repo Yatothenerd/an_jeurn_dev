@@ -287,10 +287,11 @@ export default async function InvitePage({
     backgroundBlur?: number;
     sectionBlur?: number;
     sectionOverlay?: { enabled: boolean; color: string; opacity: number };
+    gateOverlay?: { enabled: boolean; color: string; opacity: number };
+    actionButton?: { bg: string; color: string };
     gatePosition?: "top" | "center" | "bottom";
     showGuestName?: boolean;
     guestFrameUrl?: string | null;
-    hideCoverPhoto?: boolean;
     monogram?: { gate: boolean; sections: boolean };
     elementPositions?: ElementPositions;
   } | null;
@@ -302,10 +303,11 @@ export default async function InvitePage({
   const backgroundBlur    = oc?.backgroundBlur ?? 0;
   const sectionBlur       = oc?.sectionBlur ?? 0;
   const sectionOverlay    = oc?.sectionOverlay ?? { enabled: false, color: "#000000", opacity: 0.25 };
+  const gateOverlay       = oc?.gateOverlay ?? { enabled: false, color: "#000000", opacity: 0.45 };
+  const actionButton      = oc?.actionButton ?? { bg: "rgba(0,0,0,0.5)", color: "#c9a96e" };
   const gatePosition      = oc?.gatePosition ?? "center";
   const showGuestName     = oc?.showGuestName ?? true;
   const guestFrameUrl     = oc?.guestFrameUrl ?? null;
-  const hideCoverPhoto    = oc?.hideCoverPhoto ?? false;
   const monogram          = oc?.monogram ?? { gate: true, sections: false };
   const elementPositions  = oc?.elementPositions ?? undefined;
 
@@ -331,7 +333,7 @@ export default async function InvitePage({
   });
 
   const cs = oc?.colorScheme ?? {};
-  const tokens     = { ...buildTokens(cs), hideCoverPhoto, showMonogramInSections: monogram.sections };
+  const tokens     = { ...buildTokens(cs), showMonogramInSections: monogram.sections };
   const gateTokens = buildTokens(oc?.gateColorScheme ?? cs);
 
   const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS };
@@ -423,7 +425,7 @@ export default async function InvitePage({
         venueMapUrl={pkg?.hasLocation ? data.event.venueMapUrl : null}
         musicUrl={pkg?.hasMusic ? activeMusicUrl : null}
         hasKhqr={hasKhqr}
-        theme={{ btnBg: tokens.musicBg, btnText: tokens.musicColor }}
+        theme={{ btnBg: actionButton.bg, btnText: actionButton.color }}
       />
 
       {showWatermark && <Watermark />}
@@ -466,6 +468,7 @@ export default async function InvitePage({
           theme={gateTokens}
           bgUrl={inv.coverUrl || inv.backgroundUrl}
           coverUrl={inv.coverUrl}
+          gateOverlay={gateOverlay}
           position={gatePosition}
           blur={backgroundBlur}
           showGuestName={showGuestName}

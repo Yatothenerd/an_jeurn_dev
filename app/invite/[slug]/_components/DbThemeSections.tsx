@@ -81,7 +81,9 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
     day: "numeric",
   });
 
-  const contentImageUrl = theme.hideCoverPhoto ? null : content.imageUrl;
+  // The cover photo lives on the landing gate (Invitation.coverUrl is mirrored
+  // from this section's image). Showing it again here is pure duplication, so the
+  // cover section never renders the hero photo — only an optional monogram.
   const monogramUrl = theme.showMonogramInSections ? (content.logoUrl ?? assets?.cover) : null;
 
   return (
@@ -110,20 +112,6 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
             objectFit: "cover",
             marginBottom: "1.5rem",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}
-        />
-      )}
-
-      {contentImageUrl && (
-        <img
-          src={contentImageUrl}
-          alt="Cover"
-          style={{
-            width: "100%",
-            maxHeight: 280,
-            objectFit: "cover",
-            borderRadius: 12,
-            marginBottom: "1.25rem",
           }}
         />
       )}

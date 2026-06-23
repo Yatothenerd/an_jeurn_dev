@@ -58,14 +58,16 @@ interface OverlayConfig {
   sectionBlur: number;
   /** Additional color overlay rendered over content sections. */
   sectionOverlay: { enabled: boolean; color: string; opacity: number };
+  /** Color overlay rendered over the landing page (gate). */
+  gateOverlay: { enabled: boolean; color: string; opacity: number };
+  /** Colors for the floating action buttons (RSVP, map, music, gifts). */
+  actionButton: { bg: string; color: string };
   /** Vertical placement of the landing-page (gate) content. */
   gatePosition: "top" | "center" | "bottom";
   /** Show guest name area on the landing page. */
   showGuestName: boolean;
   /** Decorative frame image URL for the guest name area. */
   guestFrameUrl: string | null;
-  /** Hide the cover hero photo from the sections cover. */
-  hideCoverPhoto: boolean;
   /** Monogram circle visibility per context. */
   monogram: { gate: boolean; sections: boolean };
   /** Drag-positioned gate element offsets (% of gate dimensions). */
@@ -161,10 +163,11 @@ const INITIAL_OVERLAY: OverlayConfig = {
   backgroundBlur: 0,
   sectionBlur: 0,
   sectionOverlay: { enabled: false, color: "#000000", opacity: 0.25 },
+  gateOverlay: { enabled: false, color: "#000000", opacity: 0.45 },
+  actionButton: { bg: "rgba(0,0,0,0.5)", color: "#c9a96e" },
   gatePosition: "center",
   showGuestName: true,
   guestFrameUrl: null,
-  hideCoverPhoto: false,
   monogram: { gate: true, sections: false },
   colorScheme:     { ...INITIAL_SCHEME },
   gateColorScheme: { ...INITIAL_SCHEME },
@@ -206,9 +209,10 @@ function parseOverlay(raw: unknown): OverlayConfig {
     backgroundBlur: r.backgroundBlur ?? 0,
     sectionBlur: (r as Partial<OverlayConfig>).sectionBlur ?? 0,
     sectionOverlay: { ...INITIAL_OVERLAY.sectionOverlay, ...((r as Partial<OverlayConfig>).sectionOverlay ?? {}) },
+    gateOverlay: { ...INITIAL_OVERLAY.gateOverlay, ...((r as Partial<OverlayConfig>).gateOverlay ?? {}) },
+    actionButton: { ...INITIAL_OVERLAY.actionButton, ...((r as Partial<OverlayConfig>).actionButton ?? {}) },
     showGuestName: (r as Partial<OverlayConfig>).showGuestName ?? true,
     guestFrameUrl: (r as Partial<OverlayConfig>).guestFrameUrl ?? null,
-    hideCoverPhoto: (r as Partial<OverlayConfig>).hideCoverPhoto ?? false,
     monogram: { ...INITIAL_OVERLAY.monogram, ...((r as Partial<OverlayConfig>).monogram ?? {}) },
     elementPositions: (r as Partial<OverlayConfig>).elementPositions,
     colorScheme,
@@ -241,6 +245,29 @@ const t = {
   pillOff: { background: "var(--c-surface-2)", border: "1px solid var(--c-border)" },
   knob:    { position: "absolute" as const, top: 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)", transition: "transform 0.2s" },
 } as const;
+
+// Collapsible card — a sectionCard whose body can be folded away to cut the
+// long scroll on dense steps. Header click toggles open/closed.
+function Collapsible({ title, defaultOpen = true, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={w.sectionCard}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%",
+          background: "none", border: "none", padding: 0, cursor: "pointer",
+          marginBottom: open ? "0.625rem" : 0,
+        }}
+      >
+        <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--c-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{title}</span>
+        <span style={{ fontSize: "0.7rem", color: "var(--c-muted)", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none" }}>▾</span>
+      </button>
+      {open && <div>{children}</div>}
+    </div>
+  );
+}
 
 function FilePicker({ label, hint, accept, file, setFile, preview = false, optional = true }: {
   label: string; hint: string; accept: string;
@@ -615,8 +642,7 @@ function ColorSchemeEditor({ content, gate, onContent, onGate }: {
   const activePreset = matchName(content) === matchName(gate) ? matchName(content) : undefined;
 
   return (
-    <div style={w.sectionCard}>
-      <div style={w.sectionHead}>Color Theme</div>
+    <Collapsible title="Color Theme">
 
       {/* Preset palettes — applies to both at once */}
       <div style={csx.paletteGrid}>
@@ -662,7 +688,7 @@ function ColorSchemeEditor({ content, gate, onContent, onGate }: {
           </div>
         ))}
       </div>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -723,8 +749,7 @@ function SizeSlider({ label, value, onChange }: { label: string; value: number; 
 
 function FontPicker({ fonts, onChange }: { fonts: EventFonts; onChange: (f: EventFonts) => void }) {
   return (
-    <div style={w.sectionCard}>
-      <div style={w.sectionHead}>Typography</div>
+    <Collapsible title="Typography">
       <p style={w.note}>Choose fonts and sizes for titles and body text. Each option is shown in its own font; the preview updates live.</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem" }}>
         <div>
@@ -736,7 +761,7 @@ function FontPicker({ fonts, onChange }: { fonts: EventFonts; onChange: (f: Even
           <SizeSlider label="Body size" value={fonts.bodyScale ?? 1} onChange={(v) => onChange({ ...fonts, bodyScale: v })} />
         </div>
       </div>
-    </div>
+    </Collapsible>
   );
 }
 
@@ -902,6 +927,12 @@ export function EventWizard({ event, invitation }: Props) {
   }
 
   const stepLabels = ["Setup", "Sections", "Overlays", "Assets"];
+  const stepDesc = [
+    "Name your event, set the date and venue, and choose the invitation type.",
+    "Choose which sections appear on the invitation and edit their content.",
+    "Style the landing page — colors, fonts, monogram, frame and action buttons.",
+    "Upload media (background, cover, music) and copy your shareable link.",
+  ];
   const shareUrl = invitation?.shareLink ?? `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${event.slug}`;
 
   // The single cover image lives on the Cover section. Feed it to the preview's
@@ -952,6 +983,14 @@ export function EventWizard({ event, invitation }: Props) {
             </span>
           )}
         </div>
+      </div>
+
+      {/* Per-step orientation — keeps the user oriented on where they are */}
+      <div style={w.stepIntro}>
+        <div style={w.stepIntroTitle}>Step {step} of {STEPS} · {stepLabels[step - 1]}</div>
+        <p style={w.stepIntroDesc}>{stepDesc[step - 1]}</p>
+        {step === 2 && <p style={w.stepIntroHint}>Tip: use <strong>⠿ Reorder</strong> in the preview to drag sections into order.</p>}
+        {step === 3 && <p style={w.stepIntroHint}>Tip: switch the preview to the gate and use <strong>✥ Move</strong> to drag landing elements.</p>}
       </div>
 
       {/* Two-column layout: edit | preview */}
@@ -1016,8 +1055,7 @@ export function EventWizard({ event, invitation }: Props) {
                 onGate={(s) => patchOverlay({ gateColorScheme: s })}
               />
 
-              <div style={w.sectionCard}>
-                <div style={w.sectionHead}>Background &amp; Overlay</div>
+              <Collapsible title="Background & Overlay">
 
                 <div style={{ ...w.field }}>
                   <label style={w.flbl}>Landing page content position</label>
@@ -1080,11 +1118,38 @@ export function EventWizard({ event, invitation }: Props) {
                     </div>
                   )}
                 </div>
-              </div>
+
+                <div style={{ marginTop: "0.875rem" }}>
+                  <Toggle
+                    on={overlay.gateOverlay.enabled}
+                    onChange={(v) => patchOverlay({ gateOverlay: { ...overlay.gateOverlay, enabled: v } })}
+                    label="Landing color overlay"
+                    sub="Tint the landing page (gate) with a color layer over the background"
+                  />
+                  {overlay.gateOverlay.enabled && (
+                    <div style={{ marginTop: "0.625rem", display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.8125rem", color: "var(--c-text)" }}>
+                        Color
+                        <input type="color" value={overlay.gateOverlay.color}
+                          onChange={(e) => patchOverlay({ gateOverlay: { ...overlay.gateOverlay, color: e.target.value } })}
+                          style={{ width: 36, height: 28, border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
+                      </label>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
+                          <span style={{ fontSize: "0.8125rem", color: "var(--c-text)" }}>Opacity</span>
+                          <span style={{ fontSize: "0.6875rem", fontFamily: "monospace", color: "var(--c-muted)" }}>{Math.round(overlay.gateOverlay.opacity * 100)}%</span>
+                        </div>
+                        <input type="range" min={0} max={0.9} step={0.05} value={overlay.gateOverlay.opacity}
+                          onChange={(e) => patchOverlay({ gateOverlay: { ...overlay.gateOverlay, opacity: +e.target.value } })}
+                          style={{ width: "100%", accentColor: "var(--c-accent)" }} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Collapsible>
 
               {/* Guest Greeting & Monogram card */}
-              <div style={w.sectionCard}>
-                <div style={w.sectionHead}>Guest Greeting & Monogram</div>
+              <Collapsible title="Guest Greeting & Monogram">
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
                   <Toggle
                     on={overlay.showGuestName}
@@ -1104,16 +1169,10 @@ export function EventWizard({ event, invitation }: Props) {
                     label="Show monogram in sections"
                     sub="Circular photo shown at the top of the cover section"
                   />
-                  <Toggle
-                    on={overlay.hideCoverPhoto}
-                    onChange={(v) => patchOverlay({ hideCoverPhoto: v })}
-                    label="Hide cover photo in sections"
-                    sub="Removes the large hero photo from the cover section"
-                  />
                   <div style={{ marginTop: "0.375rem" }}>
                     <FilePicker
                       label="Guest name frame image"
-                      hint="Decorative frame overlaid on the guest name area (PNG with transparency recommended)"
+                      hint="Decorative frame behind the guest name — spans the full screen width at its natural height (PNG with a transparent center recommended)"
                       accept="image/png,image/webp"
                       file={guestFrameFile}
                       setFile={setGuestFrameFile}
@@ -1131,7 +1190,7 @@ export function EventWizard({ event, invitation }: Props) {
                     )}
                   </div>
                 </div>
-              </div>
+              </Collapsible>
             </div>
           )}
 
@@ -1172,6 +1231,26 @@ export function EventWizard({ event, invitation }: Props) {
                   ))}
                 </div>
               </div>
+
+              <div style={w.sectionCard}>
+                <div style={w.sectionHead}>Button colors</div>
+                <p style={w.note}>Color of the floating action buttons (RSVP, map, music, gifts).</p>
+                <div style={{ display: "flex", gap: "1.5rem", marginTop: "0.625rem", flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8125rem", color: "var(--c-text)" }}>
+                    Button background
+                    <input type="color" value={toHex(overlay.actionButton.bg)}
+                      onChange={(e) => patchOverlay({ actionButton: { ...overlay.actionButton, bg: e.target.value } })}
+                      style={{ width: 36, height: 28, border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.8125rem", color: "var(--c-text)" }}>
+                    Icon color
+                    <input type="color" value={toHex(overlay.actionButton.color)}
+                      onChange={(e) => patchOverlay({ actionButton: { ...overlay.actionButton, color: e.target.value } })}
+                      style={{ width: 36, height: 28, border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
+                  </label>
+                </div>
+              </div>
+
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                 <OverlayCard icon="🗺" label="Map button" desc="Opens a location map overlay when guests tap it"
                   enabled={overlay.map.enabled} onToggle={() => patchOverlay({ map: { ...overlay.map, enabled: !overlay.map.enabled } })}>
@@ -1383,6 +1462,7 @@ export function EventWizard({ event, invitation }: Props) {
             backgroundBlur={overlay.backgroundBlur}
             sectionBlur={overlay.sectionBlur}
             sectionOverlay={overlay.sectionOverlay}
+            gateOverlay={overlay.gateOverlay}
             gatePosition={overlay.gatePosition}
             overlay={{
               style:   overlay.style,
@@ -1390,6 +1470,7 @@ export function EventWizard({ event, invitation }: Props) {
               music:   { enabled: overlay.music.enabled },
               goToTop: { enabled: overlay.goToTop.enabled },
               gifts:   { enabled: overlay.gifts.enabled },
+              actionButton: overlay.actionButton,
             }}
             bgImageFile={bgImageFile}
             bgVideoFile={bgVideoFile}
@@ -1404,6 +1485,7 @@ export function EventWizard({ event, invitation }: Props) {
             venueMapUrl={venueMapUrl}
             showGuestName={overlay.showGuestName}
             showMonogram={overlay.monogram.gate}
+            showMonogramInSections={overlay.monogram.sections}
             guestFrameUrl={overlay.guestFrameUrl}
             elementPositions={overlay.elementPositions}
             onPositionsChange={(pos) => patchOverlay({ elementPositions: pos })}
@@ -1448,6 +1530,11 @@ const w = {
   line:        { flex: 1, height: 1, background: "var(--c-border)", margin: "0 0.5rem" },
   trackWrap:   { height: 3, background: "var(--c-surface-2)", marginTop: "0.75rem", borderRadius: 2 },
   fill:        { height: "100%", background: "var(--c-accent)", borderRadius: 2, transition: "width 0.3s ease" },
+
+  stepIntro:     { padding: "0 0.25rem" },
+  stepIntroTitle:{ fontSize: "1.0625rem", fontWeight: 700, color: "var(--c-text)" },
+  stepIntroDesc: { margin: "0.25rem 0 0", fontSize: "0.875rem", color: "var(--c-muted)", lineHeight: 1.5 },
+  stepIntroHint: { margin: "0.375rem 0 0", fontSize: "0.8125rem", color: "var(--c-accent)", lineHeight: 1.5 },
 
   contentRow:  { display: "flex", gap: "1.5rem", alignItems: "flex-start" },
   editPane:    { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: "1rem" },
