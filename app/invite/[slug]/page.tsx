@@ -295,6 +295,7 @@ export default async function InvitePage({
     actionButton?: { bg: string; color: string };
     revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
     keepCoverAfterOpen?: boolean;
+    scrollGuide?: boolean;
     gatePosition?: "top" | "center" | "bottom";
     showGuestName?: boolean;
     guestFrameUrl?: string | null;
@@ -313,6 +314,7 @@ export default async function InvitePage({
   const actionButton      = oc?.actionButton ?? { bg: "rgba(0,0,0,0.5)", color: "#c9a96e" };
   const revealStyle       = oc?.revealStyle ?? "fade";
   const keepCoverAfterOpen = oc?.keepCoverAfterOpen ?? true;
+  const scrollGuide       = oc?.scrollGuide ?? true;
   const gatePosition      = oc?.gatePosition ?? "center";
   const showGuestName     = oc?.showGuestName ?? true;
   const guestFrameUrl     = oc?.guestFrameUrl ?? null;
@@ -486,6 +488,7 @@ export default async function InvitePage({
           coverUrl={gateMonogramUrl}
           gateOverlay={gateOverlay}
           revealStyle={revealStyle}
+          scrollGuide={scrollGuide}
           position={gatePosition}
           blur={backgroundBlur}
           showGuestName={showGuestName}

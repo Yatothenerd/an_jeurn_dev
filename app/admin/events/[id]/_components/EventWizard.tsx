@@ -67,6 +67,8 @@ interface OverlayConfig {
   revealStyle: "fade" | "envelope" | "curtain" | "slideUp";
   /** Keep the cover as the first screen after opening (scroll-based); off = skip straight to content. */
   keepCoverAfterOpen: boolean;
+  /** Show the animated "Scroll to explore" guide hand after the gate opens. */
+  scrollGuide: boolean;
   /** Vertical placement of the landing-page (gate) content. */
   gatePosition: "top" | "center" | "bottom";
   /** Show guest name area on the landing page. */
@@ -174,6 +176,7 @@ const INITIAL_OVERLAY: OverlayConfig = {
   actionButton: { bg: "rgba(0,0,0,0.5)", color: "#c9a96e" },
   revealStyle: "fade",
   keepCoverAfterOpen: true,
+  scrollGuide: true,
   gatePosition: "center",
   showGuestName: true,
   guestFrameUrl: null,
@@ -233,6 +236,7 @@ function parseOverlay(raw: unknown): OverlayConfig {
     actionButton: { ...INITIAL_OVERLAY.actionButton, ...((r as Partial<OverlayConfig>).actionButton ?? {}) },
     revealStyle: (r as Partial<OverlayConfig>).revealStyle ?? INITIAL_OVERLAY.revealStyle,
     keepCoverAfterOpen: (r as Partial<OverlayConfig>).keepCoverAfterOpen ?? INITIAL_OVERLAY.keepCoverAfterOpen,
+    scrollGuide: (r as Partial<OverlayConfig>).scrollGuide ?? INITIAL_OVERLAY.scrollGuide,
     showGuestName: (r as Partial<OverlayConfig>).showGuestName ?? true,
     guestFrameUrl: (r as Partial<OverlayConfig>).guestFrameUrl ?? null,
     monogram: { ...INITIAL_OVERLAY.monogram, ...((r as Partial<OverlayConfig>).monogram ?? {}) },
@@ -1328,6 +1332,16 @@ export function EventWizard({ event, invitation }: Props) {
                       style={{ width: 36, height: 28, border: "1px solid var(--c-border)", borderRadius: 6, cursor: "pointer", padding: 2 }} />
                   </label>
                 </div>
+              </div>
+
+              <div style={w.sectionCard}>
+                <div style={w.sectionHead}>Scroll guide</div>
+                <Toggle
+                  on={overlay.scrollGuide}
+                  onChange={(v) => patchOverlay({ scrollGuide: v })}
+                  label="Show scroll guide hand"
+                  sub="Animated hand + “Scroll to explore” hint shown once after the invitation opens"
+                />
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
