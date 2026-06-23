@@ -560,7 +560,7 @@ export function PhonePreview({
   // ──────────────────────────────────────────────────────────────────────────
 
   const activeSections = localSections.filter((s) => s.included);
-  const coverContent   = (activeSections.find((s) => s.type === "cover")?.content ?? {}) as { heading?: string; subheading?: string };
+  const coverContent   = (activeSections.find((s) => s.type === "cover")?.content ?? {}) as { heading?: string; subheading?: string; logoUrl?: string };
   // Mirror the live page: when the cover is hidden after opening, drop it from the scroll.
   // While reordering, show all sections so drag indices line up with the reorder logic.
   const renderedSections = keepCoverAfterOpen ? activeSections : activeSections.filter((s) => s.type !== "cover");
@@ -568,6 +568,8 @@ export function PhonePreview({
   const revealLabel = { fade: "Fade & zoom", envelope: "Envelope / ticket", curtain: "Curtain split", slideUp: "Slide up" }[revealStyle];
 
   const gateImageUrl = coverUrl || bgUrl;
+  // Monogram = uploaded logo if present, else fall back to the cover/background image.
+  const gateMonogramUrl = coverContent.logoUrl || gateImageUrl;
   const gateJustify = gatePosition === "top" ? "flex-start" : gatePosition === "bottom" ? "flex-end" : "center";
 
   const effectiveTitle = eventTitle || coverContent.heading || "Our Special Day";
@@ -675,12 +677,13 @@ export function PhonePreview({
                     ) : gateImageUrl ? (
                       <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center", zIndex: 0, ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}) }} />
                     ) : null}
-                    <div style={{
-                      position: "absolute", inset: 0, zIndex: 0,
-                      ...(gateOverlay?.enabled
-                        ? { background: gateOverlay.color, opacity: gateOverlay.opacity }
-                        : { background: gateImageUrl ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.88)" }),
-                    }} />
+                    {/* Landing overlay — only when explicitly enabled. A dark
+                        backdrop is kept only when there's no cover image so text stays legible. */}
+                    {gateOverlay?.enabled ? (
+                      <div style={{ position: "absolute", inset: 0, zIndex: 0, background: gateOverlay.color, opacity: gateOverlay.opacity }} />
+                    ) : !gateImageUrl ? (
+                      <div style={{ position: "absolute", inset: 0, zIndex: 0, background: "rgba(0,0,0,0.88)" }} />
+                    ) : null}
 
                     {/* Smart grid + alignment guides (only while positioning) */}
                     {posMode && (
@@ -710,7 +713,7 @@ export function PhonePreview({
                     )}
 
                     {/* ── Monogram ── */}
-                    {showMonogram && gateImageUrl && (
+                    {showMonogram && gateMonogramUrl && (
                       <div
                         onPointerDown={posMode ? (e) => startDrag(e, "monogram") : undefined}
                         style={{
@@ -721,7 +724,7 @@ export function PhonePreview({
                           ...(posMode ? { outline: "2px dashed rgba(255,255,255,0.6)", outlineOffset: 6, borderRadius: "50%" } : {}),
                         }}
                       >
-                        <img src={gateImageUrl} alt="" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", display: "block" }} />
+                        <img src={gateMonogramUrl} alt="" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", display: "block" }} />
                       </div>
                     )}
 
@@ -830,22 +833,22 @@ export function PhonePreview({
                         <div
                           key={`${sec.type}-${i}`}
                           data-sec-idx={i}
+                          onPointerDown={secMoveMode ? (e) => startSecDrag(e, i) : undefined}
                           style={{
                             position: "relative",
                             opacity: secMoveMode && secDragIdx === i ? 0.4 : 1,
-                            ...(secMoveMode ? { boxShadow: secDragIdx === i ? "inset 0 0 0 2px rgba(201,169,110,0.8)" : "inset 0 0 0 1px rgba(255,255,255,0.08)", touchAction: "none" } : {}),
+                            ...(secMoveMode ? { boxShadow: secDragIdx === i ? "inset 0 0 0 2px rgba(201,169,110,0.8)" : "inset 0 0 0 1px rgba(255,255,255,0.08)", touchAction: "none", cursor: "grab" } : {}),
                           }}
                         >
-                          {/* Drag handle — only visible in secMoveMode */}
+                          {/* Drag handle — visual affordance; the whole card is draggable in move mode */}
                           {secMoveMode && (
                             <div
-                              onPointerDown={(e) => startSecDrag(e, i)}
                               style={{
                                 position: "absolute", top: 0, left: 0, bottom: 0,
                                 width: 28, zIndex: 10,
                                 background: "rgba(0,0,0,0.55)",
                                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
-                                cursor: "grab", touchAction: "none",
+                                cursor: "grab", touchAction: "none", pointerEvents: "none",
                               }}>
                               {[0,1,2].map((d) => (
                                 <div key={d} style={{ width: 10, height: 2, background: "rgba(255,255,255,0.7)", borderRadius: 1 }} />

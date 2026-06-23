@@ -144,9 +144,9 @@ export function InviteGate({
               }} />
             )
           )}
-          {gateOverlay?.enabled
-            ? <div style={{ position: "absolute", inset: 0, background: gateOverlay.color, opacity: gateOverlay.opacity }} />
-            : bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)" }} />}
+          {gateOverlay?.enabled && (
+            <div style={{ position: "absolute", inset: 0, background: gateOverlay.color, opacity: gateOverlay.opacity }} />
+          )}
 
           {hasCustomPos ? (
             /* ── Absolute-position layout (custom drag positions) ── */

@@ -389,7 +389,9 @@ export default async function InvitePage({
     (pkg?.hasKhqr ?? false) &&
     activeSections.some((sec) => sec.type === "khqr" && khqrItems(sec.content as Parameters<typeof khqrItems>[0]).length > 0);
 
-  const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string } | undefined;
+  const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string; logoUrl?: string } | undefined;
+  // Gate monogram = the uploaded logo if present, otherwise fall back to the cover image.
+  const gateMonogramUrl = coverContent?.logoUrl ?? inv.coverUrl;
 
   // When "show cover after opening" is off, the cover lives only on the gate —
   // drop it from the scrolling sections so guests land straight on the content.
@@ -477,7 +479,7 @@ export default async function InvitePage({
           guestLabel={coverContent?.guestLabel}
           theme={gateTokens}
           bgUrl={inv.coverUrl || inv.backgroundUrl}
-          coverUrl={inv.coverUrl}
+          coverUrl={gateMonogramUrl}
           gateOverlay={gateOverlay}
           revealStyle={revealStyle}
           position={gatePosition}
