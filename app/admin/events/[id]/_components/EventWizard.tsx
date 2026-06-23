@@ -62,6 +62,10 @@ interface OverlayConfig {
   gateOverlay: { enabled: boolean; color: string; opacity: number };
   /** Colors for the floating action buttons (RSVP, map, music, gifts). */
   actionButton: { bg: string; color: string };
+  /** Animation played when the guest opens the invitation. */
+  revealStyle: "fade" | "envelope" | "curtain" | "slideUp";
+  /** Keep the cover as the first screen after opening (scroll-based); off = skip straight to content. */
+  keepCoverAfterOpen: boolean;
   /** Vertical placement of the landing-page (gate) content. */
   gatePosition: "top" | "center" | "bottom";
   /** Show guest name area on the landing page. */
@@ -165,6 +169,8 @@ const INITIAL_OVERLAY: OverlayConfig = {
   sectionOverlay: { enabled: false, color: "#000000", opacity: 0.25 },
   gateOverlay: { enabled: false, color: "#000000", opacity: 0.45 },
   actionButton: { bg: "rgba(0,0,0,0.5)", color: "#c9a96e" },
+  revealStyle: "fade",
+  keepCoverAfterOpen: true,
   gatePosition: "center",
   showGuestName: true,
   guestFrameUrl: null,
@@ -211,6 +217,8 @@ function parseOverlay(raw: unknown): OverlayConfig {
     sectionOverlay: { ...INITIAL_OVERLAY.sectionOverlay, ...((r as Partial<OverlayConfig>).sectionOverlay ?? {}) },
     gateOverlay: { ...INITIAL_OVERLAY.gateOverlay, ...((r as Partial<OverlayConfig>).gateOverlay ?? {}) },
     actionButton: { ...INITIAL_OVERLAY.actionButton, ...((r as Partial<OverlayConfig>).actionButton ?? {}) },
+    revealStyle: (r as Partial<OverlayConfig>).revealStyle ?? INITIAL_OVERLAY.revealStyle,
+    keepCoverAfterOpen: (r as Partial<OverlayConfig>).keepCoverAfterOpen ?? INITIAL_OVERLAY.keepCoverAfterOpen,
     showGuestName: (r as Partial<OverlayConfig>).showGuestName ?? true,
     guestFrameUrl: (r as Partial<OverlayConfig>).guestFrameUrl ?? null,
     monogram: { ...INITIAL_OVERLAY.monogram, ...((r as Partial<OverlayConfig>).monogram ?? {}) },
@@ -1148,6 +1156,33 @@ export function EventWizard({ event, invitation }: Props) {
                 </div>
               </Collapsible>
 
+              {/* Opening animation card */}
+              <Collapsible title="Opening animation">
+                <p style={w.note}>How the invitation reveals when the guest taps Open.</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                  {([
+                    ["fade",     "Fade & zoom",        "Gate fades and zooms out"],
+                    ["envelope", "Envelope / ticket",  "Folds open from the top"],
+                    ["curtain",  "Curtain split",      "Two halves part to the sides"],
+                    ["slideUp",  "Slide up",           "Gate slides up out of view"],
+                  ] as const).map(([val, title, desc]) => (
+                    <button key={val} type="button" onClick={() => patchOverlay({ revealStyle: val })}
+                      style={{ ...w.typeCard, ...(overlay.revealStyle === val ? w.typeCardOn : {}) }}>
+                      <span style={w.typeTitle}>{title}</span>
+                      <span style={w.typeDesc}>{desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div style={{ marginTop: "0.875rem" }}>
+                  <Toggle
+                    on={overlay.keepCoverAfterOpen}
+                    onChange={(v) => patchOverlay({ keepCoverAfterOpen: v })}
+                    label="Show cover after opening"
+                    sub="On: the cover stays as the first screen (scroll-based). Off: jump straight to the content sections."
+                  />
+                </div>
+              </Collapsible>
+
               {/* Guest Greeting & Monogram card */}
               <Collapsible title="Guest Greeting & Monogram">
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
@@ -1463,6 +1498,8 @@ export function EventWizard({ event, invitation }: Props) {
             sectionBlur={overlay.sectionBlur}
             sectionOverlay={overlay.sectionOverlay}
             gateOverlay={overlay.gateOverlay}
+            revealStyle={overlay.revealStyle}
+            keepCoverAfterOpen={overlay.keepCoverAfterOpen}
             gatePosition={overlay.gatePosition}
             overlay={{
               style:   overlay.style,

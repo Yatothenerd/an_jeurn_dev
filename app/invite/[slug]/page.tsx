@@ -289,6 +289,8 @@ export default async function InvitePage({
     sectionOverlay?: { enabled: boolean; color: string; opacity: number };
     gateOverlay?: { enabled: boolean; color: string; opacity: number };
     actionButton?: { bg: string; color: string };
+    revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
+    keepCoverAfterOpen?: boolean;
     gatePosition?: "top" | "center" | "bottom";
     showGuestName?: boolean;
     guestFrameUrl?: string | null;
@@ -305,6 +307,8 @@ export default async function InvitePage({
   const sectionOverlay    = oc?.sectionOverlay ?? { enabled: false, color: "#000000", opacity: 0.25 };
   const gateOverlay       = oc?.gateOverlay ?? { enabled: false, color: "#000000", opacity: 0.45 };
   const actionButton      = oc?.actionButton ?? { bg: "rgba(0,0,0,0.5)", color: "#c9a96e" };
+  const revealStyle       = oc?.revealStyle ?? "fade";
+  const keepCoverAfterOpen = oc?.keepCoverAfterOpen ?? true;
   const gatePosition      = oc?.gatePosition ?? "center";
   const showGuestName     = oc?.showGuestName ?? true;
   const guestFrameUrl     = oc?.guestFrameUrl ?? null;
@@ -387,6 +391,12 @@ export default async function InvitePage({
 
   const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string } | undefined;
 
+  // When "show cover after opening" is off, the cover lives only on the gate —
+  // drop it from the scrolling sections so guests land straight on the content.
+  const renderedSections = keepCoverAfterOpen
+    ? activeSections
+    : activeSections.filter((s) => s.type !== "cover");
+
   let altIndex = 0;
 
   const shell = (
@@ -394,7 +404,7 @@ export default async function InvitePage({
       className="invite-shell"
       style={{ background: "transparent" }}
     >
-      {activeSections.map((sec) => {
+      {renderedSections.map((sec) => {
         const node = renderSection(sec, data, tokens, components, themeAssets, guestName, guests, showGuestNames);
         if (!node) return null;
 
@@ -469,6 +479,7 @@ export default async function InvitePage({
           bgUrl={inv.coverUrl || inv.backgroundUrl}
           coverUrl={inv.coverUrl}
           gateOverlay={gateOverlay}
+          revealStyle={revealStyle}
           position={gatePosition}
           blur={backgroundBlur}
           showGuestName={showGuestName}

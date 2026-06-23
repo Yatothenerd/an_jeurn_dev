@@ -24,6 +24,7 @@ interface Props {
   bgUrl?: string | null;
   coverUrl?: string | null;
   gateOverlay?: { enabled: boolean; color: string; opacity: number };
+  revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
   position?: "top" | "center" | "bottom";
   blur?: number;
   showGuestName?: boolean;
@@ -35,6 +36,7 @@ interface Props {
 
 export function InviteGate({
   eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, gateOverlay,
+  revealStyle = "fade",
   position = "center", blur = 0,
   showGuestName = true, guestFrameUrl, showMonogram = true,
   elementPositions,
@@ -62,7 +64,7 @@ export function InviteGate({
         setGuide(true);
         sessionStorage.setItem("inv-guide-seen", "1");
       }
-    }, 700);
+    }, 850);
   }
 
   const hasCustomPos = !!elementPositions && Object.keys(elementPositions).length > 0;
@@ -109,7 +111,7 @@ export function InviteGate({
 
       {phase !== "open" && (
         <div
-          className={`inv-gate inv-animate${phase === "opening" ? " is-opening" : ""}`}
+          className={`inv-gate inv-animate reveal-${revealStyle}${phase === "opening" ? " is-opening" : ""}`}
           style={{
             fontFamily: theme.font,
             color: theme.text,
@@ -117,13 +119,30 @@ export function InviteGate({
             ...(bgUrl ? {} : { background: theme.coverGradient }),
           }}
         >
-          {/* Background image layer */}
-          {bgUrl && (
-            <div style={{
-              position: "absolute", inset: 0,
-              backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center",
-              ...(blur > 0 ? { filter: `blur(${blur}px)`, transform: "scale(1.06)" } : {}),
-            }} />
+          {/* Background image layer — split into two parting halves for the curtain reveal */}
+          {revealStyle === "curtain" ? (
+            <>
+              <div className="inv-curtain inv-curtain-l" style={{
+                position: "absolute", inset: 0, clipPath: "inset(0 50% 0 0)",
+                ...(bgUrl
+                  ? { backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                  : { background: theme.coverGradient }),
+              }} />
+              <div className="inv-curtain inv-curtain-r" style={{
+                position: "absolute", inset: 0, clipPath: "inset(0 0 0 50%)",
+                ...(bgUrl
+                  ? { backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                  : { background: theme.coverGradient }),
+              }} />
+            </>
+          ) : (
+            bgUrl && (
+              <div style={{
+                position: "absolute", inset: 0,
+                backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center",
+                ...(blur > 0 ? { filter: `blur(${blur}px)`, transform: "scale(1.06)" } : {}),
+              }} />
+            )
           )}
           {gateOverlay?.enabled
             ? <div style={{ position: "absolute", inset: 0, background: gateOverlay.color, opacity: gateOverlay.opacity }} />

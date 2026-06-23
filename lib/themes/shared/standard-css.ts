@@ -200,8 +200,20 @@ img { max-width: 100%; }
 
 /* ── Opening gate + scroll guide (universal — every theme opens with this) ── */
 .inv-gate { position: fixed; inset: 0; z-index: 2000; max-width: 430px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 3.5rem 1.5rem; }
-.inv-gate.is-opening { animation: inv-gate-out 0.7s ease forwards; }
-@keyframes inv-gate-out { to { opacity: 0; transform: scale(1.06); visibility: hidden; } }
+/* Reveal animations — chosen per invite (overlayConfig.revealStyle) */
+.inv-gate.is-opening.reveal-fade     { animation: inv-gate-out 0.7s ease forwards; }
+.inv-gate.is-opening.reveal-slideUp  { animation: inv-gate-slideup 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
+.inv-gate.is-opening.reveal-envelope { transform-origin: top center; animation: inv-gate-envelope 0.85s ease forwards; }
+.inv-gate.is-opening.reveal-curtain  { animation: inv-gate-fade 0.75s ease forwards; }
+@keyframes inv-gate-out      { to { opacity: 0; transform: scale(1.06); visibility: hidden; } }
+@keyframes inv-gate-slideup  { to { opacity: 0.35; transform: translateY(-100%); visibility: hidden; } }
+@keyframes inv-gate-envelope { 35% { opacity: 1; } to { opacity: 0; transform: perspective(1400px) rotateX(-92deg) translateY(-14%); visibility: hidden; } }
+@keyframes inv-gate-fade     { to { opacity: 0; visibility: hidden; } }
+.inv-curtain { will-change: transform; z-index: 0; }
+.inv-gate.is-opening.reveal-curtain .inv-curtain-l { animation: inv-curtain-l 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
+.inv-gate.is-opening.reveal-curtain .inv-curtain-r { animation: inv-curtain-r 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
+@keyframes inv-curtain-l { to { transform: translateX(-100%); } }
+@keyframes inv-curtain-r { to { transform: translateX(100%); } }
 .inv-gate-guest { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.4rem; }
 .inv-gate-name { font-family: 'Great Vibes', cursive; font-size: 2rem; line-height: 1.1; }
 .inv-gate-open { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-top: 0.6rem; }

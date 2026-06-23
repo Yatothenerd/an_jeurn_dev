@@ -103,6 +103,10 @@ export interface PhonePreviewProps {
   sectionOverlay?:     { enabled: boolean; color: string; opacity: number };
   /** Color overlay for the landing page (gate). */
   gateOverlay?:        { enabled: boolean; color: string; opacity: number };
+  /** Opening animation style (shown as a label; full animation plays on the live invite). */
+  revealStyle?:        "fade" | "envelope" | "curtain" | "slideUp";
+  /** Keep the cover as the first section after opening. */
+  keepCoverAfterOpen?: boolean;
   /** Landing-page (gate) content vertical placement. */
   gatePosition?:       "top" | "center" | "bottom";
   overlay:             PreviewOverlay;
@@ -361,6 +365,8 @@ export function PhonePreview({
   sectionBlur = 0,
   sectionOverlay,
   gateOverlay,
+  revealStyle = "fade",
+  keepCoverAfterOpen = true,
   gatePosition = "center",
   overlay,
   bgImageFile,
@@ -520,6 +526,11 @@ export function PhonePreview({
 
   const activeSections = localSections.filter((s) => s.included);
   const coverContent   = (activeSections.find((s) => s.type === "cover")?.content ?? {}) as { heading?: string; subheading?: string };
+  // Mirror the live page: when the cover is hidden after opening, drop it from the scroll.
+  // While reordering, show all sections so drag indices line up with the reorder logic.
+  const renderedSections = keepCoverAfterOpen ? activeSections : activeSections.filter((s) => s.type !== "cover");
+  const displaySections = secMoveMode ? activeSections : renderedSections;
+  const revealLabel = { fade: "Fade & zoom", envelope: "Envelope / ticket", curtain: "Curtain split", slideUp: "Slide up" }[revealStyle];
 
   const gateImageUrl = coverUrl || bgUrl;
   const gateJustify = gatePosition === "top" ? "flex-start" : gatePosition === "bottom" ? "flex-end" : "center";
@@ -530,7 +541,7 @@ export function PhonePreview({
   return (
     <div style={pp.outer}>
       <div style={pp.labelRow}>
-        <span style={pp.label}>{showGate ? "Gate Preview" : "Live Preview"}</span>
+        <span style={pp.label}>{showGate ? `Gate Preview · Opens: ${revealLabel}` : "Live Preview"}</span>
         <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
           <button
             type="button"
@@ -755,12 +766,12 @@ export function PhonePreview({
                 {/* Sections view (default — shows edits immediately) */}
                 {!showGate && (
                   <div style={{ position: "relative", zIndex: 1, userSelect: secMoveMode ? "none" : undefined }}>
-                    {activeSections.length === 0 ? (
+                    {displaySections.length === 0 ? (
                       <div style={{ height: GATE_H, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.4 }}>
                         <p style={{ color: tokens.muted, fontSize: "0.9375rem", textAlign: "center", fontFamily: tokens.font }}>No sections enabled</p>
                       </div>
                     ) : (
-                      activeSections.map((sec, i) => (
+                      displaySections.map((sec, i) => (
                         <div
                           key={`${sec.type}-${i}`}
                           draggable={secMoveMode}
