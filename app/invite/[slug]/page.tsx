@@ -301,6 +301,7 @@ export default async function InvitePage({
     guestFrameUrl?: string | null;
     monogram?: { gate: boolean; sections: boolean };
     elementPositions?: ElementPositions;
+    showRsvp?: boolean;
   } | null;
 
   const headingFont  = oc?.fonts?.heading || DEFAULT_FONTS.heading;
@@ -320,6 +321,7 @@ export default async function InvitePage({
   const guestFrameUrl     = oc?.guestFrameUrl ?? null;
   const monogram          = oc?.monogram ?? { gate: true, sections: false };
   const elementPositions  = oc?.elementPositions ?? undefined;
+  const showRsvp          = oc?.showRsvp ?? true;
 
   const buildTokens = (c: CS): ThemeTokens => ({
     ...DEFAULT_TOKENS,
@@ -433,16 +435,19 @@ export default async function InvitePage({
 
       {layout.footer?.({ tokens, eventTitle: data.event.title })}
 
-      <RsvpModal
-        eventId={data.event.id}
-        hasGuestControl={pkg?.hasGuestControl ?? false}
-        theme={tokens}
-      />
+      {showRsvp && (
+        <RsvpModal
+          eventId={data.event.id}
+          hasGuestControl={pkg?.hasGuestControl ?? false}
+          theme={tokens}
+        />
+      )}
 
       <InviteActions
         venueMapUrl={pkg?.hasLocation ? data.event.venueMapUrl : null}
         musicUrl={pkg?.hasMusic ? activeMusicUrl : null}
         hasKhqr={hasKhqr}
+        showRsvp={showRsvp}
         theme={{ btnBg: actionButton.bg, btnText: actionButton.color }}
       />
 

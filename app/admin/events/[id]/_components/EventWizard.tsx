@@ -79,6 +79,8 @@ interface OverlayConfig {
   monogram: { gate: boolean; sections: boolean };
   /** Drag-positioned gate element offsets (% of gate dimensions). */
   elementPositions?: Partial<Record<"monogram" | "pretitle" | "title" | "subtitle" | "guestName" | "openBtn", { xPct: number; yPct: number }>>;
+  /** Show or hide the RSVP floating action button on the invite page. */
+  showRsvp: boolean;
   /** Content-section palette. */
   colorScheme: ColorScheme;
   /** Landing-page (gate) palette. */
@@ -181,6 +183,7 @@ const INITIAL_OVERLAY: OverlayConfig = {
   showGuestName: true,
   guestFrameUrl: null,
   monogram: { gate: true, sections: false },
+  showRsvp: true,
   colorScheme:     { ...INITIAL_SCHEME },
   gateColorScheme: { ...INITIAL_SCHEME },
 };
@@ -241,6 +244,7 @@ function parseOverlay(raw: unknown): OverlayConfig {
     guestFrameUrl: (r as Partial<OverlayConfig>).guestFrameUrl ?? null,
     monogram: { ...INITIAL_OVERLAY.monogram, ...((r as Partial<OverlayConfig>).monogram ?? {}) },
     elementPositions: (r as Partial<OverlayConfig>).elementPositions,
+    showRsvp: (r as Partial<OverlayConfig>).showRsvp ?? true,
     colorScheme,
     gateColorScheme: { ...colorScheme, ...(r.gateColorScheme ?? {}) },
   };
@@ -1339,8 +1343,18 @@ export function EventWizard({ event, invitation }: Props) {
                 <Toggle
                   on={overlay.scrollGuide}
                   onChange={(v) => patchOverlay({ scrollGuide: v })}
-                  label="Show scroll guide hand"
-                  sub="Animated hand + “Scroll to explore” hint shown once after the invitation opens"
+                  label={'Show scroll guide hand'}
+                  sub={'Animated hand + “Scroll to explore” hint shown once after the invitation opens'}
+                />
+              </div>
+
+              <div style={w.sectionCard}>
+                <div style={w.sectionHead}>RSVP button</div>
+                <Toggle
+                  on={overlay.showRsvp}
+                  onChange={(v) => patchOverlay({ showRsvp: v })}
+                  label={'Show RSVP button'}
+                  sub={'Floating RSVP action button and RSVP form on the invitation page'}
                 />
               </div>
 

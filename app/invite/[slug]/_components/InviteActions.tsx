@@ -6,6 +6,7 @@ interface Props {
   venueMapUrl?: string | null;
   musicUrl?: string | null;
   hasKhqr: boolean;
+  showRsvp?: boolean;
   theme: { btnBg: string; btnText: string };
 }
 
@@ -62,7 +63,7 @@ function IconSpeakerOff({ size = 22 }: { size?: number }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, theme }: Props) {
+export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, showRsvp = true, theme }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [musicFailed, setMusicFailed] = useState(false);
@@ -106,10 +107,11 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, theme }: Props) 
     <div style={s.stack}>
       {musicUrl && <audio ref={audioRef} src={musicUrl} loop preload="none" />}
 
-      {/* RSVP — always available, grouped with the other action buttons */}
-      <button onClick={openRsvp} style={btn} title="RSVP" aria-label="Open RSVP form">
-        <IconRsvp />
-      </button>
+      {showRsvp && (
+        <button onClick={openRsvp} style={btn} title="RSVP" aria-label="Open RSVP form">
+          <IconRsvp />
+        </button>
+      )}
 
       {hasKhqr && (
         <button onClick={scrollToKhqr} style={btn} title="Gift / ABA KHQR" aria-label="Go to contribution section">
