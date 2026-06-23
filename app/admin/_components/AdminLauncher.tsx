@@ -5,15 +5,16 @@ import { Icon } from "./Icon";
 import { useAdminTheme } from "./ThemeProvider";
 
 // App-style icon grid shown on mobile in place of the desktop sidebar/tables.
+// Every entry points at a real admin route (mirrors the desktop sidebar). The old
+// "Themes" tile was dropped — that route just redirects to Events now.
 const LINKS = [
   { href: "/admin", icon: "dashboard", label: "Dashboard" },
-  { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
-  { href: "/admin/events/new", icon: "new-invitation", label: "New Invitation" },
   { href: "/admin/clients", icon: "client", label: "Clients" },
   { href: "/admin/packages", icon: "package", label: "Packages" },
-  { href: "/admin/themes", icon: "theme", label: "Themes" },
-  { href: "/admin/invitations", icon: "guest", label: "Guests" },
-  { href: "/admin/events/new", icon: "new-guest", label: "Add Guest" },
+  { href: "/admin/events", icon: "theme", label: "Event Form" },
+  { href: "/admin/events/new", icon: "new-invitation", label: "New Event" },
+  { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
+  { href: "/admin/guests", icon: "guest", label: "Guests" },
 ];
 
 export function AdminLauncher() {

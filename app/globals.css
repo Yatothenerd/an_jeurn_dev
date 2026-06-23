@@ -340,10 +340,29 @@ a {
 }
 .admin-bottomnav .bico { font-size: 1.2rem; line-height: 1; }
 .admin-bottomnav a.active { color: var(--c-lime); }
-.admin-bottomnav a.active::before {
+.admin-bottomnav a.active::before,
+.admin-bottomnav button.active::before {
   content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
   width: 22px; height: 3px; border-radius: 999px; background: var(--c-lime);
 }
+
+/* "More" sheet (mobile) */
+.admin-more-backdrop { position: fixed; inset: 0; z-index: 59; background: rgba(0,0,0,0.45); }
+.admin-more-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 61;
+  background: var(--c-sidebar); color: var(--c-sidebar-text);
+  border-radius: 18px 18px 0 0; padding: 0.4rem 1rem 4.6rem;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.35);
+}
+.admin-more-grip { width: 40px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.25); margin: 0.35rem auto 0.9rem; }
+.admin-more-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; }
+.admin-more-item {
+  display: flex; flex-direction: column; align-items: center; gap: 0.45rem;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 0.95rem 0.5rem; color: var(--c-sidebar-text);
+  text-decoration: none; cursor: pointer; font-family: inherit; font-size: 0.72rem; font-weight: 600; text-align: center;
+}
+.admin-more-ico { color: var(--c-lime); display: flex; }
 
 @media (max-width: 768px) {
   .admin-sidebar { display: none; }

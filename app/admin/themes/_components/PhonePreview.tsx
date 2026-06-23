@@ -413,6 +413,13 @@ export function PhonePreview({
   const gateTokens  = buildTokens(gateColorScheme ?? colorScheme, isPhotoMode, fonts);
   const [showGate, setShowGate] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  // "Play open" — replays the chosen reveal animation on the preview gate.
+  const [playOpen, setPlayOpen] = useState(false);
+  useEffect(() => {
+    if (!playOpen) return;
+    const t = setTimeout(() => setPlayOpen(false), 950);
+    return () => clearTimeout(t);
+  }, [playOpen]);
 
   // ── Drag positioning state ─────────────────────────────────────────────────
   const [posMode, setPosMode] = useState(false);
@@ -520,7 +527,35 @@ export function PhonePreview({
   function handleSecDragEnd() {
     secDragRef.current = null;
     setSecDragIdx(null);
-    onSectionsReorder?.(localSections.filter((s) => s.included));
+    // Read the latest order via the functional updater (the pointer-up closure
+    // would otherwise capture a stale localSections).
+    setLocalSections((prev) => {
+      onSectionsReorder?.(prev.filter((s) => s.included));
+      return prev;
+    });
+  }
+
+  // Pointer-based reorder (works for mouse + touch, unlike HTML5 drag). The
+  // section under the pointer is found via elementFromPoint + a data-sec-idx tag.
+  function startSecDrag(e: React.PointerEvent, i: number) {
+    e.preventDefault();
+    handleSecDragStart(i);
+    const onMove = (me: PointerEvent) => {
+      const el = document.elementFromPoint(me.clientX, me.clientY) as HTMLElement | null;
+      const target = el?.closest("[data-sec-idx]") as HTMLElement | null;
+      if (!target) return;
+      const idx = Number(target.dataset.secIdx);
+      if (!Number.isNaN(idx)) handleSecDragEnter(idx);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      handleSecDragEnd();
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -540,6 +575,20 @@ export function PhonePreview({
 
   return (
     <div style={pp.outer}>
+      {/* Reveal-animation keyframes for the in-preview "Play open" demo */}
+      <style>{`
+        .pp-gate.pp-playing.pp-reveal-fade     { animation: pp-fade 0.7s ease forwards; }
+        .pp-gate.pp-playing.pp-reveal-slideUp  { animation: pp-slideup 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
+        .pp-gate.pp-playing.pp-reveal-envelope { transform-origin: top center; animation: pp-envelope 0.85s ease forwards; }
+        .pp-gate.pp-playing.pp-reveal-curtain  { animation: pp-fade 0.75s ease forwards; }
+        @keyframes pp-fade     { to { opacity: 0; transform: scale(1.06); } }
+        @keyframes pp-slideup  { to { opacity: 0.35; transform: translateY(-100%); } }
+        @keyframes pp-envelope { 35% { opacity: 1; } to { opacity: 0; transform: perspective(1400px) rotateX(-92deg) translateY(-14%); } }
+        .pp-gate.pp-playing.pp-reveal-curtain .pp-curtain-l { animation: pp-curtain-l 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
+        .pp-gate.pp-playing.pp-reveal-curtain .pp-curtain-r { animation: pp-curtain-r 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
+        @keyframes pp-curtain-l { to { transform: translateX(-100%); } }
+        @keyframes pp-curtain-r { to { transform: translateX(100%); } }
+      `}</style>
       <div style={pp.labelRow}>
         <span style={pp.label}>{showGate ? `Gate Preview · Opens: ${revealLabel}` : "Live Preview"}</span>
         <div style={{ display: "flex", gap: "0.375rem", alignItems: "center" }}>
@@ -608,6 +657,7 @@ export function PhonePreview({
                 {showGate && (
                   <div
                     ref={gateRef}
+                    className={`pp-gate pp-reveal-${revealStyle}${playOpen ? " pp-playing" : ""}`}
                     style={{
                       height: GATE_H, position: "relative",
                       fontFamily: gateTokens.font,
@@ -616,8 +666,13 @@ export function PhonePreview({
                       overflow: "hidden",
                     }}
                   >
-                    {/* Background */}
-                    {gateImageUrl ? (
+                    {/* Background — split into parting halves for the curtain reveal */}
+                    {revealStyle === "curtain" && gateImageUrl ? (
+                      <>
+                        <div className="pp-curtain pp-curtain-l" style={{ position: "absolute", inset: 0, zIndex: 0, clipPath: "inset(0 50% 0 0)", backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                        <div className="pp-curtain pp-curtain-r" style={{ position: "absolute", inset: 0, zIndex: 0, clipPath: "inset(0 0 0 50%)", backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+                      </>
+                    ) : gateImageUrl ? (
                       <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${gateImageUrl})`, backgroundSize: "cover", backgroundPosition: "center", zIndex: 0, ...(backgroundBlur > 0 ? { filter: `blur(${backgroundBlur}px)`, transform: "scale(1.06)" } : {}) }} />
                     ) : null}
                     <div style={{
@@ -774,26 +829,24 @@ export function PhonePreview({
                       displaySections.map((sec, i) => (
                         <div
                           key={`${sec.type}-${i}`}
-                          draggable={secMoveMode}
-                          onDragStart={secMoveMode ? () => handleSecDragStart(i) : undefined}
-                          onDragEnter={secMoveMode ? (e) => { e.preventDefault(); handleSecDragEnter(i); } : undefined}
-                          onDragOver={secMoveMode ? (e) => e.preventDefault() : undefined}
-                          onDragEnd={secMoveMode ? handleSecDragEnd : undefined}
+                          data-sec-idx={i}
                           style={{
                             position: "relative",
                             opacity: secMoveMode && secDragIdx === i ? 0.4 : 1,
-                            ...(secMoveMode ? { boxShadow: secDragIdx === i ? "inset 0 0 0 2px rgba(201,169,110,0.8)" : "inset 0 0 0 1px rgba(255,255,255,0.08)" } : {}),
+                            ...(secMoveMode ? { boxShadow: secDragIdx === i ? "inset 0 0 0 2px rgba(201,169,110,0.8)" : "inset 0 0 0 1px rgba(255,255,255,0.08)", touchAction: "none" } : {}),
                           }}
                         >
                           {/* Drag handle — only visible in secMoveMode */}
                           {secMoveMode && (
-                            <div style={{
-                              position: "absolute", top: 0, left: 0, bottom: 0,
-                              width: 28, zIndex: 10,
-                              background: "rgba(0,0,0,0.55)",
-                              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
-                              cursor: "grab",
-                            }}>
+                            <div
+                              onPointerDown={(e) => startSecDrag(e, i)}
+                              style={{
+                                position: "absolute", top: 0, left: 0, bottom: 0,
+                                width: 28, zIndex: 10,
+                                background: "rgba(0,0,0,0.55)",
+                                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3,
+                                cursor: "grab", touchAction: "none",
+                              }}>
                               {[0,1,2].map((d) => (
                                 <div key={d} style={{ width: 10, height: 2, background: "rgba(255,255,255,0.7)", borderRadius: 1 }} />
                               ))}
@@ -894,6 +947,19 @@ export function PhonePreview({
             }}
           >
             ✥ Move
+          </button>
+        )}
+        {showGate && (
+          <button
+            onClick={() => { setPosMode(false); setPlayOpen(false); requestAnimationFrame(() => setPlayOpen(true)); }}
+            title="Play the opening animation"
+            style={{
+              fontSize: "0.6875rem", padding: "0.2rem 0.625rem", borderRadius: 4,
+              border: "1px solid var(--c-border)", cursor: "pointer",
+              background: "var(--c-surface)", color: "var(--c-accent)", fontWeight: 600,
+            }}
+          >
+            ▶ Play open
           </button>
         )}
         {!showGate && (

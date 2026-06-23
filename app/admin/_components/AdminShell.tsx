@@ -34,10 +34,18 @@ const BOTTOM_NAV = [
   { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
 ];
 
+// Destinations not in the bottom bar — surfaced via the "More" sheet on mobile.
+const MORE_NAV = [
+  { href: "/admin/events/new", icon: "new-invitation", label: "New Event" },
+  { href: "/admin/packages", icon: "package", label: "Packages" },
+  { href: "/admin/guests", icon: "guest", label: "Guests" },
+];
+
 export function AdminShell({ children, userName = "Admin" }: { children: React.ReactNode; userName?: string }) {
   const pathname = usePathname();
   const { theme, toggle } = useAdminTheme();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [moreOpen, setMoreOpen] = useState(false);
   const initial = userName.trim().charAt(0).toUpperCase() || "A";
 
   return (
@@ -91,18 +99,44 @@ export function AdminShell({ children, userName = "Admin" }: { children: React.R
         {children}
       </main>
 
+      {/* Mobile "More" sheet — surfaces destinations not in the bottom bar */}
+      {moreOpen && (
+        <>
+          <div className="admin-more-backdrop" onClick={() => setMoreOpen(false)} />
+          <div className="admin-more-sheet" role="menu">
+            <div className="admin-more-grip" />
+            <div className="admin-more-grid">
+              {MORE_NAV.map((item) => (
+                <Link key={item.href} href={item.href} className="admin-more-item" onClick={() => setMoreOpen(false)}>
+                  <span className="admin-more-ico"><Icon name={item.icon} size={22} /></span>
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+              <button className="admin-more-item" onClick={() => { toggle(); setMoreOpen(false); }}>
+                <span className="admin-more-ico"><Icon name={theme === "dark" ? "day" : "night"} size={22} /></span>
+                <span>{theme === "dark" ? "Day Mode" : "Night Mode"}</span>
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Mobile bottom navigation (icon-based, app-style) */}
       <nav className="admin-bottomnav">
         {BOTTOM_NAV.map((item) => {
           const active =
             pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
           return (
-            <Link key={item.href} href={item.href} className={active ? "active" : undefined}>
+            <Link key={item.href} href={item.href} className={active ? "active" : undefined} onClick={() => setMoreOpen(false)}>
               <span className="bico"><Icon name={item.icon} size={20} /></span>
               <span>{item.label}</span>
             </Link>
           );
         })}
+        <button type="button" className={moreOpen ? "active" : undefined} onClick={() => setMoreOpen((o) => !o)} aria-label="More">
+          <span className="bico"><Icon name="more" size={20} /></span>
+          <span>More</span>
+        </button>
       </nav>
     </div>
   );
