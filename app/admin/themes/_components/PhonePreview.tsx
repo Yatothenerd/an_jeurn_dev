@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { buildFontsHref } from "@/lib/themes/shared/standard-css";
 import {
   DbCoverSection,
+  DbWordingSection,
   DbCountdownSection,
   DbDetailsSection,
   DbVideoSection,
@@ -211,6 +212,9 @@ function PreviewSectionNode({ sec, tokens, coverUrl, eventTitle, eventDate, venu
           />
         </div>
       );
+
+    case "wording":
+      return <DbWordingSection content={c as { text?: string; imageUrl?: string; title?: string; hideTitle?: boolean }} theme={tokens} />;
 
     case "countdown":
       return (

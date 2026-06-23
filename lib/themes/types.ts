@@ -66,6 +66,7 @@ export type ThemeConfig = ThemeTokens;
 
 export type SectionType =
   | "cover"
+  | "wording"
   | "countdown"
   | "agenda"
   | "details"

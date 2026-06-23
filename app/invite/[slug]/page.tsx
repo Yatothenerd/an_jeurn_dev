@@ -176,6 +176,10 @@ function renderSection(
         />
       ) : null;
     }
+    case "wording": {
+      const C = components.wording;
+      return C ? <C content={c as { text?: string; imageUrl?: string; title?: string; hideTitle?: boolean }} theme={tokens} /> : null;
+    }
     case "countdown": {
       const C = components.countdown;
       return C ? (

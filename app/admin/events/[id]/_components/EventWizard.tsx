@@ -7,7 +7,7 @@ import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type SectionType = "cover" | "countdown" | "details" | "gallery" | "video" | "wishing" | "khqr";
+type SectionType = "cover" | "wording" | "countdown" | "details" | "gallery" | "video" | "wishing" | "khqr";
 type ContentType = "text" | "photo";
 type BgAssetType = "image" | "video";
 type OverlayStyle = "floating" | "bottomBar";
@@ -20,6 +20,7 @@ interface KhqrItem { currency: string; qrImageUrl: string; recipientName: string
 // Every section may carry an optional `hideTitle` flag (photo-mode title toggle).
 type SectionContent =
   | { heading: string; subheading: string; imageUrl?: string; logoUrl?: string }
+  | { text?: string; imageUrl?: string; title?: string; hideTitle?: boolean }
   | { targetDate: string; label: string; hideTitle?: boolean }
   | { items: DetailItem[]; photoItems?: PhotoDetailItem[]; hideTitle?: boolean }
   | { layout: "grid" | "masonry" | "slideshow"; hideTitle?: boolean }
@@ -114,6 +115,7 @@ const EVENT_TYPES = ["Wedding", "Engagement", "Birthday", "Anniversary", "Corpor
 
 const SECTION_META: Record<SectionType, { label: string; icon: string; desc: string; locked?: boolean }> = {
   cover:     { label: "Cover",              icon: "◈",  desc: "Hero title, couple names & event date", locked: true },
+  wording:   { label: "Formal Wording",     icon: "✒",  desc: "Invitation wording — a photo of it, or typed text" },
   countdown: { label: "Countdown",          icon: "⏱",  desc: "Live countdown timer to the event" },
   details:   { label: "Agenda / Details",   icon: "📋", desc: "Venue, time, dress code & agenda items" },
   gallery:   { label: "Gallery",            icon: "🖼",  desc: "Grid, masonry, or slideshow layout" },
@@ -124,6 +126,7 @@ const SECTION_META: Record<SectionType, { label: string; icon: string; desc: str
 
 const INITIAL_SECTIONS: WizardSection[] = [
   { type: "cover",     included: true,  content: { heading: "", subheading: "" } },
+  { type: "wording",   included: false, content: { text: "", imageUrl: "", title: "Invitation" } },
   { type: "countdown", included: false, content: { targetDate: "", label: "Countdown to the big day" } },
   { type: "details",   included: true,  content: { items: [
     { icon: "📍", label: "Venue", value: "" },
@@ -195,13 +198,24 @@ function toHex(color: string): string {
 function parseSections(raw: unknown): WizardSection[] {
   if (!Array.isArray(raw) || raw.length === 0) return INITIAL_SECTIONS;
   if (typeof raw[0] !== "object" || raw[0] === null) return INITIAL_SECTIONS;
-  return (raw as WizardSection[]).map(s => {
+  const parsed = (raw as WizardSection[]).map(s => {
     if (s.type === "details") {
       const c = s.content as { items?: DetailItem[]; photoItems?: PhotoDetailItem[] };
       if (!c.photoItems) return { ...s, content: { items: c.items ?? [], photoItems: [] as PhotoDetailItem[] } } as WizardSection;
     }
     return s;
   });
+  // Backfill any section types added after this event was saved (e.g. "wording"),
+  // inserted right after their position in INITIAL_SECTIONS, excluded by default.
+  const present = new Set(parsed.map((s) => s.type));
+  for (let i = 0; i < INITIAL_SECTIONS.length; i++) {
+    const init = INITIAL_SECTIONS[i];
+    if (present.has(init.type)) continue;
+    const prevType = INITIAL_SECTIONS[i - 1]?.type;
+    const at = prevType ? parsed.findIndex((s) => s.type === prevType) + 1 : parsed.length;
+    parsed.splice(at > 0 ? at : parsed.length, 0, { ...init, included: false });
+  }
+  return parsed;
 }
 
 function parseOverlay(raw: unknown): OverlayConfig {
@@ -386,6 +400,22 @@ function CoverEditor({ c, set }: { c: { heading: string; subheading: string }; s
     <Field label="Subheading"><input style={ed.inp} placeholder="Join us for our special day" value={c.subheading} onChange={e => set({ ...c, subheading: e.target.value })} /></Field>
   </div>;
 }
+function WordingEditor({ c, set }: { c: { text?: string; title?: string }; set: (v: SectionContent) => void }) {
+  return <div style={ed.col}>
+    <Field label="Section title"><input style={ed.inp} placeholder="Invitation" value={c.title ?? ""} onChange={e => set({ ...c, title: e.target.value })} /></Field>
+    <Field label="Formal wording">
+      <textarea style={{ ...ed.inp, minHeight: 120, resize: "vertical" }}
+        placeholder={"Together with their families,\nSophea & Dara\nrequest the honour of your presence…"}
+        value={c.text ?? ""} onChange={e => set({ ...c, text: e.target.value })} />
+    </Field>
+  </div>;
+}
+function PhotoWordingEditor({ c, set }: { c: { imageUrl?: string; title?: string }; set: (v: SectionContent) => void }) {
+  return <div style={ed.col}>
+    <Field label="Section title"><input style={ed.inp} placeholder="Invitation" value={c.title ?? ""} onChange={e => set({ ...c, title: e.target.value })} /></Field>
+    <SectionImagePicker label="Wording photo — an image of the invitation text" value={c.imageUrl} onChange={url => set({ ...c, imageUrl: url ?? "" })} optional={false} />
+  </div>;
+}
 function CountdownEditor({ c, set }: { c: { targetDate: string; label: string }; set: (v: SectionContent) => void }) {
   return <div style={ed.g2}>
     <Field label="Label"><input style={ed.inp} placeholder="Countdown to the big day" value={c.label} onChange={e => set({ ...c, label: e.target.value })} /></Field>
@@ -507,6 +537,7 @@ function getEditor(type: SectionType, contentType: ContentType): (p: EditorProps
   if (contentType === "photo") {
     const photoEditors: Partial<Record<SectionType, (p: EditorProps) => React.ReactElement>> = {
       cover:   ({ content, onChange }) => <PhotoCoverEditor   c={content as never} set={onChange} />,
+      wording: ({ content, onChange }) => <PhotoWordingEditor c={content as never} set={onChange} />,
       details: ({ content, onChange }) => <PhotoDetailsEditor c={content as never} set={onChange} />,
       video:   ({ content, onChange }) => <PhotoVideoEditor   c={content as never} set={onChange} />,
       wishing: ({ content, onChange }) => <PhotoWishingEditor c={content as never} set={onChange} />,
@@ -515,6 +546,7 @@ function getEditor(type: SectionType, contentType: ContentType): (p: EditorProps
   }
   const textEditors: Record<SectionType, (p: EditorProps) => React.ReactElement> = {
     cover:     ({ content, onChange }) => <CoverEditor     c={content as never} set={onChange} />,
+    wording:   ({ content, onChange }) => <WordingEditor   c={content as never} set={onChange} />,
     countdown: ({ content, onChange }) => <CountdownEditor c={content as never} set={onChange} />,
     details:   ({ content, onChange }) => <DetailsEditor   c={content as never} set={onChange} />,
     gallery:   ({ content, onChange }) => <GalleryEditor   c={content as never} set={onChange} />,

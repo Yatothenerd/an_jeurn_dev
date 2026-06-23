@@ -10,6 +10,7 @@
 import type { SectionComponents } from "@/lib/themes/types";
 import {
   DbCoverSection,
+  DbWordingSection,
   DbCountdownSection,
   DbDetailsSection,
   DbGallerySection,
@@ -21,6 +22,8 @@ import {
 export const DB_SECTIONS: SectionComponents = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   cover: DbCoverSection as any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  wording: DbWordingSection as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   countdown: DbCountdownSection as any,
   // "agenda" (legacy InvitationSection type) and "details" (wizard type) share the same renderer

@@ -81,9 +81,9 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
     day: "numeric",
   });
 
-  // The cover photo lives on the landing gate (Invitation.coverUrl is mirrored
-  // from this section's image). Showing it again here is pure duplication, so the
-  // cover section never renders the hero photo — only an optional monogram.
+  // This section only renders when "Show cover after opening" is on, so it acts as
+  // a mirror of the landing: same hero photo + heading/subheading + date.
+  const heroUrl = content.imageUrl ?? assets?.cover ?? null;
   const monogramUrl = theme.showMonogramInSections ? (content.logoUrl ?? assets?.cover) : null;
 
   return (
@@ -112,6 +112,20 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
             objectFit: "cover",
             marginBottom: "1.5rem",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          }}
+        />
+      )}
+
+      {heroUrl && (
+        <img
+          src={heroUrl}
+          alt="Cover"
+          style={{
+            width: "100%",
+            maxHeight: 280,
+            objectFit: "cover",
+            borderRadius: 12,
+            marginBottom: "1.25rem",
           }}
         />
       )}
@@ -194,6 +208,46 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
         <span style={{ fontSize: "0.5625rem", letterSpacing: "0.2em", textTransform: "uppercase" }}>scroll</span>
       </div>
     </section>
+  );
+}
+
+// ── Formal Wording ──────────────────────────────────────────────────────────────
+
+interface WordingProps {
+  content: { text?: string; imageUrl?: string; title?: string; hideTitle?: boolean };
+  theme: ThemeTokens;
+}
+
+export function DbWordingSection({ content, theme }: WordingProps) {
+  const hasImage = !!content.imageUrl;
+  const hasText = !!(content.text && content.text.trim());
+  if (!hasImage && !hasText) return null;
+
+  return (
+    <SecWrap theme={theme}>
+      {!content.hideTitle && <SecHead icon="✒" label={content.title || "Invitation"} theme={theme} />}
+      {hasImage ? (
+        <img
+          src={content.imageUrl}
+          alt={content.title || "Invitation wording"}
+          style={{ width: "100%", borderRadius: 12, display: "block" }}
+        />
+      ) : (
+        <p
+          style={{
+            textAlign: "center",
+            whiteSpace: "pre-line",
+            fontSize: remScale(1.0625, tok.bs(theme)),
+            lineHeight: 1.9,
+            fontStyle: "italic",
+            color: tok.body(theme),
+            margin: 0,
+          }}
+        >
+          {content.text}
+        </p>
+      )}
+    </SecWrap>
   );
 }
 
