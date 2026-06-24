@@ -40,10 +40,14 @@ function SecWrap({ children, theme }: { children: React.ReactNode; theme: ThemeT
   );
 }
 
-function SecHead({ icon, label, theme }: { icon: string; label: string; theme: ThemeTokens }) {
+function SecHead({ label, theme }: { icon?: string; label: string; theme: ThemeTokens }) {
   return (
-    <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
-      <div style={{ fontSize: "1.5rem", marginBottom: "0.375rem" }}>{icon}</div>
+    <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.625rem" }}>
+        <div style={{ flex: 1, height: 1, background: tok.header(theme), opacity: 0.35 }} />
+        <div style={{ width: 5, height: 5, borderRadius: "50%", background: tok.header(theme) }} />
+        <div style={{ flex: 1, height: 1, background: tok.header(theme), opacity: 0.35 }} />
+      </div>
       <p
         style={{
           margin: 0,
@@ -225,27 +229,48 @@ export function DbWordingSection({ content, theme }: WordingProps) {
 
   return (
     <SecWrap theme={theme}>
-      {!content.hideTitle && <SecHead icon="✒" label={content.title || "Invitation"} theme={theme} />}
+      {!content.hideTitle && <SecHead label={content.title || "Invitation"} theme={theme} />}
       {hasImage ? (
         <img
           src={content.imageUrl}
           alt={content.title || "Invitation wording"}
-          style={{ width: "100%", borderRadius: 12, display: "block" }}
+          style={{ width: "100%", borderRadius: 12, display: "block", boxShadow: "0 4px 24px rgba(0,0,0,0.18)" }}
         />
       ) : (
-        <p
-          style={{
-            textAlign: "center",
-            whiteSpace: "pre-line",
-            fontSize: remScale(1.0625, tok.bs(theme)),
-            lineHeight: 1.9,
-            fontStyle: "italic",
-            color: tok.body(theme),
-            margin: 0,
-          }}
-        >
-          {content.text}
-        </p>
+        <div style={{ position: "relative", padding: "1.5rem 1.25rem" }}>
+          {/* Opening quotation mark */}
+          <div style={{
+            position: "absolute", top: 0, left: 0,
+            fontSize: "4.5rem", lineHeight: 1, fontFamily: "Georgia, serif",
+            color: tok.header(theme), opacity: 0.25, userSelect: "none",
+          }}>&ldquo;</div>
+          <p
+            style={{
+              textAlign: "center",
+              whiteSpace: "pre-line",
+              fontSize: remScale(1.0625, tok.bs(theme)),
+              lineHeight: 2,
+              fontStyle: "italic",
+              color: tok.body(theme),
+              margin: 0,
+              position: "relative",
+            }}
+          >
+            {content.text}
+          </p>
+          {/* Closing quotation mark */}
+          <div style={{
+            textAlign: "right",
+            fontSize: "4.5rem", lineHeight: 1, fontFamily: "Georgia, serif",
+            color: tok.header(theme), opacity: 0.25, userSelect: "none", marginTop: "-1rem",
+          }}>&rdquo;</div>
+          {/* Bottom ornament */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.75rem" }}>
+            <div style={{ flex: 1, height: 1, background: tok.header(theme), opacity: 0.25 }} />
+            <div style={{ width: 4, height: 4, borderRadius: "50%", background: tok.header(theme), opacity: 0.5 }} />
+            <div style={{ flex: 1, height: 1, background: tok.header(theme), opacity: 0.25 }} />
+          </div>
+        </div>
       )}
     </SecWrap>
   );
@@ -266,7 +291,7 @@ export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTi
 
   return (
     <SecWrap theme={theme}>
-      {!hideTitle && <SecHead icon="⏳" label={label || "Countdown"} theme={theme} />}
+      {!hideTitle && <SecHead label={label || "Countdown"} theme={theme} />}
       {time.expired ? (
         <p
           style={{
@@ -280,7 +305,7 @@ export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTi
           The day has arrived!
         </p>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.625rem" }}>
           {[
             { v: time.days, l: "Days" },
             { v: time.hours, l: "Hours" },
@@ -293,33 +318,36 @@ export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTi
                 textAlign: "center",
                 background: theme.cardBg,
                 borderRadius: 10,
-                padding: "0.875rem 0.25rem",
+                overflow: "hidden",
                 border: `1px solid ${theme.border}`,
               }}
             >
-              {/* Number digit — title weight */}
-              <div
-                style={{
-                  fontSize: remScale(1.875, tok.hs(theme)),
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  fontFamily: tok.heading(theme),
-                  color: tok.title(theme),
-                }}
-              >
-                {String(v).padStart(2, "0")}
-              </div>
-              {/* Unit label — header color */}
-              <div
-                style={{
-                  fontSize: "0.5rem",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  marginTop: "0.3rem",
-                  color: tok.header(theme),
-                }}
-              >
-                {l}
+              {/* Accent top bar */}
+              <div style={{ height: 3, background: tok.header(theme), opacity: 0.7 }} />
+              <div style={{ padding: "0.9rem 0.25rem 0.75rem" }}>
+                <div
+                  style={{
+                    fontSize: remScale(2.125, tok.hs(theme)),
+                    fontWeight: 300,
+                    lineHeight: 1,
+                    fontFamily: tok.heading(theme),
+                    color: tok.title(theme),
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {String(v).padStart(2, "0")}
+                </div>
+                <div
+                  style={{
+                    fontSize: "0.5rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.14em",
+                    marginTop: "0.4rem",
+                    color: tok.header(theme),
+                  }}
+                >
+                  {l}
+                </div>
               </div>
             </div>
           ))}
@@ -362,7 +390,7 @@ export function DbDetailsSection({ content, venueName, venueMapUrl, theme }: Det
 
   return (
     <SecWrap theme={theme}>
-      {!content.hideTitle && <SecHead icon="📋" label={content.title || "Details"} theme={theme} />}
+      {!content.hideTitle && <SecHead label={content.title || "Details"} theme={theme} />}
 
       {/* Photo-mode agenda items */}
       {photoItems.length > 0 && (
@@ -402,11 +430,12 @@ export function DbDetailsSection({ content, venueName, venueMapUrl, theme }: Det
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "2rem",
-                      opacity: 0.3,
+                      opacity: 0.2,
                     }}
                   >
-                    🖼
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                    </svg>
                   </div>
                 </div>
               )}
@@ -428,65 +457,62 @@ export function DbDetailsSection({ content, venueName, venueMapUrl, theme }: Det
 
       {/* Text items */}
       {(textItems.length > 0 || venueMapUrl) && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           {textItems.map((row, i) => (
             <div
               key={i}
               style={{
                 display: "flex",
                 alignItems: "flex-start",
-                gap: "0.875rem",
-                background: theme.cardBg,
-                borderRadius: 10,
-                padding: "0.875rem 1rem",
-                border: `1px solid ${theme.border}`,
+                gap: "1rem",
+                padding: "1rem 0",
+                borderBottom: `1px solid ${theme.border}`,
               }}
             >
-              {row.icon && (
-                <span style={{ fontSize: "1.125rem", flexShrink: 0, lineHeight: 1.4 }}>{row.icon}</span>
-              )}
+              {/* Accent left bar */}
+              <div style={{ width: 3, alignSelf: "stretch", background: tok.header(theme), borderRadius: 2, opacity: 0.5, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Row label — header color */}
                 <div
                   style={{
                     fontSize: "0.5rem",
                     textTransform: "uppercase",
-                    letterSpacing: "0.12em",
-                    marginBottom: "0.2rem",
+                    letterSpacing: "0.16em",
+                    marginBottom: "0.3rem",
                     color: tok.header(theme),
                   }}
                 >
                   {row.label}
                 </div>
-                {/* Row value — body color */}
-                <div style={{ fontSize: "0.9375rem", wordBreak: "break-word", color: tok.body(theme) }}>
+                <div style={{ fontSize: remScale(0.9375, tok.bs(theme)), wordBreak: "break-word", color: tok.body(theme), lineHeight: 1.6 }}>
                   {row.value || "—"}
                 </div>
               </div>
             </div>
           ))}
           {venueMapUrl && (
-            <a
-              href={venueMapUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "0.5rem",
-                padding: "0.875rem",
-                borderRadius: 10,
-                border: `1px solid ${theme.border}`,
-                background: theme.cardBg,
-                color: theme.accent,
-                textDecoration: "none",
-                fontSize: "0.875rem",
-                letterSpacing: "0.05em",
-              }}
-            >
-              🗺 Open in Maps
-            </a>
+            <div style={{ paddingTop: "1.25rem" }}>
+              <a
+                href={venueMapUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.375rem",
+                  color: theme.accent,
+                  textDecoration: "none",
+                  fontSize: remScale(0.875, tok.bs(theme)),
+                  letterSpacing: "0.06em",
+                  borderBottom: `1px solid ${theme.accent}`,
+                  paddingBottom: "1px",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+                </svg>
+                View on Map
+              </a>
+            </div>
           )}
         </div>
       )}
@@ -507,12 +533,18 @@ export function DbGallerySection({ content, photos, theme }: GalleryProps) {
 
   return (
     <SecWrap theme={theme}>
-      {!content.hideTitle && <SecHead icon="🖼" label={content.title || "Gallery"} theme={theme} />}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
+      {!content.hideTitle && <SecHead label={content.title || "Gallery"} theme={theme} />}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
         {photos.map((p) => (
           <div
             key={p.id}
-            style={{ position: "relative", paddingTop: "100%", borderRadius: 6, overflow: "hidden" }}
+            style={{
+              position: "relative",
+              paddingTop: "100%",
+              borderRadius: 8,
+              overflow: "hidden",
+              boxShadow: "0 2px 10px rgba(0,0,0,0.22)",
+            }}
           >
             <img
               src={p.url}
@@ -545,7 +577,7 @@ export function DbVideoSection({ content, theme }: VideoProps) {
 
   return (
     <SecWrap theme={theme}>
-      {!content.hideTitle && <SecHead icon="▶" label={content.title || "Video"} theme={theme} />}
+      {!content.hideTitle && <SecHead label={content.title || "Video"} theme={theme} />}
       {content.url ? (
         <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: 12, overflow: "hidden" }}>
           <iframe
@@ -557,7 +589,7 @@ export function DbVideoSection({ content, theme }: VideoProps) {
           />
         </div>
       ) : (
-        <div style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/9", position: "relative" }}>
+        <div style={{ borderRadius: 12, overflow: "hidden", aspectRatio: "16/9", position: "relative", boxShadow: "0 6px 28px rgba(0,0,0,0.3)" }}>
           <img
             src={thumbnailUrl!}
             alt="Video"
@@ -570,22 +602,25 @@ export function DbVideoSection({ content, theme }: VideoProps) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "rgba(0,0,0,0.28)",
+              background: "rgba(0,0,0,0.32)",
             }}
           >
             <div
               style={{
-                width: 52,
-                height: 52,
+                width: 58,
+                height: 58,
                 borderRadius: "50%",
-                background: "rgba(255,255,255,0.92)",
+                background: "rgba(255,255,255,0.15)",
+                border: "2px solid rgba(255,255,255,0.7)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "1.25rem",
+                backdropFilter: "blur(4px)",
               }}
             >
-              ▶
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden="true" style={{ marginLeft: 3 }}>
+                <path d="M8 5.14v14l11-7-11-7z" />
+              </svg>
             </div>
           </div>
         </div>
@@ -625,7 +660,7 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
 
   return (
     <SecWrap theme={theme}>
-      {!content.hideTitle && <SecHead icon="✨" label={content.title || "Wishes"} theme={theme} />}
+      {!content.hideTitle && <SecHead label={content.title || "Wishes"} theme={theme} />}
       {bgImageUrl && (
         <img
           src={bgImageUrl}
@@ -637,11 +672,11 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
       {wishes.length > 0 && (
         <div
           style={{
-            marginBottom: "1.25rem",
+            marginBottom: "1.5rem",
             display: "flex",
             flexDirection: "column",
-            gap: "0.625rem",
-            maxHeight: 240,
+            gap: "0.75rem",
+            maxHeight: 260,
             overflowY: "auto",
           }}
         >
@@ -651,41 +686,51 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
               style={{
                 background: theme.cardBg,
                 borderRadius: 10,
-                padding: "0.875rem 1rem",
+                padding: "1rem 1rem 0.875rem 1.125rem",
                 border: `1px solid ${theme.border}`,
+                position: "relative",
+                overflow: "hidden",
               }}
             >
-              {/* Wish body text */}
+              {/* Decorative large left-quote */}
+              <div style={{
+                position: "absolute", top: -4, left: 8,
+                fontSize: "3.5rem", lineHeight: 1, fontFamily: "Georgia, serif",
+                color: tok.header(theme), opacity: 0.15, userSelect: "none", pointerEvents: "none",
+              }}>&ldquo;</div>
               <p
                 style={{
-                  margin: "0 0 0.375rem",
+                  margin: "0 0 0.5rem",
                   fontStyle: "italic",
-                  fontSize: "0.9375rem",
-                  lineHeight: 1.55,
+                  fontSize: remScale(0.9375, tok.bs(theme)),
+                  lineHeight: 1.65,
                   color: tok.body(theme),
+                  position: "relative",
                 }}
               >
-                &ldquo;{w.message}&rdquo;
+                {w.message}
               </p>
-              {/* Author — header/accent color */}
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.625rem",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: tok.header(theme),
-                }}
-              >
-                — {w.guestName}
-              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <div style={{ width: 16, height: 1, background: tok.header(theme), opacity: 0.5 }} />
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.5625rem",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: tok.header(theme),
+                  }}
+                >
+                  {w.guestName}
+                </p>
+              </div>
             </div>
           ))}
         </div>
       )}
 
       {!submitted ? (
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -693,13 +738,13 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
             required
             style={{
               width: "100%",
-              padding: "0.625rem 0.875rem",
+              padding: "0.75rem 1rem",
               borderRadius: 8,
               border: `1px solid ${theme.border}`,
               background: theme.cardBg,
               color: tok.body(theme),
               fontFamily: theme.font,
-              fontSize: "0.9375rem",
+              fontSize: remScale(0.9375, tok.bs(theme)),
               boxSizing: "border-box",
               outline: "none",
             }}
@@ -709,19 +754,20 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
             onChange={(e) => setMessage(e.target.value)}
             placeholder={content.placeholder || "Leave your wishes here…"}
             required
-            rows={3}
+            rows={4}
             style={{
               width: "100%",
-              padding: "0.625rem 0.875rem",
+              padding: "0.75rem 1rem",
               borderRadius: 8,
               border: `1px solid ${theme.border}`,
               background: theme.cardBg,
               color: tok.body(theme),
               fontFamily: theme.font,
-              fontSize: "0.9375rem",
-              resize: "vertical",
+              fontSize: remScale(0.9375, tok.bs(theme)),
+              resize: "none",
               boxSizing: "border-box",
               outline: "none",
+              lineHeight: 1.65,
             }}
           />
           {error && <p style={{ color: "#f87171", fontSize: "0.8rem", margin: 0 }}>{error}</p>}
@@ -729,26 +775,35 @@ export function DbWishingSection({ invitationId, initialWishes, content, theme }
             type="submit"
             disabled={submitting}
             style={{
-              padding: "0.7rem",
+              padding: "0.8rem",
               borderRadius: 8,
               border: "none",
               background: theme.btnBg,
               color: theme.btnText,
               fontFamily: theme.font,
-              fontSize: "0.9375rem",
+              fontSize: remScale(0.9375, tok.bs(theme)),
               fontWeight: 600,
               cursor: "pointer",
-              letterSpacing: "0.05em",
-              opacity: submitting ? 0.7 : 1,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              opacity: submitting ? 0.65 : 1,
+              marginTop: "0.125rem",
             }}
           >
-            {submitting ? "Sending…" : "Send Wish ✨"}
+            {submitting ? "Sending…" : "Send Wishes"}
           </button>
         </form>
       ) : (
-        <p style={{ textAlign: "center", color: theme.accent, fontStyle: "italic" }}>
-          Thank you for your warm wishes! 💝
-        </p>
+        <div style={{ textAlign: "center", padding: "1rem 0" }}>
+          <p style={{ margin: "0 0 0.25rem", color: theme.accent, fontStyle: "italic", fontSize: remScale(1.0625, tok.bs(theme)) }}>
+            Thank you for your wishes
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", justifyContent: "center", marginTop: "0.75rem" }}>
+            <div style={{ width: 24, height: 1, background: tok.header(theme), opacity: 0.35 }} />
+            <div style={{ width: 4, height: 4, borderRadius: "50%", background: tok.header(theme), opacity: 0.5 }} />
+            <div style={{ width: 24, height: 1, background: tok.header(theme), opacity: 0.35 }} />
+          </div>
+        </div>
       )}
     </SecWrap>
   );
@@ -767,40 +822,66 @@ export function DbKhqrSection({ content, theme }: KhqrProps) {
 
   return (
     <SecWrap theme={theme}>
-      {!content.hideTitle && <SecHead icon="💳" label={content.title || "Contribution"} theme={theme} />}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      {!content.hideTitle && <SecHead label={content.title || "Contribution"} theme={theme} />}
+      <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
         {items.map((item, i) => (
-          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-            {item.currency && (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.625rem",
+          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+            {/* QR frame */}
+            <div style={{ position: "relative" }}>
+              <div style={{
+                padding: 12,
+                borderRadius: 16,
+                background: "#ffffff",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+                border: `2px solid ${tok.header(theme)}22`,
+              }}>
+                <img src={item.qrImageUrl} alt={`${item.currency || "Payment"} QR`} width={188} height={188} style={{ display: "block", borderRadius: 8 }} />
+              </div>
+              {/* Currency badge */}
+              {item.currency && (
+                <div style={{
+                  position: "absolute",
+                  bottom: -12,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  padding: "0.2rem 0.75rem",
+                  borderRadius: 999,
+                  background: tok.header(theme),
+                  color: theme.bg === "transparent" ? "#fff" : theme.bg,
+                  fontSize: "0.5625rem",
                   fontWeight: 700,
-                  letterSpacing: "0.18em",
+                  letterSpacing: "0.16em",
                   textTransform: "uppercase",
-                  color: tok.header(theme),
-                }}
-              >
-                {item.currency}
-              </p>
-            )}
-            <div style={{ padding: 8, borderRadius: 12, background: "#ffffff", boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}>
-              <img src={item.qrImageUrl} alt={`${item.currency || "Payment"} QR`} width={180} height={180} style={{ display: "block", borderRadius: 6 }} />
+                  whiteSpace: "nowrap",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                }}>
+                  {item.currency}
+                </div>
+              )}
             </div>
-            {item.recipientName && (
-              <p style={{ margin: 0, fontSize: "1.0625rem", fontWeight: 600, color: tok.body(theme) }}>{item.recipientName}</p>
-            )}
-            {item.amount && (
-              <p style={{ margin: 0, fontSize: "1.125rem", fontWeight: 700, color: theme.accent }}>
-                {item.currency || "USD"} {item.amount}
-              </p>
-            )}
+            <div style={{ textAlign: "center", marginTop: item.currency ? "0.625rem" : 0 }}>
+              {item.recipientName && (
+                <p style={{ margin: "0 0 0.25rem", fontSize: remScale(1.0625, tok.bs(theme)), fontWeight: 500, color: tok.body(theme) }}>
+                  {item.recipientName}
+                </p>
+              )}
+              {item.amount && (
+                <p style={{ margin: 0, fontSize: remScale(1.125, tok.bs(theme)), fontWeight: 700, color: theme.accent, letterSpacing: "0.04em" }}>
+                  {item.currency || "USD"} {item.amount}
+                </p>
+              )}
+            </div>
           </div>
         ))}
-        <p style={{ margin: 0, textAlign: "center", fontSize: "0.75rem", letterSpacing: "0.06em", color: tok.muted(theme) }}>
-          Scan with your banking app
-        </p>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.5rem" }}>
+            <div style={{ flex: 1, height: 1, background: tok.header(theme), opacity: 0.2 }} />
+            <p style={{ margin: 0, fontSize: "0.625rem", letterSpacing: "0.1em", textTransform: "uppercase", color: tok.muted(theme) }}>
+              Scan with your banking app
+            </p>
+            <div style={{ flex: 1, height: 1, background: tok.header(theme), opacity: 0.2 }} />
+          </div>
+        </div>
       </div>
     </SecWrap>
   );
