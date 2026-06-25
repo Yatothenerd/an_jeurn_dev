@@ -21,6 +21,8 @@ import { RsvpModal } from "./_components/RsvpModal";
 import { InviteActions } from "./_components/InviteActions";
 import { Watermark } from "./_components/Watermark";
 import { InviteGate, type ElementPositions } from "./_components/InviteGate";
+import { BuilderInvite } from "./_components/BuilderInvite";
+import type { BuilderState } from "@/lib/builder/canvas";
 import dynamic from "next/dynamic";
 
 // ssr: false — avoids PathnameContext not being ready during SSR of the invite page
@@ -275,6 +277,20 @@ export default async function InvitePage({
   if (!data || (!data.invitation.isPublished && !viewerIsAdmin)) notFound();
 
   const inv = data.invitation;
+
+  // Builder-driven invite: if this event was authored in the new EventBuilder,
+  // render it directly from the saved builder state so guests see exactly what
+  // the editor preview shows. Legacy (theme-based) events fall through below.
+  const builderDraft = (inv.overlayConfig as Record<string, unknown> | null)?.builderDraft as BuilderState | undefined;
+  if (builderDraft && typeof builderDraft === "object" && Array.isArray(builderDraft.sections)) {
+    let gName: string | null = null;
+    if (g) {
+      const guest = await prisma.guest.findFirst({ where: { token: g, eventId: data.event.id }, select: { name: true } });
+      gName = guest?.name ?? null;
+    }
+    return <BuilderInvite state={builderDraft} guestName={gName ?? undefined} />;
+  }
+
   const isPhotoMode = inv.contentType === "photo";
 
   // Build tokens from the invitation's overlayConfig (colors + fonts).

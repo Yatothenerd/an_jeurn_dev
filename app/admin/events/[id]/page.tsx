@@ -1,7 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { getSession } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db/prisma";
-import { EventWizard } from "./_components/EventWizard";
+import { EventBuilder } from "./_components/EventBuilder";
 
 export const metadata = { title: "Edit Event" };
 
@@ -66,7 +66,7 @@ export default async function AdminEventEditorPage({
           </a>
         )}
       </div>
-      <EventWizard event={eventData} invitation={invData} />
+      <EventBuilder event={eventData} invitation={invData} />
     </div>
   );
 }
