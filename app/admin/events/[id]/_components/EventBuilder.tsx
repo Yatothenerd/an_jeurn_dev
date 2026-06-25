@@ -414,6 +414,7 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
       <div className="eb-card">
         <div className="eb-cardhead">Event name</div>
         <div className="eb-readonly">{st.eventName || "—"}</div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>In the preview, turn <strong>✎ Edit on screen</strong> ON to drag cover elements; turn it OFF to preview as a guest (video auto-play &amp; lock-until-end apply).</p>
       </div>
 
       {/* Cover background — separate from the content background */}
@@ -917,6 +918,12 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
     return () => ro.disconnect();
   }, [big]);
 
+  // Guest-preview lock: when NOT editing on screen, a "lock until video ends"
+  // cover video disables tap/drag here too, so you can test it without publishing.
+  const [videoEnded, setVideoEnded] = useState(false);
+  useEffect(() => { setVideoEnded(false); }, [editOnScreen, st.coverBg.videoUrl]);
+  const coverLocked = !editOnScreen && st.coverBg.kind === "video" && st.coverBg.lockUntilEnd && !videoEnded;
+
   const moveCover = (kind: CoverMoveKind, id: string | undefined, xPct: number, yPct: number) =>
     setSt((s) => {
       if (kind === "open") return { ...s, openBtnPos: { xPct, yPct } };
@@ -947,8 +954,9 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
 
           {tab === "cover" && (coverOpen
             ? <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} />
-            : <PvCover st={st} editable onMoveCover={moveCover} onOpen={() => setCoverOpen(true)} animKey={animKey} />)}
-          {tab === "cover" && !coverOpen && st.coverGuide.enabled && <GuideOverlay guide={st.coverGuide} />}
+            : <PvCover st={st} editable={editOnScreen} onMoveCover={moveCover} onOpen={() => setCoverOpen(true)} animKey={animKey}
+                locked={coverLocked} onVideoEnded={() => setVideoEnded(true)} />)}
+          {tab === "cover" && !coverOpen && st.coverGuide.enabled && !coverLocked && <GuideOverlay guide={st.coverGuide} />}
 
           {tab === "content" && <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} />}
           {tab === "content" && st.contentGuide.enabled && <GuideOverlay guide={st.contentGuide} />}

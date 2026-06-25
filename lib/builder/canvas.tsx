@@ -73,12 +73,21 @@ export function BackgroundLayer({ bg, onVideoEnded }: { bg: Background; onVideoE
   const blur = bg.blur ? `blur(${bg.blur}px)` : undefined;
   const isImg = (bg.kind === "photo" || bg.kind === "gif") && bg.imageUrl;
   const isVid = bg.kind === "video" && bg.videoUrl;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  // When autoplay is off, the guest taps to start the video.
+  const [needsPlay, setNeedsPlay] = useState(isVid && !bg.autoplay);
+  useEffect(() => { setNeedsPlay(isVid && !bg.autoplay); }, [isVid, bg.autoplay, bg.videoUrl]);
+  const play = () => { void videoRef.current?.play(); setNeedsPlay(false); };
+
   return (
     <div className="pv-bg" style={bg.kind === "color" ? { background: bg.color } : undefined}>
       {isImg && <img className="pv-bg-media" src={bg.imageUrl} alt="" style={{ filter: blur }} />}
-      {isVid && <video className="pv-bg-media" src={bg.videoUrl} style={{ filter: blur }}
+      {isVid && <video ref={videoRef} className="pv-bg-media" src={bg.videoUrl} style={{ filter: blur }}
         autoPlay={bg.autoplay} loop={!bg.lockUntilEnd} muted playsInline onEnded={onVideoEnded} />}
       {bg.kind !== "color" && <div className="pv-bg-scrim" style={{ background: bg.overlayColor, opacity: bg.opacity }} />}
+      {isVid && needsPlay && (
+        <button type="button" className="pv-bg-play" onClick={play} aria-label="Tap to play"><span /></button>
+      )}
     </div>
   );
 }
@@ -342,9 +351,15 @@ export const canvasStyles = `
 .pv-langs { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.75rem; }
 .pv-lang { border: 1px solid rgba(255,255,255,0.4); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.75rem; }
 
-.pv-bg { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+.pv-bg { position: absolute; inset: 0; overflow: hidden; }
 .pv-bg-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .pv-bg-scrim { position: absolute; inset: 0; }
+/* Animated "tap to play" cue (pulsing rings) — no static play icon */
+.pv-bg-play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5; width: 58px; height: 58px; border-radius: 50%; border: none; background: rgba(255,255,255,0.16); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.pv-bg-play span { width: 13px; height: 13px; border-radius: 50%; background: rgba(255,255,255,0.95); box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+.pv-bg-play::before, .pv-bg-play::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85); animation: ebTapPulse 1.7s ease-out infinite; }
+.pv-bg-play::after { animation-delay: 0.85s; }
+@keyframes ebTapPulse { 0% { transform: scale(0.7); opacity: 0.9; } 100% { transform: scale(2.4); opacity: 0; } }
 
 /* Cover — drag-positioned elements over a fixed background */
 .pv-cover { position: relative; min-height: 100%; overflow: hidden; color: #fff; }
@@ -355,8 +370,11 @@ export const canvasStyles = `
 .pv-openbtn[data-edit="true"] { cursor: grab; }
 
 /* Content */
-.pv-content { position: relative; padding: 1.5rem 1.25rem; min-height: 100%; overflow: hidden; color: #fff; }
-.pv-content-inner { position: relative; z-index: 2; display: flex; flex-direction: column; gap: 1.5rem; }
+/* Grid overlay so the single shared background stretches over ALL sections
+   (covers the full scroll height, not just the first screenful). */
+.pv-content { position: relative; min-height: 100%; overflow: hidden; color: #fff; display: grid; grid-template-columns: 1fr; }
+.pv-content > .pv-bg { position: relative; grid-area: 1 / 1; align-self: stretch; }
+.pv-content-inner { position: relative; z-index: 2; grid-area: 1 / 1; display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem 1.25rem; }
 .pv-sec[data-edit="true"] { outline: 1px dashed rgba(255,255,255,0.4); outline-offset: 4px; border-radius: 6px; }
 .pv-secname { text-align: center; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; opacity: 0.8; margin-bottom: 0.6rem; }
 .pv-sectext { text-align: center; }
