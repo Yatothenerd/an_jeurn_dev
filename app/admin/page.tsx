@@ -52,7 +52,11 @@ export default async function AdminDashboard() {
 
   return (
     <div>
-      <h1 style={s.heading}>Dashboard</h1>
+      <div className="page-hd">
+        <div className="page-hd-left">
+          <h1 className="page-hd-title">Dashboard</h1>
+        </div>
+      </div>
 
       {/* Mobile app-style launcher (hidden on desktop) */}
       <AdminLauncher />
@@ -129,7 +133,7 @@ export default async function AdminDashboard() {
                     </td>
                     <td data-label="Client" style={{ color: "var(--c-muted)" }}>{e.client}</td>
                     <td data-label="Status">
-                      <span className="status-pill" style={e.published ? { background: "var(--c-lime)", color: "var(--c-lime-text)" } : { background: "var(--c-surface-2)", color: "var(--c-muted)" }}>
+                      <span className={`status-pill ${e.published ? "active" : "draft"}`}>
                         {e.published ? "Published" : "Draft"}
                       </span>
                     </td>

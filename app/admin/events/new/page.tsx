@@ -34,12 +34,13 @@ export default async function AdminNewEventPage() {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <h1 style={{ margin: "0 0 0.25rem", fontSize: "1.5rem", fontWeight: 700, color: "var(--c-text)" }}>
-        Create Event
-      </h1>
-      <p style={{ margin: "0 0 1.5rem", color: "var(--c-muted)", fontSize: "0.9375rem" }}>
-        Create and assign an invitation event to a client. The client manages content and guests afterward.
-      </p>
+      <div className="brand-panel-head">
+        <span className="brand-eyebrow">New invitation</span>
+        <h1 className="brand-h1">Create Event</h1>
+        <p className="brand-lead">
+          Create and assign an invitation event to a client. The client manages content and guests afterward.
+        </p>
+      </div>
       <NewEventForm clients={list} />
     </div>
   );

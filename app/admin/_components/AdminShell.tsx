@@ -25,6 +25,12 @@ const GROUPS: { label: string; items: { href: string; icon: string; label: strin
       { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
     ],
   },
+  {
+    label: "System",
+    items: [
+      { href: "/admin/settings", icon: "settings", label: "Settings" },
+    ],
+  },
 ];
 
 const BOTTOM_NAV = [
@@ -39,6 +45,7 @@ const MORE_NAV = [
   { href: "/admin/events/new", icon: "new-invitation", label: "New Event" },
   { href: "/admin/packages", icon: "package", label: "Packages" },
   { href: "/admin/guests", icon: "guest", label: "Guests" },
+  { href: "/admin/settings", icon: "settings", label: "Settings" },
 ];
 
 export function AdminShell({ children, userName = "Admin" }: { children: React.ReactNode; userName?: string }) {
@@ -52,7 +59,7 @@ export function AdminShell({ children, userName = "Admin" }: { children: React.R
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-brand">
-          <span className="admin-brand-name">Anjeurn</span>
+          <span className="admin-brand-name">DASHBOARD</span>
         </div>
 
         {GROUPS.map((g) => {
@@ -84,9 +91,7 @@ export function AdminShell({ children, userName = "Admin" }: { children: React.R
             <input type="search" placeholder="Search…" aria-label="Search" />
           </div>
           <div className="topbar-right">
-            <button className="icon-btn" title="Notifications" aria-label="Notifications">🔔</button>
-            <button className="icon-btn" title="Messages" aria-label="Messages">✉️</button>
-            <button className="icon-btn" onClick={toggle} title="Toggle dark mode" aria-label="Toggle dark mode">
+            <button className="admin-icon-btn" onClick={toggle} title="Toggle dark mode" aria-label="Toggle dark mode">
               <Icon name={theme === "dark" ? "day" : "night"} size={16} />
             </button>
             <div className="topbar-profile">

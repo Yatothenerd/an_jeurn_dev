@@ -29,11 +29,12 @@ export function ClientsPageClient({ clients, packages }: Props) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", gap: "0.75rem", flexWrap: "wrap" }}>
-        <h1 className="page-title" style={{ margin: 0 }}>Clients</h1>
-        <button onClick={() => setShowForm(true)} className="btn-pill" style={{ background: "var(--c-accent)", color: "#fff" }}>
-          + New Client
-        </button>
+      <div className="page-hd">
+        <div className="page-hd-left">
+          <h1 className="page-hd-title">Clients</h1>
+          <span className="page-hd-help" title="Manage all client accounts">?</span>
+        </div>
+        <button onClick={() => setShowForm(true)} className="btn-create">+ CREATE</button>
       </div>
 
       {clients.length === 0 ? (
@@ -88,12 +89,15 @@ export function ClientsPageClient({ clients, packages }: Props) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, { bg: string; color: string }> = {
-    active: { bg: "#dcfce7", color: "#15803d" },
-    expired: { bg: "#fef9c3", color: "#854d0e" },
-    revoked: { bg: "#fee2e2", color: "#b91c1c" },
-    none: { bg: "var(--c-surface-2)", color: "var(--c-muted)" },
+  const cls: Record<string, string> = {
+    active: "active",
+    expired: "draft",
+    revoked: "inactive",
+    none: "draft",
   };
-  const c = colors[status] ?? colors.none;
-  return <span className="status-pill" style={{ background: c.bg, color: c.color, textTransform: "capitalize" }}>{status}</span>;
+  return (
+    <span className={`status-pill ${cls[status] ?? "draft"}`} style={{ textTransform: "capitalize" }}>
+      {status}
+    </span>
+  );
 }

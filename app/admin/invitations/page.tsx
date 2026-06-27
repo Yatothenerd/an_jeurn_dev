@@ -33,10 +33,13 @@ export default async function AdminInvitationsPage() {
 
   return (
     <div>
-      <h1 className="page-title">All Invitations</h1>
-      <p className="page-summary">
-        {n} invitation{n === 1 ? "" : "s"} across all clients
-      </p>
+      <div className="page-hd">
+        <div className="page-hd-left">
+          <h1 className="page-hd-title">All Invitations</h1>
+          <span className="page-hd-help" title="All published and draft invitations">?</span>
+        </div>
+        <span style={{ fontSize: "0.8rem", color: "var(--c-muted)" }}>{n} total</span>
+      </div>
 
       <div className="data-table-wrap">
         <table className="data-table">

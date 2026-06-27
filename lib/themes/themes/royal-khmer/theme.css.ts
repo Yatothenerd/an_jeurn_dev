@@ -55,6 +55,23 @@ export const KHMER_CSS = `
 .rk-dots { display: flex; gap: 0.25rem; justify-content: center; margin-top: 0.6rem; }
 .rk-dots i { width: 3px; height: 3px; border-radius: 50%; background: #d4af37; display: block; }
 
+/* ════════ Royal Khmer — Light Cover (rk-cv2) ════════ */
+.rk-cv2 { position: relative; display: flex; flex-direction: column; min-height: 90vh; font-family: 'Kantumruy Pro', sans-serif; color: #1a2a5a; background-color: #f5f3ee; background-image: url("data:image/svg+xml,%3Csvg width='800' height='22' viewBox='0 0 800 22' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 11 C100 3 200 19 400 11 C600 3 700 19 800 11' fill='none' stroke='%231a3daa' stroke-width='0.4' opacity='0.13'/%3E%3C/svg%3E"); background-size: 100% 22px; }
+.rk-cv2-body { flex: 1; display: flex; flex-direction: row; }
+.rk-cv2-left { flex: 1; padding: 2.2rem 1rem 1.5rem 1.4rem; display: flex; flex-direction: column; justify-content: center; gap: 0.85rem; }
+.rk-cv2-kh { font-size: 0.72rem; color: #1a2a5a; line-height: 1.55; margin: 0; }
+.rk-cv2-en { font-size: 0.52rem; color: #3a5a9a; text-transform: uppercase; letter-spacing: 0.09em; margin: 0.18rem 0 0; }
+.rk-cv2-title { font-family: 'Moulpali', serif; font-size: 1rem; color: #1a2a5a; margin: 0; line-height: 1.35; }
+.rk-cv2-divider { height: 1px; background: rgba(26,60,154,0.22); margin: 0.1rem 0; }
+.rk-cv2-detail { font-size: 0.54rem; color: #3a5a9a; margin: 0.1rem 0 0; line-height: 1.45; }
+.rk-cv2-guest-block { border-top: 1px solid rgba(26,60,154,0.18); padding-top: 0.6rem; margin-top: 0.1rem; }
+.rk-cv2-guest-label { font-family: 'Moulpali', serif; font-size: 0.62rem; color: #1a3a80; margin: 0 0 0.2rem; }
+.rk-cv2-guestname { font-family: 'Moulpali', serif; font-size: 0.88rem; color: #1a2a5a; line-height: 1.3; }
+.rk-cv2-admit { font-size: 0.44rem; color: rgba(26,60,154,0.45); text-transform: uppercase; letter-spacing: 0.1em; margin: 0.25rem 0 0; }
+.rk-cv2-right { width: 42%; max-width: 150px; border-left: 2px solid rgba(30,80,200,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem 0.5rem; gap: 1rem; color: #3a78c9; }
+.rk-kbach { width: 90%; max-width: 124px; opacity: 0.82; }
+.rk-cv2-bottom { flex-shrink: 0; height: 54px; background-color: #1a237e; background-image: url("data:image/svg+xml,%3Csvg width='54' height='54' viewBox='0 0 54 54' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M27 5 L49 27 L27 49 L5 27 Z' fill='none' stroke='%23ffffff' stroke-width='0.9' opacity='0.35'/%3E%3Cpath d='M27 13 L41 27 L27 41 L13 27 Z' fill='none' stroke='%23ffffff' stroke-width='0.7' opacity='0.28'/%3E%3Ccircle cx='27' cy='27' r='3.5' fill='%23ffffff' opacity='0.22'/%3E%3C/svg%3E"); background-repeat: repeat-x; background-size: 54px 54px; }
+
 /* Ornate gold corner frame wrapper (Khmer applies to every section) */
 .sec-frame { position: relative; }
 .sec-frame > .sec-corner { position: absolute; width: 46px; height: 58px; background: var(--sec-accent, #d4af37); -webkit-mask: url('/themes/khmer/corner.png') center / contain no-repeat; mask: url('/themes/khmer/corner.png') center / contain no-repeat; pointer-events: none; opacity: 0.9; z-index: 5; }

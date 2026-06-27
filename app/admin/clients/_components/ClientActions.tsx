@@ -27,37 +27,31 @@ export function ClientActions({ userPackageId, status }: ClientActionsProps) {
 
   if (status === "revoked") {
     return (
-      <button
-        onClick={() => patch({ action: "reactivate" })}
-        disabled={loading}
-        style={{ ...s.btn, ...s.green }}
-      >
-        Reactivate
+      <button onClick={() => patch({ action: "reactivate" })} disabled={loading} className="btn-pill btn-view">
+        <span className="bi" aria-hidden>↺</span>
+        <span className="bl">Reactivate</span>
       </button>
     );
   }
 
   return (
-    <div style={s.wrap}>
-      <button
-        onClick={() => patch({ action: "revoke" })}
-        disabled={loading}
-        style={{ ...s.btn, ...s.red }}
-      >
-        Revoke
+    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+      <button onClick={() => patch({ action: "revoke" })} disabled={loading} className="btn-pill btn-unpublish">
+        <span className="bi" aria-hidden>⊘</span>
+        <span className="bl">Revoke</span>
       </button>
-      <div style={s.extend}>
+      <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
         <input
           type="date"
           value={extendDate}
           onChange={(e) => setExtendDate(e.target.value)}
-          style={s.dateInput}
+          style={{ padding: "0.28rem 0.5rem", border: "1px solid var(--c-border)", background: "transparent", color: "var(--c-text)", borderRadius: "5px", fontSize: "0.78rem" }}
           min={new Date().toISOString().slice(0, 10)}
         />
         <button
           onClick={() => extendDate && patch({ action: "extend", expiresAt: extendDate })}
           disabled={loading || !extendDate}
-          style={{ ...s.btn, ...s.blue }}
+          className="btn-pill btn-edit"
         >
           Extend
         </button>
@@ -65,28 +59,3 @@ export function ClientActions({ userPackageId, status }: ClientActionsProps) {
     </div>
   );
 }
-
-const s = {
-  wrap: { display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" as const },
-  btn: {
-    padding: "0.3125rem 0.625rem",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-    fontSize: "0.8125rem",
-    fontWeight: 500,
-    whiteSpace: "nowrap" as const,
-  },
-  red: { background: "#fee2e2", color: "#dc2626" },
-  green: { background: "#dcfce7", color: "#16a34a" },
-  blue: { background: "#dbeafe", color: "#2563eb" },
-  extend: { display: "flex", gap: "0.375rem", alignItems: "center" },
-  dateInput: {
-    padding: "0.25rem 0.5rem",
-    border: "1px solid var(--c-border)",
-    background: "transparent",
-    color: "var(--c-text)",
-    borderRadius: "5px",
-    fontSize: "0.8125rem",
-  },
-} as const;

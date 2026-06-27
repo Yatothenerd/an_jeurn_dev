@@ -31,6 +31,48 @@ interface CoverContent {
   graceKh?: string;
 }
 
+function KhmerKbachDiamond() {
+  return (
+    <svg viewBox="0 0 200 200" className="rk-kbach" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      {/* Outer tip spikes */}
+      <path d="M100 2 L104 14 L100 20 L96 14 Z" fill="currentColor" opacity="0.8"/>
+      <path d="M100 180 L104 186 L100 198 L96 186 Z" fill="currentColor" opacity="0.8"/>
+      <path d="M2 100 L14 96 L20 100 L14 104 Z" fill="currentColor" opacity="0.8"/>
+      <path d="M180 100 L186 96 L198 100 L186 104 Z" fill="currentColor" opacity="0.8"/>
+      {/* Outer diamond frame */}
+      <path d="M100 4 L196 100 L100 196 L4 100 Z" fill="none" stroke="currentColor" strokeWidth="1.4"/>
+      {/* Second outline */}
+      <path d="M100 11 L189 100 L100 189 L11 100 Z" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.6"/>
+      {/* Dashed mid ring */}
+      <path d="M100 24 L176 100 L100 176 L24 100 Z" fill="none" stroke="currentColor" strokeWidth="1" strokeDasharray="3 2"/>
+      {/* Middle ring */}
+      <path d="M100 38 L162 100 L100 162 L38 100 Z" fill="none" stroke="currentColor" strokeWidth="1.2"/>
+      {/* Inner ring */}
+      <path d="M100 56 L144 100 L100 144 L56 100 Z" fill="none" stroke="currentColor" strokeWidth="1"/>
+      {/* Cardinal cross through center */}
+      <line x1="100" y1="38" x2="100" y2="162" stroke="currentColor" strokeWidth="0.5" opacity="0.5"/>
+      <line x1="38" y1="100" x2="162" y2="100" stroke="currentColor" strokeWidth="0.5" opacity="0.5"/>
+      {/* Inner X diagonals */}
+      <line x1="56" y1="56" x2="144" y2="144" stroke="currentColor" strokeWidth="0.5" opacity="0.5"/>
+      <line x1="144" y1="56" x2="56" y2="144" stroke="currentColor" strokeWidth="0.5" opacity="0.5"/>
+      {/* Cardinal small diamonds between middle and inner ring */}
+      <path d="M100 38 L104 47 L100 56 L96 47 Z" fill="currentColor" opacity="0.5"/>
+      <path d="M100 144 L104 153 L100 162 L96 153 Z" fill="currentColor" opacity="0.5"/>
+      <path d="M38 100 L47 96 L56 100 L47 104 Z" fill="currentColor" opacity="0.5"/>
+      <path d="M144 100 L153 96 L162 100 L153 104 Z" fill="currentColor" opacity="0.5"/>
+      {/* Diagonal corner diamonds between outer and middle rings */}
+      <path d="M148 52 L152 56 L148 60 L144 56 Z" fill="currentColor" opacity="0.35"/>
+      <path d="M52 52 L56 48 L60 52 L56 56 Z" fill="currentColor" opacity="0.35"/>
+      <path d="M148 148 L152 144 L156 148 L152 152 Z" fill="currentColor" opacity="0.35"/>
+      <path d="M44 148 L48 144 L52 148 L48 152 Z" fill="currentColor" opacity="0.35"/>
+      {/* Center lotus */}
+      <circle cx="100" cy="100" r="12" fill="none" stroke="currentColor" strokeWidth="1"/>
+      <circle cx="100" cy="100" r="6" fill="currentColor" opacity="0.35"/>
+      <circle cx="100" cy="100" r="2.5" fill="currentColor" opacity="0.8"/>
+    </svg>
+  );
+}
+
 export function KhmerCover({
   content,
   eventTitle,
@@ -54,25 +96,36 @@ export function KhmerCover({
   const label = content.guestLabel || "Respected Guest";
 
   return (
-    <div className="rk-cover">
-      <div className="rk-frame f1" />
-      <div className="rk-frame f2" />
-      <img className="rk-monogram" src="/themes/khmer/monogram.png" alt="" />
-      <div className="rk-cover-mid">
-        <p className="rk-cover-kh">{content.inviteKh || "សូមគោរពអញ្ជើញ"}</p>
-        <p className="rk-cover-en">{content.subheading || "We are honored to invite"}</p>
-        <div className="rk-nameplate">
-          <img src="/themes/khmer/name-placeholder.png" alt="" />
-          <span className="rk-guest">{guestName || label}</span>
+    <div className="rk-cv2">
+      {/* Left content */}
+      <div className="rk-cv2-body">
+        <div className="rk-cv2-left">
+          <div>
+            <p className="rk-cv2-kh">{content.inviteKh || "សូមគោរពអញ្ជើញ"}</p>
+            <p className="rk-cv2-en">{content.subheading || "You are cordially invited to the"}</p>
+          </div>
+          <p className="rk-cv2-title">{content.heading || eventTitle}</p>
+          <div className="rk-cv2-divider" />
+          <div>
+            <p className="rk-cv2-detail">{formatted}</p>
+            {venueName && <p className="rk-cv2-detail">{venueName}</p>}
+          </div>
+          <div className="rk-cv2-guest-block">
+            <p className="rk-cv2-guest-label">{content.graceKh || "ចូលរួម"}</p>
+            <div className="rk-cv2-guestname">{guestName || `[ ${label} ]`}</div>
+            <p className="rk-cv2-admit">{label} · One Admit Only</p>
+          </div>
         </div>
-        <div className="rk-cdiv" />
-        <p className="rk-cover-kh">{content.graceKh || "ចូលរួមជាអធិបតីក្នុងពិធីមង្គលការ"}</p>
-        <p className="rk-cover-en">{content.heading || eventTitle}</p>
+
+        {/* Right ornament panel */}
+        <div className="rk-cv2-right">
+          <KhmerKbachDiamond />
+          <KhmerKbachDiamond />
+        </div>
       </div>
-      <button className="rk-btn" style={{ maxWidth: 200 }}>
-        {formatted}
-        <small style={{ opacity: 0.8 }}>{venueName || ""}</small>
-      </button>
+
+      {/* Bottom dark band */}
+      <div className="rk-cv2-bottom" />
     </div>
   );
 }

@@ -19,12 +19,12 @@ export default async function AdminEventsPage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>Events</h1>
-          <p style={s.sub}>All invitation events managed by you.</p>
+      <div className="page-hd">
+        <div className="page-hd-left">
+          <h1 className="page-hd-title">Events</h1>
+          <span className="page-hd-help" title="All invitation events">?</span>
         </div>
-        <Link href="/admin/events/new" style={s.newBtn}>+ New event</Link>
+        <Link href="/admin/events/new" className="btn-create">+ CREATE</Link>
       </div>
 
       {events.length === 0 ? (
