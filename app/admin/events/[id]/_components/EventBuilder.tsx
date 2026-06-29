@@ -17,15 +17,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib/themes/shared/standard-css";
 import {
-  type BuilderState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
+  type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
   type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type HandAnim, type Interaction,
-  type Background, type BgKind, type CoverMoveKind,
-  PvSetup, PvCover, PvContent, GuideOverlay, canvasStyles,
+  type Background, type BgKind, type CoverMoveKind, type OverlayButtons,
+  PvSetup, PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles,
 } from "@/lib/builder/canvas";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type TabId = "setup" | "cover" | "content" | "guide";
+type TabId = "setup" | "cover" | "content" | "guide" | "music";
 
 export interface EventData {
   id: string; title: string; eventType: string; eventDate: string;
@@ -129,6 +129,9 @@ function freshState(ev: EventData): BuilderState {
       mkSection("wishing", "Wishing"),
       mkSection("rsvp", "RSVP"),
     ],
+    music: { url: "", playAfterVideoEnd: false, playOnLoad: false, playOnScroll: true },
+    overlayButtons: { playPause: true, map: true, wishGift: true, scrollBack: true },
+    outerBg: { kind: "color", imageUrl: "", videoUrl: "", color: "#050709", blur: 0, opacity: 0.4, overlayColor: "#000000", autoplay: true, lockUntilEnd: false },
   };
 }
 
@@ -222,6 +225,9 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
     const oldGuide = (draft as { guide?: GuideState } | undefined)?.guide;
     if (!draft?.coverGuide) seeded.coverGuide = oldGuide ?? base.coverGuide;
     if (!draft?.contentGuide) seeded.contentGuide = base.contentGuide;
+    seeded.music = seeded.music ?? base.music;
+    seeded.overlayButtons = seeded.overlayButtons ?? base.overlayButtons;
+    seeded.outerBg = seeded.outerBg ? fixBg(seeded.outerBg) : base.outerBg;
 
     // Link the event's existing saved images into the two backgrounds.
     const coverImg = invitation?.coverUrl || "";
@@ -249,11 +255,12 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
     setSaving(true); setErr("");
     try {
       const imgOf = (b: Background) => ((b.kind === "photo" || b.kind === "gif") && b.imageUrl ? b.imageUrl : undefined);
+      const vidOf = (b: Background) => (b.kind === "video" && b.videoUrl ? b.videoUrl : undefined);
       const coverUrl = imgOf(st.coverBg);
       const backgroundUrl = imgOf(st.contentBg);
+      const backgroundVideoUrl = vidOf(st.coverBg) ?? vidOf(st.contentBg) ?? null;
+      const musicUrl = st.music?.url || null;
 
-      // Template mode: persist the design snapshot to the template, not an event.
-      // No event identity or publish — those are applied per-event later.
       const url = isTemplate
         ? `/api/admin/templates/${templateMode!.templateId}`
         : `/api/admin/events/${event.id}`;
@@ -263,16 +270,18 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
             isAnimated: true,
             coverUrl: coverUrl ?? null,
             backgroundUrl: backgroundUrl ?? null,
+            backgroundVideoUrl,
+            musicUrl,
           }
         : {
             title: st.eventName.trim(), eventType: st.eventType,
             eventDate: st.dateTime ? new Date(st.dateTime).toISOString() : undefined,
-            // Non-destructive: keep existing overlay fields, store the builder draft
-            // (the live invite renders from this).
             overlayConfig: { ...(invitation?.overlayConfig ?? {}), builderDraft: st },
             isAnimated: true,
             ...(coverUrl ? { coverUrl } : {}),
             ...(backgroundUrl ? { backgroundUrl } : {}),
+            ...(backgroundVideoUrl ? { backgroundVideoUrl } : {}),
+            musicUrl,
             ...(publish ? { isPublished: true } : {}),
           };
       const res = await fetch(url, {
@@ -320,9 +329,9 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
         {/* ── LEFT: tabbed editor ─────────────────────────────────────────── */}
         <section className="eb-col eb-editor">
           <div className="eb-tabs">
-            {(["setup", "cover", "content", "guide"] as TabId[]).map((id) => (
+            {(["setup", "cover", "content", "guide", "music"] as TabId[]).map((id) => (
               <button key={id} type="button" className="eb-tab" data-active={tab === id} onClick={() => setTab(id)}>
-                {id === "setup" ? "Setup" : id === "cover" ? "Cover" : id === "content" ? "Content" : "Hover Guide"}
+                {id === "setup" ? "Setup" : id === "cover" ? "Cover" : id === "content" ? "Content" : id === "guide" ? "Guide" : "Music"}
               </button>
             ))}
           </div>
@@ -336,6 +345,7 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
                 setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} />
             )}
             {tab === "guide" && <GuideTab st={st} setSt={setSt} which={guideCtx} setWhich={setGuideCtx} />}
+            {tab === "music" && <MusicTab st={st} patch={patch} />}
           </div>
 
           <div className="eb-savebar">
@@ -379,10 +389,12 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
               editOnScreen={editOnScreen} setEditOnScreen={setEditOnScreen}
               onPlay={replay} onClose={() => setFullscreen(false)}
             />
-            <DeviceFrame
-              st={st} tab={tab} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
-              editOnScreen={editOnScreen} setSt={setSt} moveSection={moveSection} guideCtx={guideCtx} big
-            />
+            <DraggableStage>
+              <DeviceFrame
+                st={st} tab={tab} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
+                editOnScreen={editOnScreen} setSt={setSt} moveSection={moveSection} guideCtx={guideCtx} big
+              />
+            </DraggableStage>
           </div>
         </div>
       )}
@@ -391,6 +403,14 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
 }
 
 // ── Setup tab ────────────────────────────────────────────────────────────────
+
+const OVERLAY_BTN_DEFS: { key: keyof OverlayButtons; label: string; desc: string }[] = [
+  { key: "playPause", label: "Play / Pause", desc: "Music playback toggle" },
+  { key: "map",       label: "Map",          desc: "Opens the venue map" },
+  { key: "wishGift",  label: "Wish & Gift",  desc: "Jumps to the wishing section" },
+  { key: "scrollBack",label: "Scroll Back",  desc: "Returns to the top of the invitation" },
+];
+
 
 function SetupTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderState>) => void }) {
   return (
@@ -419,6 +439,26 @@ function SetupTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderS
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="eb-card">
+        <div className="eb-cardhead">Floating Overlay Buttons</div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>Choose which buttons float on the invitation for guests after they open it.</p>
+        {OVERLAY_BTN_DEFS.map(({ key, label, desc }) => (
+          <div key={key} className="eb-rowbetween">
+            <div>
+              <div className="eb-flbl">{label}</div>
+              <div className="eb-muted eb-sm">{desc}</div>
+            </div>
+            <Toggle on={st.overlayButtons[key]} onChange={(v) => patch({ overlayButtons: { ...st.overlayButtons, [key]: v } })} />
+          </div>
+        ))}
+      </div>
+
+      <div className="eb-card">
+        <div className="eb-cardhead">Desktop / Outer Background</div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>Visible on laptop and desktop screens — the area outside the portrait invite column. Sits behind everything.</p>
+        <BackgroundEditor value={st.outerBg} onChange={(b) => patch({ outerBg: b })} />
       </div>
     </div>
   );
@@ -485,7 +525,10 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
         <div className="eb-stack">
           {st.coverBlocks.map((b) => (
             <div key={b.id} className="eb-block">
-              <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="Text…" />
+              <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
+              {st.langs.english && (
+                <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
+              )}
               <div className="eb-blockctl">
                 <select className="eb-input eb-fontsel" style={{ fontFamily: b.font }} value={b.font} onChange={(e) => setBlock(b.id, { font: e.target.value })}>
                   {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
@@ -537,6 +580,7 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
 }) {
   const [openId, setOpenId] = useState<string | null>(st.sections[0]?.id ?? null);
   const dragFrom = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   return (
     <div className="eb-stack">
@@ -551,10 +595,11 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
         {st.sections.map((sec, i) => {
           const open = openId === sec.id;
           return (
-            <div key={sec.id} className="eb-section" data-open={open}
+            <div key={sec.id} className="eb-section" data-open={open} data-dragover={dragOver === i}
               draggable onDragStart={() => (dragFrom.current = i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => { if (dragFrom.current !== null && dragFrom.current !== i) moveSection(dragFrom.current, i); dragFrom.current = null; }}>
+              onDragOver={(e) => { e.preventDefault(); setDragOver(i); }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={() => { if (dragFrom.current !== null && dragFrom.current !== i) moveSection(dragFrom.current, i); dragFrom.current = null; setDragOver(null); }}>
               <div className="eb-sechead">
                 <span className="eb-grip" title="Drag to reorder">⠿</span>
                 <input className="eb-secname" value={sec.name} onChange={(e) => setSection(sec.id, { name: e.target.value })} />
@@ -586,7 +631,7 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
                     </select>
                   </div>
 
-                  <SectionKindEditor sec={sec} setSection={setSection} setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} />
+                  <SectionKindEditor sec={sec} setSection={setSection} setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} hasEnglish={st.langs.english} />
 
                   {sec.kind === "custom" && (
                     <button type="button" className="eb-removelink" onClick={() => removeSection(sec.id)}>Remove section</button>
@@ -656,15 +701,19 @@ function GalleryEditor({ sec, setSection }: { sec: Section; setSection: (id: str
 }
 
 // Per-kind section editor (photo/text for freeform sections, dedicated UI for the rest).
-function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock }: {
+function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, hasEnglish = false }: {
   sec: Section; setSection: (id: string, p: Partial<Section>) => void;
   setBlock: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
   addBlock: (secId: string) => void; removeBlock: (secId: string, blockId: string) => void;
+  hasEnglish?: boolean;
 }) {
   if (sec.mode === "photo") {
     return (
       <div className="eb-stack">
-        <UploadBox label="Section image" value={sec.imageUrl} onChange={(url) => setSection(sec.id, { imageUrl: url })} />
+        <UploadBox label={hasEnglish ? "ខ្មែរ image" : "Section image"} value={sec.imageUrl} onChange={(url) => setSection(sec.id, { imageUrl: url })} />
+        {hasEnglish && (
+          <UploadBox label="English image" value={sec.imageUrlEn ?? ""} onChange={(url) => setSection(sec.id, { imageUrlEn: url })} />
+        )}
         <Slider label="Photo size" min={20} max={100} suffix="%" value={sec.imageScalePct} onChange={(v) => setSection(sec.id, { imageScalePct: v })} />
       </div>
     );
@@ -690,11 +739,21 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock }:
       <Field label="Input placeholder"><input className="eb-input" value={sec.wishing.placeholder} onChange={(e) => setSection(sec.id, { wishing: { ...sec.wishing, placeholder: e.target.value } })} /></Field>
     );
     case "rsvp": return <p className="eb-muted eb-sm" style={{ margin: 0 }}>Shows an RSVP button on the invitation. Responses appear under the event&apos;s guest list.</p>;
-    default: return (
+    default: {
+      const setEnBlockText = (idx: number, text: string) => {
+        const base = sec.blocksEn?.length ? [...sec.blocksEn] : sec.blocks.map((b) => ({ ...b, id: uid(), text: "" }));
+        while (base.length <= idx) base.push({ ...sec.blocks[idx] ?? sec.blocks[0], id: uid(), text: "" });
+        base[idx] = { ...base[idx], text };
+        setSection(sec.id, { blocksEn: base });
+      };
+      return (
       <div className="eb-stack">
-        {sec.blocks.map((bl) => (
+        {sec.blocks.map((bl, idx) => (
           <div key={bl.id} className="eb-block">
-            <textarea className="eb-input eb-textarea" value={bl.text} onChange={(e) => setBlock(sec.id, bl.id, { text: e.target.value })} placeholder="Text…" />
+            <textarea className="eb-input eb-textarea" value={bl.text} onChange={(e) => setBlock(sec.id, bl.id, { text: e.target.value })} placeholder={hasEnglish ? "ខ្មែរ text…" : "Text…"} />
+            {hasEnglish && (
+              <textarea className="eb-input eb-textarea" value={sec.blocksEn?.[idx]?.text ?? ""} onChange={(e) => setEnBlockText(idx, e.target.value)} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
+            )}
             <div className="eb-blockctl">
               <select className="eb-input eb-fontsel" style={{ fontFamily: bl.font }} value={bl.font} onChange={(e) => setBlock(sec.id, bl.id, { font: e.target.value })}>
                 {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
@@ -717,8 +776,79 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock }:
           </div>
         </div>
       </div>
-    );
+      );
+    }
   }
+}
+
+// ── Music tab ────────────────────────────────────────────────────────────────
+
+function AudioUploadBox({ label, value, onChange }: { label: string; value: string; onChange: (url: string) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  async function handle(file: File) {
+    setBusy(true);
+    try {
+      const fd = new FormData(); fd.append("file", file); fd.append("folder", "builder/audio");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const j = (await res.json()) as { url?: string };
+      if (j.url) onChange(j.url);
+    } catch { /* ignore */ } finally { setBusy(false); }
+  }
+  return (
+    <div>
+      {value ? (
+        <div className="eb-audiowrap">
+          <audio src={value} controls className="eb-audio" />
+          <button type="button" className="eb-removelink" style={{ marginTop: "0.5rem" }} onClick={() => onChange("")}>Remove audio</button>
+        </div>
+      ) : (
+        <div className="eb-upload" onClick={() => ref.current?.click()}>
+          <span className="eb-uploadph">{busy ? "Uploading…" : `♪ ${label}`}</span>
+        </div>
+      )}
+      <input ref={ref} type="file" accept="audio/mpeg,audio/mp3,audio/aac,audio/ogg,audio/wav,audio/*" hidden
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handle(f); e.target.value = ""; }} />
+    </div>
+  );
+}
+
+function MusicTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderState>) => void }) {
+  const m = st.music;
+  const setMusic = (p: Partial<MusicState>) => patch({ music: { ...m, ...p } });
+  return (
+    <div className="eb-stack">
+      <div className="eb-card">
+        <div className="eb-cardhead">Background Music</div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>Upload an audio file to play as background music for the invitation.</p>
+        <AudioUploadBox label="Upload audio (MP3, AAC, OGG)" value={m.url} onChange={(url) => setMusic({ url })} />
+      </div>
+      <div className="eb-card">
+        <div className="eb-cardhead">Playback triggers</div>
+        <div className="eb-rowbetween">
+          <div>
+            <div className="eb-flbl">Play after cover video ends</div>
+            <div className="eb-muted eb-sm">Music starts when the opening video finishes</div>
+          </div>
+          <Toggle on={m.playAfterVideoEnd} onChange={(v) => setMusic({ playAfterVideoEnd: v })} />
+        </div>
+        <div className="eb-rowbetween">
+          <div>
+            <div className="eb-flbl">Play on invitation load</div>
+            <div className="eb-muted eb-sm">Music starts as soon as the invitation opens</div>
+          </div>
+          <Toggle on={m.playOnLoad} onChange={(v) => setMusic({ playOnLoad: v })} />
+        </div>
+        <div className="eb-rowbetween">
+          <div>
+            <div className="eb-flbl">Play on first touch or scroll</div>
+            <div className="eb-muted eb-sm">Starts on the guest's first interaction (browser-safe)</div>
+          </div>
+          <Toggle on={m.playOnScroll} onChange={(v) => setMusic({ playOnScroll: v })} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Hover Guide tab ──────────────────────────────────────────────────────────
@@ -953,6 +1083,8 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
   useEffect(() => { setVideoEnded(false); }, [editOnScreen, st.coverBg.videoUrl]);
   const coverLocked = !editOnScreen && st.coverBg.kind === "video" && st.coverBg.lockUntilEnd && !videoEnded;
 
+  const [previewLang, setPreviewLang] = useState<"kh" | "en">("kh");
+
   const moveCover = (kind: CoverMoveKind, id: string | undefined, xPct: number, yPct: number) =>
     setSt((s) => {
       if (kind === "open") return { ...s, openBtnPos: { xPct, yPct } };
@@ -960,6 +1092,10 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
       if (kind === "guest") return { ...s, guestName: { ...s.guestName, pos: { xPct, yPct } } };
       return { ...s, coverBlocks: s.coverBlocks.map((b) => (b.id === id ? { ...b, pos: { xPct, yPct } } : b)) };
     });
+  const editCoverBlock = (id: string, p: Partial<CoverBlock>) =>
+    setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.map((b) => b.id === id ? { ...b, ...p } : b) }));
+  const resizeMono = (scalePct: number) =>
+    setSt((s) => ({ ...s, monogram: { ...s.monogram, scalePct } }));
   const editContentBlock = (secId: string, blockId: string, text: string) =>
     setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.map((b) => b.id === blockId ? { ...b, text } : b) } : x) }));
   const moveGuide = (kind: "hand" | "block", id: string | undefined, xPct: number, yPct: number) => {
@@ -981,20 +1117,35 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
         <div className="eb-screen">
           {tab === "setup" && <PvSetup st={st} />}
 
+          {(st.langs.khmer && st.langs.english) && (tab === "cover" || tab === "content") && (
+            <LangSwitcher lang={previewLang} onChange={setPreviewLang} />
+          )}
+
           {tab === "cover" && (coverOpen
-            ? <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} />
-            : <PvCover st={st} editable={editOnScreen} onMoveCover={moveCover} onOpen={() => setCoverOpen(true)} animKey={animKey}
-                locked={coverLocked} onVideoEnded={() => setVideoEnded(true)} />)}
+            ? <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} lang={previewLang} />
+            : <PvCover st={st} editable={editOnScreen} onMoveCover={moveCover}
+                onEditCoverBlock={editOnScreen ? editCoverBlock : undefined}
+                fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
+                onResizeMono={editOnScreen ? resizeMono : undefined}
+                onOpen={() => setCoverOpen(true)} animKey={animKey}
+                locked={coverLocked} onVideoEnded={() => setVideoEnded(true)}
+                lang={previewLang} />)}
           {tab === "cover" && !coverOpen && st.coverGuide.enabled && !coverLocked && <GuideOverlay guide={st.coverGuide} />}
+          {tab === "cover" && coverOpen && (
+            <FloatingOverlayButtons ob={st.overlayButtons} preview />
+          )}
 
-          {tab === "content" && <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} />}
+          {tab === "content" && <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} lang={previewLang} />}
           {tab === "content" && st.contentGuide.enabled && <GuideOverlay guide={st.contentGuide} />}
+          {tab === "content" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
 
-          {/* Guide tab: edit the selected guide over its matching backdrop */}
           {tab === "guide" && (guideCtx === "cover" ? <PvCover st={st} animKey={animKey} /> : <PvContent st={st} />)}
           {tab === "guide" && (
             <GuideOverlay guide={guideCtx === "cover" ? st.coverGuide : st.contentGuide} editable onMove={moveGuide} />
           )}
+
+          {tab === "music" && <PvContent st={st} />}
+          {tab === "music" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
         </div>
       </div>
     </div>
@@ -1012,7 +1163,7 @@ const styles = `
 
 /* Tabs */
 .eb-tabs { display: flex; gap: 0.25rem; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 0.375rem; position: sticky; top: 3.5rem; z-index: 5; }
-.eb-tab { flex: 1; padding: 0.6rem; border: none; background: transparent; color: var(--c-muted); border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer; font-family: inherit; transition: background .15s, color .15s; }
+.eb-tab { flex: 1; padding: 0.5rem 0.25rem; border: none; background: transparent; color: var(--c-muted); border-radius: 8px; font-weight: 600; font-size: 0.78rem; cursor: pointer; font-family: inherit; transition: background .15s, color .15s; }
 .eb-tab:hover { color: var(--c-text); background: var(--c-surface-2); }
 .eb-tab[data-active="true"] { background: var(--c-accent); color: #fff; }
 
@@ -1074,8 +1225,9 @@ const styles = `
 .eb-segbtn[data-on="true"] { background: var(--c-accent); color: #fff; }
 
 /* Section panels */
-.eb-section { border: 1.5px solid var(--c-border); border-radius: 10px; overflow: hidden; background: var(--c-surface); }
+.eb-section { border: 1.5px solid var(--c-border); border-radius: 10px; overflow: hidden; background: var(--c-surface); transition: border-color .15s, background .15s; }
 .eb-section[data-open="true"] { border-color: var(--c-accent); }
+.eb-section[data-dragover="true"] { border-color: var(--c-accent); background: var(--c-accent-soft); }
 .eb-sechead { display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem; background: var(--c-surface-2); }
 .eb-grip { cursor: grab; color: var(--c-muted); }
 .eb-secname { flex: 1; min-width: 0; border: none; background: transparent; color: var(--c-text); font-weight: 600; font-size: 0.9rem; font-family: inherit; padding: 0.2rem; }
@@ -1136,4 +1288,8 @@ const styles = `
 @media (max-width: 520px) { .eb-handgrid { grid-template-columns: repeat(4, 1fr); } }
 .eb-handbtn { aspect-ratio: 1; border: 2px solid var(--c-border); border-radius: 9px; background: var(--c-surface-2); font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .eb-handbtn[data-on="true"] { border-color: var(--c-accent); background: var(--c-accent-soft); }
+
+/* Music tab */
+.eb-audiowrap { display: flex; flex-direction: column; }
+.eb-audio { width: 100%; border-radius: 8px; }
 `;

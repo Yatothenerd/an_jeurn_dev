@@ -35,7 +35,9 @@ export default function LoginPage() {
   return (
     <div style={s.page}>
       <div style={s.card}>
-        <div style={s.brand}>Anjeurn</div>
+        <div style={s.brand}>
+          <img src="/logo/full.svg" alt="Anjeurn" style={{ height: 110, display: "block", margin: "0 auto" }} />
+        </div>
         <h1 style={s.heading}>Sign in to your account</h1>
         <form onSubmit={handleSubmit} style={s.form}>
           <div style={s.field}>
@@ -75,11 +77,8 @@ const s = {
     maxWidth: "400px",
   },
   brand: {
-    fontSize: "1.25rem",
-    fontWeight: 700,
-    color: "var(--c-accent)",
     marginBottom: "1.5rem",
-    letterSpacing: "-0.02em",
+    textAlign: "center" as const,
   },
   heading: {
     fontSize: "1.125rem",

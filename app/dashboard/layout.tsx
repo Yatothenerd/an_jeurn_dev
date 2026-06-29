@@ -29,7 +29,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <ClientThemeProvider>
       <div className="app-shell">
         <aside className="app-sidebar">
-          <div style={s.brand}>Anjeurn</div>
+          <div style={s.brand}>
+            <img src="/logo/mark.svg" alt="Anjeurn" style={{ height: 36, display: "block" }} />
+          </div>
 
           {activePackage && <div style={s.pkgBadge}>{activePackage.package.name}</div>}
 
@@ -72,12 +74,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
 const s = {
   brand: {
-    fontWeight: 700,
-    fontSize: "1.125rem",
-    color: "var(--c-text)",
     marginBottom: "0.75rem",
     paddingLeft: "0.75rem",
-    letterSpacing: "-0.02em",
   },
   pkgBadge: {
     fontSize: "0.75rem",

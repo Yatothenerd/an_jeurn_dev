@@ -26,6 +26,7 @@ interface Props {
   gateOverlay?: { enabled: boolean; color: string; opacity: number };
   revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
   scrollGuide?: boolean;
+  scrollToContent?: boolean;
   position?: "top" | "center" | "bottom";
   blur?: number;
   showGuestName?: boolean;
@@ -37,7 +38,7 @@ interface Props {
 
 export function InviteGate({
   eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, gateOverlay,
-  revealStyle = "fade", scrollGuide = true,
+  revealStyle = "fade", scrollGuide = true, scrollToContent = false,
   position = "center", blur = 0,
   showGuestName = true, guestFrameUrl, showMonogram = true,
   elementPositions,
@@ -59,11 +60,13 @@ export function InviteGate({
     setPhase("opening");
     setTimeout(() => {
       setPhase("open");
-      // Trigger section entrance animations now that gate is dismissed
       shellRef.current?.classList.add("inv-animate");
       if (scrollGuide && !sessionStorage.getItem("inv-guide-seen")) {
         setGuide(true);
         sessionStorage.setItem("inv-guide-seen", "1");
+      }
+      if (scrollToContent) {
+        setTimeout(() => window.scrollTo({ top: window.innerHeight, behavior: "smooth" }), 150);
       }
     }, 850);
   }

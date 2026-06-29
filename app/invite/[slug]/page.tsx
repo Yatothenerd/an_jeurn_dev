@@ -510,6 +510,7 @@ export default async function InvitePage({
           gateOverlay={gateOverlay}
           revealStyle={revealStyle}
           scrollGuide={scrollGuide}
+          scrollToContent={keepCoverAfterOpen}
           position={gatePosition}
           blur={backgroundBlur}
           showGuestName={showGuestName}

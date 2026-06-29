@@ -28,7 +28,7 @@ export interface Background {
 }
 
 /** Cover text element — freely drag-positioned on the cover. */
-export interface CoverBlock { id: string; text: string; font: string; color: string; size: number; pos: Pos }
+export interface CoverBlock { id: string; text: string; textEn?: string; font: string; color: string; size: number; pos: Pos }
 /** A text cell inside a content section (font + color per box). */
 export interface SectionBlock { id: string; text: string; font: string; color: string; nowrap?: boolean }
 /** Monogram / logo image shown on cover and/or content. */
@@ -47,14 +47,30 @@ export type SectionKind = "wording" | "agenda" | "memory" | "aba" | "map" | "wis
 export interface Section {
   id: string; name: string; kind: SectionKind; visible: boolean; showTitle: boolean; mode: Mode;
   blocks: SectionBlock[];        // text-mode content (rows), flowed into `columns`
+  blocksEn?: SectionBlock[];     // EN parallel — falls back to blocks when not set
   columns: 1 | 2 | 3;
   imageUrl: string; imageScalePct: number;   // photo mode + its scale
+  imageUrlEn?: string;           // EN photo — falls back to imageUrl when not set
   agenda: AgendaItem[];
   gallery: string[];                          // memory
   aba: { qrUrl: string; name: string; note: string };
   map: { url: string; imageUrl: string };
   wishing: { placeholder: string };
   anim: SectionAnim;             // entrance animation when scrolled into view
+}
+
+export interface MusicState {
+  url: string;
+  playAfterVideoEnd: boolean;
+  playOnLoad: boolean;
+  playOnScroll: boolean;
+}
+
+export interface OverlayButtons {
+  playPause: boolean;
+  map: boolean;
+  wishGift: boolean;
+  scrollBack: boolean;
 }
 
 export interface BuilderState {
@@ -65,6 +81,9 @@ export interface BuilderState {
   coverGuide: GuideState; contentGuide: GuideState;
   monogram: Monogram;
   guestName: GuestNamePreset;
+  music: MusicState;
+  overlayButtons: OverlayButtons;
+  outerBg: Background;
 }
 
 // ── Background layer ────────────────────────────────────────────────────────────
@@ -130,46 +149,255 @@ export function PvSetup({ st }: { st: BuilderState }) {
 
 export type CoverMoveKind = "block" | "open" | "mono" | "guest";
 
-export function PvCover({ st, editable = false, onMoveCover, onOpen, animKey, locked, onVideoEnded, guestNameValue }: {
+function pvHex(c: string): string {
+  if (!c) return "#ffffff";
+  if (/^#[0-9a-f]{3,8}$/i.test(c.trim())) return c.trim().slice(0, 7);
+  const m = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (m) { const h = (n: string) => (+n).toString(16).padStart(2, "0"); return `#${h(m[1])}${h(m[2])}${h(m[3])}`; }
+  return "#ffffff";
+}
+
+function BlockTextEdit({ text, onChange, onClose }: {
+  text: string; onChange: (t: string) => void; onClose: () => void;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.textContent = text;
+    el.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    if (sel) { range.selectNodeContents(el); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); }
+  // only run on mount — don't reset content on every render
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <span ref={ref} contentEditable suppressContentEditableWarning className="pv-blockedit"
+      onInput={() => onChange(ref.current?.textContent ?? "")}
+      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } e.stopPropagation(); }} />
+  );
+}
+
+function TransformHandles({
+  coverRef, blockEl, centerXPct, centerYPct,
+  onHandleDown,
+}: {
+  coverRef: React.RefObject<HTMLDivElement>;
+  blockEl: HTMLElement | null;
+  centerXPct: number; centerYPct: number;
+  onHandleDown: (e: React.PointerEvent) => void;
+}) {
+  const [box, setBox] = useState<{ l: number; t: number; w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!blockEl || !coverRef.current) { setBox(null); return; }
+    const measure = () => {
+      if (!coverRef.current) return;
+      const cr = coverRef.current.getBoundingClientRect();
+      const ir = blockEl.getBoundingClientRect();
+      setBox({
+        l: (ir.left - cr.left) / cr.width * 100,
+        t: (ir.top - cr.top) / cr.height * 100,
+        w: ir.width / cr.width * 100,
+        h: ir.height / cr.height * 100,
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(blockEl);
+    return () => ro.disconnect();
+  }, [blockEl, coverRef]);
+  if (!box) return null;
+  const { l, t, w, h } = box;
+  const corners = [
+    { x: l,     y: t,     cur: "nw-resize" },
+    { x: l + w, y: t,     cur: "ne-resize" },
+    { x: l + w, y: t + h, cur: "se-resize" },
+    { x: l,     y: t + h, cur: "sw-resize" },
+  ];
+  const handleDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (!coverRef.current) return;
+    const cr = coverRef.current.getBoundingClientRect();
+    const cx = cr.left + cr.width * (centerXPct / 100);
+    const cy = cr.top + cr.height * (centerYPct / 100);
+    // record center on the pointer event so caller can compute startDist
+    (e as unknown as { _cx: number; _cy: number })._cx = cx;
+    (e as unknown as { _cx: number; _cy: number })._cy = cy;
+    onHandleDown(e);
+    coverRef.current.setPointerCapture(e.pointerId);
+  };
+  return (
+    <>
+      <div className="pv-transform-box" style={{ left: `${l}%`, top: `${t}%`, width: `${w}%`, height: `${h}%` }} />
+      {corners.map((c, i) => (
+        <div key={i} className="pv-transform-handle" style={{ left: `${c.x}%`, top: `${c.y}%`, cursor: c.cur }}
+          onPointerDown={handleDown} />
+      ))}
+    </>
+  );
+}
+
+export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, fontOptions, onResizeMono, onOpen, animKey, locked, onVideoEnded, guestNameValue, lang = "kh" }: {
   st: BuilderState; editable?: boolean;
   onMoveCover?: (kind: CoverMoveKind, id: string | undefined, xPct: number, yPct: number) => void;
+  onEditCoverBlock?: (id: string, p: Partial<CoverBlock>) => void;
+  fontOptions?: { label: string; stack: string }[];
+  onResizeMono?: (scalePct: number) => void;
   onOpen?: () => void; animKey?: number; locked?: boolean; onVideoEnded?: () => void; guestNameValue?: string;
+  lang?: "kh" | "en";
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ kind: CoverMoveKind; id?: string } | null>(null);
+  const blockEls = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Extended internal drag state — includes resize kinds not exported on CoverMoveKind
+  type DragState = { kind: CoverMoveKind | "block-resize" | "mono-resize"; id?: string; startSize?: number; startDist?: number; startCx?: number; startCy?: number };
+  const drag = useRef<DragState | null>(null);
+  const moved = useRef(false);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null); // block id or "mono"
   const mono = st.monogram;
   const gn = st.guestName;
 
   const move = (e: React.PointerEvent) => {
-    if (!drag.current || !ref.current || !onMoveCover) return;
+    if (!drag.current || !ref.current) return;
+    const d = drag.current;
+
+    if (d.kind === "block-resize" || d.kind === "mono-resize") {
+      if ((d.startDist ?? 0) < 2) { moved.current = true; return; }
+      const dist = Math.sqrt((e.clientX - (d.startCx ?? 0)) ** 2 + (e.clientY - (d.startCy ?? 0)) ** 2);
+      const ratio = dist / d.startDist!;
+      if (d.kind === "block-resize") {
+        const sz = Math.max(10, Math.min(100, Math.round((d.startSize ?? 16) * ratio)));
+        onEditCoverBlock?.(d.id!, { size: sz });
+      } else {
+        const sc = Math.max(5, Math.min(90, Math.round((d.startSize ?? 22) * ratio)));
+        onResizeMono?.(sc);
+      }
+      moved.current = true;
+      return;
+    }
+
+    if (!onMoveCover) return;
+    if (!moved.current && startPos.current) {
+      if (Math.abs(e.clientX - startPos.current.x) < 5 && Math.abs(e.clientY - startPos.current.y) < 5) return;
+      moved.current = true;
+    }
+    if (!moved.current) return;
     const r = ref.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
-    onMoveCover(drag.current.kind, drag.current.id, x, y);
+    onMoveCover(d.kind as CoverMoveKind, d.id, x, y);
   };
   const start = (kind: CoverMoveKind, id?: string) => (e: React.PointerEvent) => {
     if (!editable) return;
     drag.current = { kind, id };
+    moved.current = false;
+    startPos.current = { x: e.clientX, y: e.clientY };
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
-  const end = () => { drag.current = null; };
+  const end = () => {
+    const d = drag.current;
+    const wasDrag = moved.current;
+    drag.current = null;
+    if (!editable) return;
+    if (d?.kind === "block-resize" || d?.kind === "mono-resize") return; // stay active after resize
+    if (!wasDrag && d?.kind === "block" && d.id) {
+      setActiveId((prev) => (prev === d.id ? null : d.id!));
+    } else if (!wasDrag && d?.kind === "mono") {
+      setActiveId((prev) => (prev === "mono" ? null : "mono"));
+    } else {
+      setActiveId(null);
+    }
+  };
+
+  // Called by TransformHandles corner onPointerDown — center coords are injected
+  const startResize = (id: string | "mono", currentSize: number) => (e: React.PointerEvent) => {
+    const ex = (e as unknown as { _cx?: number })._cx;
+    const ey = (e as unknown as { _cy?: number })._cy;
+    const cx = ex ?? e.clientX;
+    const cy = ey ?? e.clientY;
+    const dist = Math.sqrt((e.clientX - cx) ** 2 + (e.clientY - cy) ** 2);
+    drag.current = {
+      kind: id === "mono" ? "mono-resize" : "block-resize",
+      id,
+      startSize: currentSize,
+      startDist: Math.max(dist, 10), // minimum threshold
+      startCx: cx, startCy: cy,
+    };
+    moved.current = false;
+    startPos.current = { x: e.clientX, y: e.clientY };
+  };
 
   return (
     <div ref={ref} className="pv-cover" onPointerMove={move} onPointerUp={end}>
       <BackgroundLayer bg={st.coverBg} onVideoEnded={onVideoEnded} />
       <div className={`pv-cover-stage anim-${st.anim}`} key={animKey}>
         {mono.showCover && mono.url && (
-          <img className="pv-mono" data-edit={editable} src={mono.url} alt="" draggable={false}
+          <img className="pv-mono" data-edit={editable}
+            data-active={editable && activeId === "mono"}
+            src={mono.url} alt="" draggable={false}
             style={{ left: `${mono.pos.xPct}%`, top: `${mono.pos.yPct}%`, width: `${mono.scalePct}%` }}
             onPointerDown={start("mono")} />
         )}
-        {st.coverBlocks.map((b) => (
-          <div key={b.id} className="pv-coverblock" data-edit={editable}
-            style={{ left: `${b.pos.xPct}%`, top: `${b.pos.yPct}%`, fontFamily: b.font, color: b.color, fontSize: b.size }}
-            onPointerDown={start("block", b.id)}>
-            {b.text}
-          </div>
-        ))}
+        {mono.showCover && mono.url && editable && activeId === "mono" && (
+          <TransformHandles
+            coverRef={ref}
+            blockEl={ref.current?.querySelector<HTMLElement>(".pv-mono[data-active='true']") ?? null}
+            centerXPct={mono.pos.xPct}
+            centerYPct={mono.pos.yPct}
+            onHandleDown={startResize("mono", mono.scalePct)}
+          />
+        )}
+        {st.coverBlocks.map((b) => {
+          const displayText = (lang === "en" && b.textEn) ? b.textEn : b.text;
+          const isActive = editable && activeId === b.id && !!onEditCoverBlock;
+          return (
+            <div key={b.id}
+              ref={(el) => { if (el) blockEls.current.set(b.id, el); else blockEls.current.delete(b.id); }}
+              className={`pv-coverblock${isActive ? " pv-coverblock-active" : ""}`}
+              data-edit={editable}
+              style={{ left: `${b.pos.xPct}%`, top: `${b.pos.yPct}%`, fontFamily: b.font, color: b.color, fontSize: b.size }}
+              onPointerDown={start("block", b.id)}>
+              {isActive
+                ? <BlockTextEdit
+                    text={lang === "en" ? (b.textEn ?? b.text) : b.text}
+                    onChange={(t) => onEditCoverBlock!(b.id, lang === "en" ? { textEn: t } : { text: t })}
+                    onClose={() => setActiveId(null)} />
+                : displayText}
+              {isActive && (
+                <div className="pv-blocktoolbar" onPointerDown={(e) => e.stopPropagation()}
+                  style={{ [b.pos.yPct < 55 ? "top" : "bottom"]: "calc(100% + 8px)" }}>
+                  {fontOptions && fontOptions.length > 0 && (
+                    <select className="pv-tsel" value={b.font}
+                      onChange={(e) => onEditCoverBlock!(b.id, { font: e.target.value })}>
+                      {fontOptions.map((f) => <option key={f.label} value={f.stack}>{f.label}</option>)}
+                    </select>
+                  )}
+                  <input type="number" className="pv-tnum" min={10} max={100} value={b.size}
+                    onChange={(e) => onEditCoverBlock!(b.id, { size: +e.target.value })} />
+                  <span className="pv-tclrdot" style={{ background: b.color }}>
+                    <input type="color" value={pvHex(b.color)}
+                      onChange={(e) => onEditCoverBlock!(b.id, { color: e.target.value })} />
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {/* Transform handles for active block (rendered outside block div so they're in pv-cover-stage) */}
+        {editable && activeId && activeId !== "mono" && !!onEditCoverBlock && (() => {
+          const b = st.coverBlocks.find(bl => bl.id === activeId);
+          if (!b) return null;
+          return (
+            <TransformHandles
+              coverRef={ref}
+              blockEl={blockEls.current.get(activeId) ?? null}
+              centerXPct={b.pos.xPct}
+              centerYPct={b.pos.yPct}
+              onHandleDown={startResize(b.id, b.size)}
+            />
+          );
+        })()}
         {gn.enabled && (
           <div className="pv-guestname" data-edit={editable}
             style={{ left: `${gn.pos.xPct}%`, top: `${gn.pos.yPct}%`, fontFamily: gn.font, color: gn.color, fontSize: gn.size }}
@@ -192,10 +420,11 @@ export function PvCover({ st, editable = false, onMoveCover, onOpen, animKey, lo
 
 // ── Content body ────────────────────────────────────────────────────────────────
 
-export function PvContent({ st, editable = false, onEditBlock, onReorder }: {
+export function PvContent({ st, editable = false, onEditBlock, onReorder, lang = "kh" }: {
   st: BuilderState; editable?: boolean;
   onEditBlock?: (secId: string, blockId: string, text: string) => void;
   onReorder?: (from: number, to: number) => void;
+  lang?: "kh" | "en";
 }) {
   const dragFrom = useRef<number | null>(null);
   const visible = st.sections.map((s, i) => ({ s, i })).filter(({ s }) => s.visible);
@@ -217,7 +446,7 @@ export function PvContent({ st, editable = false, onEditBlock, onReorder }: {
               <img className="pv-mono-content" src={mono.url} alt="" style={{ width: `${mono.scalePct}%` }} />
             )}
             {s.showTitle && <div className="pv-secname">{s.name}</div>}
-            <SectionBody s={s} editable={editable} onEditBlock={onEditBlock} />
+            <SectionBody s={s} editable={editable} onEditBlock={onEditBlock} lang={lang} />
           </div>
           </Reveal>
         ))}
@@ -226,15 +455,16 @@ export function PvContent({ st, editable = false, onEditBlock, onReorder }: {
   );
 }
 
-function SectionBody({ s, editable, onEditBlock }: {
-  s: Section; editable: boolean; onEditBlock?: (secId: string, blockId: string, text: string) => void;
+function SectionBody({ s, editable, onEditBlock, lang = "kh" }: {
+  s: Section; editable: boolean; onEditBlock?: (secId: string, blockId: string, text: string) => void; lang?: "kh" | "en";
 }) {
   const scalePct = Number.isFinite(s.imageScalePct) ? Math.min(100, Math.max(10, s.imageScalePct)) : 100;
   const scaled = (url: string) => <img src={url} alt="" className="pv-secimg" style={{ width: `${scalePct}%`, maxWidth: "100%", margin: "0 auto" }} />;
 
-  // Photo mode turns ANY section into a single uploaded image.
+  // Photo mode — use EN image if set and lang=en, else KH/default image
   if (s.mode === "photo") {
-    return s.imageUrl ? scaled(s.imageUrl) : <div className="pv-secph">Image</div>;
+    const url = (lang === "en" && s.imageUrlEn) ? s.imageUrlEn : s.imageUrl;
+    return url ? scaled(url) : <div className="pv-secph">Image</div>;
   }
 
   switch (s.kind) {
@@ -280,19 +510,62 @@ function SectionBody({ s, editable, onEditBlock }: {
       );
     case "rsvp":
       return <div className="pv-rsvp"><div className="pv-inlinebtn pv-rsvp-btn">RSVP</div></div>;
-    default:
+    default: {
+      const activeBlocks = (lang === "en" && s.blocksEn && s.blocksEn.length) ? s.blocksEn : s.blocks;
       return (
         <div className="pv-sectext" style={{ columnCount: s.columns }}>
-          {s.blocks.map((bl) => (
+          {activeBlocks.map((bl) => (
             <div key={bl.id} className="pv-textblock" style={{ fontFamily: bl.font, color: bl.color, whiteSpace: bl.nowrap ? "pre" : "pre-line" }}
-              contentEditable={editable} suppressContentEditableWarning
-              onBlur={editable && onEditBlock ? (e) => onEditBlock(s.id, bl.id, e.currentTarget.textContent ?? "") : undefined}>
+              contentEditable={editable && lang !== "en"} suppressContentEditableWarning
+              onBlur={editable && lang !== "en" && onEditBlock ? (e) => onEditBlock(s.id, bl.id, e.currentTarget.textContent ?? "") : undefined}>
               {bl.text}
             </div>
           ))}
         </div>
       );
+    }
   }
+}
+
+// ── Language switcher (live invite) ─────────────────────────────────────────────
+
+export function LangSwitcher({ lang, onChange }: { lang: "kh" | "en"; onChange: (l: "kh" | "en") => void }) {
+  return (
+    <div className="pv-langsw">
+      <button type="button" className="pv-langsw-btn" data-on={lang === "kh"} onClick={() => onChange("kh")}>ខ្មែរ</button>
+      <button type="button" className="pv-langsw-btn" data-on={lang === "en"} onClick={() => onChange("en")}>EN</button>
+    </div>
+  );
+}
+
+// ── Floating overlay buttons (live invite + admin preview) ──────────────────────
+
+export function FloatingOverlayButtons({ ob, onPlayPause, isPlaying, onScrollBack, onMap, onWish, preview = false }: {
+  ob: OverlayButtons;
+  onPlayPause?: () => void; isPlaying?: boolean;
+  onScrollBack?: () => void; onMap?: () => void; onWish?: () => void;
+  preview?: boolean;
+}) {
+  const visible = ob.playPause || ob.map || ob.wishGift || ob.scrollBack;
+  if (!visible) return null;
+  return (
+    <div className={`pv-floatbtns${preview ? " pv-floatbtns-preview" : ""}`}>
+      {ob.playPause && (
+        <button type="button" className="pv-floatbtn" onClick={onPlayPause} title={isPlaying ? "Pause" : "Play music"}>
+          {isPlaying ? "⏸" : "▶"}
+        </button>
+      )}
+      {ob.map && (
+        <button type="button" className="pv-floatbtn" onClick={onMap} title="Map">🗺</button>
+      )}
+      {ob.wishGift && (
+        <button type="button" className="pv-floatbtn" onClick={onWish} title="Wish & Gift">🎁</button>
+      )}
+      {ob.scrollBack && (
+        <button type="button" className="pv-floatbtn" onClick={onScrollBack} title="Scroll back">↑</button>
+      )}
+    </div>
+  );
 }
 
 // ── Hover guide overlay (one instance per context: cover or content) ─────────────
@@ -433,6 +706,30 @@ export const canvasStyles = `
 @keyframes secFade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes secSlideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 @keyframes secZoom { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+
+/* Click-to-edit block (active state + toolbar) */
+.pv-coverblock-active { outline: 1.5px solid rgba(255,255,255,0.9) !important; border-radius: 4px; }
+.pv-blockedit { display: block; outline: none; min-width: 40px; text-align: center; white-space: pre-wrap; background: transparent; border: none; color: inherit; font: inherit; cursor: text; }
+.pv-blocktoolbar { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; background: rgba(8,8,14,0.9); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; padding: 4px 6px; white-space: nowrap; z-index: 20; backdrop-filter: blur(10px); pointer-events: auto; }
+.pv-tsel { font-size: 0.68rem; background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 5px; padding: 2px 4px; max-width: 88px; outline: none; cursor: pointer; }
+.pv-tnum { width: 36px; font-size: 0.68rem; background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 5px; padding: 2px 4px; text-align: center; outline: none; }
+.pv-tclrdot { position: relative; width: 18px; height: 18px; border-radius: 4px; overflow: hidden; display: inline-block; cursor: pointer; border: 1px solid rgba(255,255,255,0.3); flex-shrink: 0; }
+.pv-tclrdot input[type="color"] { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); opacity: 0; cursor: pointer; }
+
+/* Floating overlay buttons (live invite) */
+.pv-floatbtns { position: fixed; bottom: 1.5rem; right: 1rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 50; }
+.pv-floatbtns-preview { position: absolute; bottom: 1rem; right: 0.5rem; }
+.pv-floatbtn { width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(15,15,25,0.78); color: #fff; font-size: 1rem; cursor: pointer; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+
+/* Transform handles (scale / resize) */
+.pv-transform-box { position: absolute; pointer-events: none; border: 1.5px dashed rgba(255,255,255,0.7); box-sizing: border-box; z-index: 15; border-radius: 2px; }
+.pv-transform-handle { position: absolute; width: 10px; height: 10px; background: #fff; border: 1.5px solid rgba(0,0,0,0.4); border-radius: 2px; transform: translate(-50%, -50%); z-index: 16; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+.pv-transform-handle:hover { background: #a0cfff; }
+
+/* Language switcher pill (live invite) */
+.pv-langsw { position: fixed; top: 0.75rem; right: 0.75rem; display: flex; z-index: 60; gap: 2px; background: rgba(10,10,20,0.6); border-radius: 999px; padding: 3px; backdrop-filter: blur(8px); }
+.pv-langsw-btn { padding: 0.25rem 0.65rem; border-radius: 999px; border: none; background: transparent; color: rgba(255,255,255,0.6); font-size: 0.75rem; font-weight: 700; cursor: pointer; letter-spacing: 0.04em; }
+.pv-langsw-btn[data-on="true"] { background: rgba(255,255,255,0.18); color: #fff; }
 
 /* Hover guide */
 .pv-guide { position: absolute; inset: 0; z-index: 6; pointer-events: none; }

@@ -60,7 +60,7 @@ export function AdminShell({ children, userName = "Admin" }: { children: React.R
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-brand">
-          <span className="admin-brand-name">DASHBOARD</span>
+          <img src="/logo/mark.svg" alt="Anjeurn" style={{ height: 34, display: "block" }} />
         </div>
 
         {GROUPS.map((g) => {
