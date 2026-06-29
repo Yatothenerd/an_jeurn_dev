@@ -170,9 +170,19 @@ function hex(c: string): string {
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-interface Props { event: EventData; invitation: InvitationData | null }
+interface Props {
+  event: EventData;
+  invitation: InvitationData | null;
+  /**
+   * When set, the builder edits a reusable Template instead of a real event:
+   * Save persists the design snapshot to /api/admin/templates/[id] and the
+   * Publish button is hidden (templates aren't published).
+   */
+  templateMode?: { templateId: string };
+}
 
-export function EventBuilder({ event, invitation }: Props) {
+export function EventBuilder({ event, invitation, templateMode }: Props) {
+  const isTemplate = !!templateMode;
   const [tab, setTab] = useState<TabId>("setup");
   const [st, setSt] = useState<BuilderState>(() => {
     const base = freshState(event);
@@ -241,19 +251,33 @@ export function EventBuilder({ event, invitation }: Props) {
       const imgOf = (b: Background) => ((b.kind === "photo" || b.kind === "gif") && b.imageUrl ? b.imageUrl : undefined);
       const coverUrl = imgOf(st.coverBg);
       const backgroundUrl = imgOf(st.contentBg);
-      const res = await fetch(`/api/admin/events/${event.id}`, {
+
+      // Template mode: persist the design snapshot to the template, not an event.
+      // No event identity or publish — those are applied per-event later.
+      const url = isTemplate
+        ? `/api/admin/templates/${templateMode!.templateId}`
+        : `/api/admin/events/${event.id}`;
+      const body = isTemplate
+        ? {
+            overlayConfig: { ...(invitation?.overlayConfig ?? {}), builderDraft: st },
+            isAnimated: true,
+            coverUrl: coverUrl ?? null,
+            backgroundUrl: backgroundUrl ?? null,
+          }
+        : {
+            title: st.eventName.trim(), eventType: st.eventType,
+            eventDate: st.dateTime ? new Date(st.dateTime).toISOString() : undefined,
+            // Non-destructive: keep existing overlay fields, store the builder draft
+            // (the live invite renders from this).
+            overlayConfig: { ...(invitation?.overlayConfig ?? {}), builderDraft: st },
+            isAnimated: true,
+            ...(coverUrl ? { coverUrl } : {}),
+            ...(backgroundUrl ? { backgroundUrl } : {}),
+            ...(publish ? { isPublished: true } : {}),
+          };
+      const res = await fetch(url, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: st.eventName.trim(), eventType: st.eventType,
-          eventDate: st.dateTime ? new Date(st.dateTime).toISOString() : undefined,
-          // Non-destructive: keep existing overlay fields, store the builder draft
-          // (the live invite renders from this).
-          overlayConfig: { ...(invitation?.overlayConfig ?? {}), builderDraft: st },
-          isAnimated: true,
-          ...(coverUrl ? { coverUrl } : {}),
-          ...(backgroundUrl ? { backgroundUrl } : {}),
-          ...(publish ? { isPublished: true } : {}),
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const d = (await res.json().catch(() => ({}))) as { error?: string };
@@ -316,11 +340,16 @@ export function EventBuilder({ event, invitation }: Props) {
 
           <div className="eb-savebar">
             <span className="eb-muted" style={err ? { color: "#dc2626" } : saved ? { color: "#16a34a" } : undefined}>
-              {err ? `⚠ ${err}` : saved ? "✓ Saved to event" : saving ? "Saving…" : "Saved to this event's invitation"}
+              {err ? `⚠ ${err}`
+                : saved ? (isTemplate ? "✓ Saved template" : "✓ Saved to event")
+                : saving ? "Saving…"
+                : isTemplate ? "Saved as a reusable template" : "Saved to this event's invitation"}
             </span>
             <div className="eb-rowgap">
-              <button type="button" className="eb-btn-ghost" disabled={saving} onClick={() => save(false)}>Save</button>
-              {!invitation?.isPublished && (
+              <button type="button" className="eb-btn-ghost" disabled={saving} onClick={() => save(false)}>
+                {isTemplate ? "Save template" : "Save"}
+              </button>
+              {!isTemplate && !invitation?.isPublished && (
                 <button type="button" className="eb-btn-primary" disabled={saving} onClick={() => save(true)}>Save &amp; Publish ↗</button>
               )}
             </div>

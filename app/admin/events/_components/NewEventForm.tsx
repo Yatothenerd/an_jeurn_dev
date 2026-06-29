@@ -7,15 +7,28 @@ interface Client {
   id: string;
   name: string;
   email: string;
+  packageId: string | null;
   packageName: string | null;
+}
+interface TemplateOption {
+  id: string;
+  name: string;
+  packageIds: string[];
 }
 
 const EVENT_TYPES = ["Wedding", "Engagement", "Birthday", "Anniversary", "Corporate", "Other"];
 
-export function NewEventForm({ clients }: { clients: Client[] }) {
+export function NewEventForm({ clients, templates = [] }: { clients: Client[]; templates?: TemplateOption[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [clientId, setClientId] = useState("");
+
+  // Offer only templates allowed for the selected client's package.
+  const selected = clients.find((c) => c.id === clientId);
+  const availableTemplates = selected?.packageId
+    ? templates.filter((t) => t.packageIds.includes(selected.packageId!))
+    : [];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -34,6 +47,7 @@ export function NewEventForm({ clients }: { clients: Client[] }) {
           eventDate: fd.get("eventDate"),
           venueName: fd.get("venueName") || null,
           venueMapUrl: fd.get("venueMapUrl") || null,
+          templateId: fd.get("templateId") || null,
         }),
       });
       const d = await res.json();
@@ -62,7 +76,13 @@ export function NewEventForm({ clients }: { clients: Client[] }) {
     <form onSubmit={handleSubmit} className="brand-panel brand-form">
       <label className="brand-field">
         <span>Client</span>
-        <select name="userId" required defaultValue="" className="brand-input">
+        <select
+          name="userId"
+          required
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+          className="brand-input"
+        >
           <option value="" disabled>Select a client…</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
@@ -70,6 +90,23 @@ export function NewEventForm({ clients }: { clients: Client[] }) {
             </option>
           ))}
         </select>
+      </label>
+
+      <label className="brand-field">
+        <span>Template theme <small>(optional)</small></span>
+        <select name="templateId" defaultValue="" className="brand-input" disabled={!selected}>
+          <option value="">Start blank</option>
+          {availableTemplates.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        <small style={{ color: "var(--c-muted)", fontSize: "0.75rem" }}>
+          {!selected
+            ? "Pick a client first to see templates for their package."
+            : availableTemplates.length === 0
+              ? "No templates tagged for this client's package yet."
+              : "Applies the template's design to the new invitation."}
+        </small>
       </label>
 
       <label className="brand-field">

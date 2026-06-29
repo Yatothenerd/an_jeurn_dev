@@ -70,6 +70,7 @@ model Package {
   createdAt        DateTime         @default(now()) @map("created_at")
 
   userPackages     UserPackage[]
+  templates        PackageTemplate[]
 
   @@map("packages")
 }
@@ -193,4 +194,44 @@ model Guest {
   event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@map("guests")
+}
+
+// A reusable design preset ("template theme"). It captures the same design bundle
+// an Invitation holds (overlayConfig, section layout, background/cover assets) but
+// no event-specific content. Admins build these in the Theme Builder and tag them
+// to packages; a client/admin can then apply one to a real event's invitation.
+model Template {
+  id                 String   @id @default(cuid())
+  name               String
+  contentType        String?  @default("photo") @map("content_type")
+  defaultSections    Json?    @map("default_sections")
+  overlayConfig      Json?    @map("overlay_config")
+  backgroundUrl      String?  @map("background_url")
+  backgroundVideoUrl String?  @map("background_video_url")
+  coverUrl           String?  @map("cover_url")
+  thumbnailUrl       String?  @map("thumbnail_url")
+  previewUrl         String?  @map("preview_url")
+  musicUrl           String?  @map("music_url")
+  isAnimated         Boolean  @default(false) @map("is_animated")
+  isActive           Boolean  @default(true)  @map("is_active")
+  sortOrder          Int      @default(0)     @map("sort_order")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  packages           PackageTemplate[]
+
+  @@map("templates")
+}
+
+// Join table tagging which packages may use a template (Package A, Package B, …).
+model PackageTemplate {
+  id         String   @id @default(cuid())
+  packageId  String   @map("package_id")
+  templateId String   @map("template_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  package    Package  @relation(fields: [packageId],  references: [id], onDelete: Cascade)
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([packageId, templateId])
+  @@map("package_templates")
 }

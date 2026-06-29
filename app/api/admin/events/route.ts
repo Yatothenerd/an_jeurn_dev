@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/services/auth.service";
 import { generateSlug } from "@/lib/utils/slug";
+import { TemplateService } from "@/lib/services/template.service";
 
 // Admin creates an event and assigns it to a client.
 // An empty invitation is auto-created; admin configures its content via EventWizard.
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { userId, title, eventType, eventDate, venueName, venueMapUrl } = await req.json();
+    const { userId, title, eventType, eventDate, venueName, venueMapUrl, templateId } = await req.json();
 
     if (!userId || !title || !eventType || !eventDate) {
       return NextResponse.json(
@@ -41,6 +42,15 @@ export async function POST(req: NextRequest) {
         invitation: { create: { shareLink, contentType: "photo" } },
       },
     });
+
+    // Optionally seed the new invitation's design from a template.
+    if (templateId) {
+      try {
+        await TemplateService.applyToEvent(templateId as string, event.id);
+      } catch (e) {
+        console.error("Template apply on create failed:", e);
+      }
+    }
 
     return NextResponse.json({ success: true, eventId: event.id }, { status: 201 });
   } catch (err) {

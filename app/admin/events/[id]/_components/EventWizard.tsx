@@ -826,14 +826,22 @@ const TAB_DESC: Record<WizardView, string> = {
 interface Props {
   event: EventData;
   invitation: InvitationData | null;
+  /**
+   * When set, the wizard edits a reusable Template instead of a real event:
+   * the Setup tab, gallery photo manager, share link and Publish are hidden,
+   * and Save persists the design bundle to /api/admin/templates/[id].
+   */
+  templateMode?: { templateId: string };
 }
 
-export function EventWizard({ event, invitation }: Props) {
+export function EventWizard({ event, invitation, templateMode }: Props) {
   const router = useRouter();
+  const isTemplate = !!templateMode;
+  const tabs = isTemplate ? TABS.filter((t) => t.id !== "setup") : TABS;
   // The editor follows the live preview: "landing" controls show when the preview
   // is on the Gate; everything else shows the sections view. Buttons & Assets get
   // their own tabs.
-  const [view, setView] = useState<WizardView>("setup");
+  const [view, setView] = useState<WizardView>(templateMode ? "landing" : "setup");
 
   // ── Event identity state
   const [eventTitle, setEventTitle]     = useState(event.title);
@@ -863,13 +871,15 @@ export function EventWizard({ event, invitation }: Props) {
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Templates don't own gallery photos — skip the event-scoped fetch.
+    if (isTemplate) return;
     fetch(`/api/admin/events/${event.id}/photos`)
       .then(r => r.json())
       .then((d: { photos?: Array<{ id: string; url: string; sortOrder: number }> }) => {
         setPhotos(d.photos ?? []);
       })
       .catch(() => {});
-  }, [event.id]);
+  }, [event.id, isTemplate]);
 
   async function uploadPhoto(file: File) {
     setPhotoUploading(true);
@@ -951,16 +961,27 @@ export function EventWizard({ event, invitation }: Props) {
         map: { ...overlay.map, imageUrl: mapImageUrl, url: overlay.map.inputType === "url" ? venueMapUrl : overlay.map.url },
       };
 
-      const payload: Record<string, unknown> = {
-        title: eventTitle.trim(), eventType, eventDate, venueName, venueMapUrl,
+      // Template mode persists only the design bundle (no event identity/publish).
+      const designPayload: Record<string, unknown> = {
         contentType, defaultSections: sections, overlayConfig: finalOverlay,
         backgroundUrl: bgAssetType === "image" ? bgImageUrl : null,
         backgroundVideoUrl: bgAssetType === "video" ? bgVideoUrl : null,
         coverUrl, thumbnailUrl: thumbUrl, previewUrl, musicUrl,
+        isAnimated: !!bgVideoUrl,
       };
-      if (publish) payload.isPublished = true;
 
-      const res = await fetch(`/api/admin/events/${event.id}`, {
+      const payload: Record<string, unknown> = isTemplate
+        ? designPayload
+        : {
+            title: eventTitle.trim(), eventType, eventDate, venueName, venueMapUrl,
+            ...designPayload,
+            ...(publish ? { isPublished: true } : {}),
+          };
+
+      const url = isTemplate
+        ? `/api/admin/templates/${templateMode!.templateId}`
+        : `/api/admin/events/${event.id}`;
+      const res = await fetch(url, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       if (!res.ok) { const d = await res.json() as { error?: string }; setError(d.error ?? "Failed to save"); return; }
@@ -1025,7 +1046,7 @@ export function EventWizard({ event, invitation }: Props) {
       <div className="ev-head">
         <div className="ev-head-inner">
           <div className="ev-tabrow">
-            {TABS.map((tb) => (
+            {tabs.map((tb) => (
               <button
                 key={tb.id}
                 type="button"
@@ -1452,7 +1473,9 @@ export function EventWizard({ event, invitation }: Props) {
               <FilePicker label="Background music" hint="Ambient audio played while guests browse — MP3, WAV, AAC (≤ 20 MB)" accept="audio/mpeg,audio/mp3,audio/wav,audio/aac,audio/ogg" file={musicFile} setFile={setMusicFile} />
               <p style={{ ...w.note, fontSize: "0.8125rem" }}>The cover image is set in <strong>Sections → Cover</strong>; it also becomes the landing-page background.</p>
 
-              {/* Gallery photos — saved immediately, no Save button needed */}
+              {/* Gallery photos — saved immediately, no Save button needed.
+                  Templates don't carry gallery photos, so hide this manager. */}
+              {!isTemplate && (
               <div style={{ border: "1px solid var(--c-border)", borderRadius: 10, overflow: "hidden" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.875rem 1rem", background: "var(--c-surface-2)" }}>
                   <div>
@@ -1503,6 +1526,7 @@ export function EventWizard({ event, invitation }: Props) {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Existing assets preview */}
               {invitation && (invitation.backgroundUrl || invitation.backgroundVideoUrl || invitation.coverUrl || invitation.thumbnailUrl || invitation.musicUrl) && (
@@ -1545,13 +1569,13 @@ export function EventWizard({ event, invitation }: Props) {
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <button
                 type="button"
-                disabled={loading || !isDirty || !eventTitle.trim()}
+                disabled={loading || !isDirty || (!isTemplate && !eventTitle.trim())}
                 onClick={() => handleSave(false)}
-                style={{ ...w.saveBtn, opacity: isDirty && eventTitle.trim() ? 1 : 0.45 }}
+                style={{ ...w.saveBtn, opacity: isDirty && (isTemplate || eventTitle.trim()) ? 1 : 0.45 }}
               >
-                {loading ? "Saving…" : "Save"}
+                {loading ? "Saving…" : isTemplate ? "Save template" : "Save"}
               </button>
-              {!invitation?.isPublished && (
+              {!isTemplate && !invitation?.isPublished && (
                 <button type="button" disabled={loading} onClick={() => handleSave(true)} style={w.nextBtn}>
                   {loading ? "Publishing…" : "Save & Publish ↗"}
                 </button>

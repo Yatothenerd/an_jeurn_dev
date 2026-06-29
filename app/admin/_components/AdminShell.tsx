@@ -22,6 +22,7 @@ const GROUPS: { label: string; items: { href: string; icon: string; label: strin
     items: [
       { href: "/admin/events/new", icon: "new-invitation", label: "New Event" },
       { href: "/admin/events", icon: "theme", label: "Event Format" },
+      { href: "/admin/themes", icon: "theme", label: "Theme Builder" },
       { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
     ],
   },
