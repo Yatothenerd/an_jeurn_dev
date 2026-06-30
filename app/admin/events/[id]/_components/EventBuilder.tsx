@@ -246,6 +246,7 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [previewLang, setPreviewLang] = useState<"kh" | "en">("kh");
 
   const patch = useCallback((p: Partial<BuilderState>) => setSt((s) => ({ ...s, ...p })), []);
 
@@ -338,11 +339,12 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
 
           <div className="eb-panel">
             {tab === "setup" && <SetupTab st={st} patch={patch} />}
-            {tab === "cover" && <CoverTab st={st} patch={patch} setSt={setSt} onOpenTicket={() => { setCoverOpen(true); }} onReplay={replay} />}
+            {tab === "cover" && <CoverTab st={st} patch={patch} setSt={setSt} onOpenTicket={() => { setCoverOpen(true); }} onReplay={replay} editLang={previewLang} setEditLang={setPreviewLang} />}
             {tab === "content" && (
               <ContentTab st={st} patch={patch} setSection={setSection} addSection={addSection}
                 removeSection={removeSection} moveSection={moveSection}
-                setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} />
+                setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock}
+                editLang={previewLang} setEditLang={setPreviewLang} />
             )}
             {tab === "guide" && <GuideTab st={st} setSt={setSt} which={guideCtx} setWhich={setGuideCtx} />}
             {tab === "music" && <MusicTab st={st} patch={patch} />}
@@ -376,6 +378,7 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
             <DeviceFrame
               st={st} tab={tab} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
               editOnScreen={editOnScreen} setSt={setSt} moveSection={moveSection} guideCtx={guideCtx}
+              previewLang={previewLang} setPreviewLang={setPreviewLang}
             />
           </DraggableStage>
         </section>
@@ -393,6 +396,7 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
               <DeviceFrame
                 st={st} tab={tab} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
                 editOnScreen={editOnScreen} setSt={setSt} moveSection={moveSection} guideCtx={guideCtx} big
+                previewLang={previewLang} setPreviewLang={setPreviewLang}
               />
             </DraggableStage>
           </div>
@@ -466,10 +470,11 @@ function SetupTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderS
 
 // ── Cover tab ────────────────────────────────────────────────────────────────
 
-function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
+function CoverTab({ st, patch, setSt, onOpenTicket, onReplay, editLang = "kh", setEditLang }: {
   st: BuilderState; patch: (p: Partial<BuilderState>) => void;
   setSt: React.Dispatch<React.SetStateAction<BuilderState>>;
   onOpenTicket: () => void; onReplay: () => void;
+  editLang?: "kh" | "en"; setEditLang?: (l: "kh" | "en") => void;
 }) {
   const setBlock = (id: string, p: Partial<CoverBlock>) =>
     setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.map((b) => (b.id === id ? { ...b, ...p } : b)) }));
@@ -522,13 +527,19 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
 
       <div className="eb-card">
         <div className="eb-cardhead eb-rowbetween">Text blocks <button type="button" className="eb-add" onClick={addBlock}>+ Add block</button></div>
+        {st.langs.english && st.langs.khmer && setEditLang && (
+          <div className="eb-langtabs">
+            <button type="button" className="eb-langtab" data-on={editLang === "kh"} onClick={() => setEditLang("kh")}>ខ្មែរ</button>
+            <button type="button" className="eb-langtab" data-on={editLang === "en"} onClick={() => setEditLang("en")}>EN</button>
+          </div>
+        )}
         <div className="eb-stack">
           {st.coverBlocks.map((b) => (
             <div key={b.id} className="eb-block">
-              <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
-              {st.langs.english && (
-                <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
-              )}
+              {editLang === "en" && st.langs.english
+                ? <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)" }} />
+                : <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
+              }
               <div className="eb-blockctl">
                 <select className="eb-input eb-fontsel" style={{ fontFamily: b.font }} value={b.font} onChange={(e) => setBlock(b.id, { font: e.target.value })}>
                   {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
@@ -570,13 +581,14 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
 
 // ── Content tab ──────────────────────────────────────────────────────────────
 
-function ContentTab({ st, patch, setSection, addSection, removeSection, moveSection, setBlock, addBlock, removeBlock }: {
+function ContentTab({ st, patch, setSection, addSection, removeSection, moveSection, setBlock, addBlock, removeBlock, editLang = "kh", setEditLang }: {
   st: BuilderState; patch: (p: Partial<BuilderState>) => void;
   setSection: (id: string, p: Partial<Section>) => void;
   addSection: (kind?: SectionKind) => void; removeSection: (id: string) => void;
   moveSection: (from: number, to: number) => void;
   setBlock: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
   addBlock: (secId: string) => void; removeBlock: (secId: string, blockId: string) => void;
+  editLang?: "kh" | "en"; setEditLang?: (l: "kh" | "en") => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(st.sections[0]?.id ?? null);
   const dragFrom = useRef<number | null>(null);
@@ -589,6 +601,18 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
         <div className="eb-cardhead">Content Background</div>
         <BackgroundEditor value={st.contentBg} onChange={(b) => patch({ contentBg: b })} />
       </div>
+
+      {/* Language toggle for editing */}
+      {st.langs.english && st.langs.khmer && setEditLang && (
+        <div className="eb-card">
+          <div className="eb-cardhead">Editing language</div>
+          <div className="eb-langtabs">
+            <button type="button" className="eb-langtab" data-on={editLang === "kh"} onClick={() => setEditLang("kh")}>ខ្មែរ Khmer</button>
+            <button type="button" className="eb-langtab" data-on={editLang === "en"} onClick={() => setEditLang("en")}>English</button>
+          </div>
+          <p className="eb-muted eb-sm" style={{ margin: "0.5rem 0 0" }}>Switch between languages to edit each version of your content. The preview on the right updates to match.</p>
+        </div>
+      )}
 
       {/* Section panels */}
       <div className="eb-stack">
@@ -631,7 +655,7 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
                     </select>
                   </div>
 
-                  <SectionKindEditor sec={sec} setSection={setSection} setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} hasEnglish={st.langs.english} />
+                  <SectionKindEditor sec={sec} setSection={setSection} setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} hasEnglish={st.langs.english} editLang={editLang} />
 
                   {sec.kind === "custom" && (
                     <button type="button" className="eb-removelink" onClick={() => removeSection(sec.id)}>Remove section</button>
@@ -701,19 +725,21 @@ function GalleryEditor({ sec, setSection }: { sec: Section; setSection: (id: str
 }
 
 // Per-kind section editor (photo/text for freeform sections, dedicated UI for the rest).
-function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, hasEnglish = false }: {
+function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, hasEnglish = false, editLang = "kh" }: {
   sec: Section; setSection: (id: string, p: Partial<Section>) => void;
   setBlock: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
   addBlock: (secId: string) => void; removeBlock: (secId: string, blockId: string) => void;
-  hasEnglish?: boolean;
+  hasEnglish?: boolean; editLang?: "kh" | "en";
 }) {
+  const isEn = editLang === "en" && hasEnglish;
+
   if (sec.mode === "photo") {
     return (
       <div className="eb-stack">
-        <UploadBox label={hasEnglish ? "ខ្មែរ image" : "Section image"} value={sec.imageUrl} onChange={(url) => setSection(sec.id, { imageUrl: url })} />
-        {hasEnglish && (
-          <UploadBox label="English image" value={sec.imageUrlEn ?? ""} onChange={(url) => setSection(sec.id, { imageUrlEn: url })} />
-        )}
+        {isEn
+          ? <UploadBox label="English image" value={sec.imageUrlEn ?? ""} onChange={(url) => setSection(sec.id, { imageUrlEn: url })} />
+          : <UploadBox label={hasEnglish ? "ខ្មែរ image" : "Section image"} value={sec.imageUrl} onChange={(url) => setSection(sec.id, { imageUrl: url })} />
+        }
         <Slider label="Photo size" min={20} max={100} suffix="%" value={sec.imageScalePct} onChange={(v) => setSection(sec.id, { imageScalePct: v })} />
       </div>
     );
@@ -746,36 +772,57 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, h
         base[idx] = { ...base[idx], text };
         setSection(sec.id, { blocksEn: base });
       };
-      return (
-      <div className="eb-stack">
-        {sec.blocks.map((bl, idx) => (
-          <div key={bl.id} className="eb-block">
-            <textarea className="eb-input eb-textarea" value={bl.text} onChange={(e) => setBlock(sec.id, bl.id, { text: e.target.value })} placeholder={hasEnglish ? "ខ្មែរ text…" : "Text…"} />
-            {hasEnglish && (
-              <textarea className="eb-input eb-textarea" value={sec.blocksEn?.[idx]?.text ?? ""} onChange={(e) => setEnBlockText(idx, e.target.value)} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
-            )}
-            <div className="eb-blockctl">
-              <select className="eb-input eb-fontsel" style={{ fontFamily: bl.font }} value={bl.font} onChange={(e) => setBlock(sec.id, bl.id, { font: e.target.value })}>
-                {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
-              </select>
-              <ColorDot value={bl.color} onChange={(v) => setBlock(sec.id, bl.id, { color: v })} />
-              <button type="button" className="eb-iconbtn" title={bl.nowrap ? "No-wrap (tap to wrap)" : "Wrap (tap for no-wrap)"} onClick={() => setBlock(sec.id, bl.id, { nowrap: !bl.nowrap })}>{bl.nowrap ? "→" : "↵"}</button>
-              {sec.blocks.length > 1 && <button type="button" className="eb-iconbtn eb-danger" title="Remove row" onClick={() => removeBlock(sec.id, bl.id)}>✕</button>}
+
+      if (isEn) {
+        return (
+          <div className="eb-stack">
+            {sec.blocks.map((bl, idx) => (
+              <div key={bl.id} className="eb-block">
+                <textarea className="eb-input eb-textarea" value={sec.blocksEn?.[idx]?.text ?? ""} onChange={(e) => setEnBlockText(idx, e.target.value)} placeholder="English text…" style={{ borderColor: "var(--c-accent)" }} />
+              </div>
+            ))}
+            <div className="eb-rowbetween">
+              <span className="eb-muted eb-sm">Add / remove rows and style in ខ្មែរ mode — EN mirrors the structure.</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span className="eb-flbl">Columns</span>
+                <div className="eb-seg eb-segsm" style={{ width: 120 }}>
+                  {([1, 2, 3] as const).map((n) => (
+                    <button key={n} type="button" className="eb-segbtn" data-on={sec.columns === n} onClick={() => setSection(sec.id, { columns: n })}>{n}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-        ))}
-        <div className="eb-rowbetween">
-          <button type="button" className="eb-add" onClick={() => addBlock(sec.id)}>+ Add row</button>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <span className="eb-flbl">Columns</span>
-            <div className="eb-seg eb-segsm" style={{ width: 120 }}>
-              {([1, 2, 3] as const).map((n) => (
-                <button key={n} type="button" className="eb-segbtn" data-on={sec.columns === n} onClick={() => setSection(sec.id, { columns: n })}>{n}</button>
-              ))}
+        );
+      }
+
+      return (
+        <div className="eb-stack">
+          {sec.blocks.map((bl, idx) => (
+            <div key={bl.id} className="eb-block">
+              <textarea className="eb-input eb-textarea" value={bl.text} onChange={(e) => setBlock(sec.id, bl.id, { text: e.target.value })} placeholder={hasEnglish ? "ខ្មែរ text…" : "Text…"} />
+              <div className="eb-blockctl">
+                <select className="eb-input eb-fontsel" style={{ fontFamily: bl.font }} value={bl.font} onChange={(e) => setBlock(sec.id, bl.id, { font: e.target.value })}>
+                  {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
+                </select>
+                <ColorDot value={bl.color} onChange={(v) => setBlock(sec.id, bl.id, { color: v })} />
+                <button type="button" className="eb-iconbtn" title={bl.nowrap ? "No-wrap (tap to wrap)" : "Wrap (tap for no-wrap)"} onClick={() => setBlock(sec.id, bl.id, { nowrap: !bl.nowrap })}>{bl.nowrap ? "→" : "↵"}</button>
+                {sec.blocks.length > 1 && <button type="button" className="eb-iconbtn eb-danger" title="Remove row" onClick={() => removeBlock(sec.id, bl.id)}>✕</button>}
+              </div>
+            </div>
+          ))}
+          <div className="eb-rowbetween">
+            <button type="button" className="eb-add" onClick={() => addBlock(sec.id)}>+ Add row</button>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span className="eb-flbl">Columns</span>
+              <div className="eb-seg eb-segsm" style={{ width: 120 }}>
+                {([1, 2, 3] as const).map((n) => (
+                  <button key={n} type="button" className="eb-segbtn" data-on={sec.columns === n} onClick={() => setSection(sec.id, { columns: n })}>{n}</button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
       );
     }
   }
@@ -1061,10 +1108,11 @@ function DraggableStage({ children }: { children: React.ReactNode }) {
 const DEVICE_W = 375;
 const DEVICE_H = 812;
 
-function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, setSt, moveSection, guideCtx, big }: {
+function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, setSt, moveSection, guideCtx, big, previewLang, setPreviewLang }: {
   st: BuilderState; tab: TabId; animKey: number; coverOpen: boolean; setCoverOpen: (v: boolean) => void;
   editOnScreen: boolean; setSt: React.Dispatch<React.SetStateAction<BuilderState>>;
   moveSection: (from: number, to: number) => void; guideCtx: "cover" | "content"; big?: boolean;
+  previewLang: "kh" | "en"; setPreviewLang: (l: "kh" | "en") => void;
 }) {
   // Responsive scale: shrink the 375px frame to fit its container.
   // Measure the *preview column* (a stable grid track), NOT the framewrap — the
@@ -1103,8 +1151,6 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
   const [videoEnded, setVideoEnded] = useState(false);
   useEffect(() => { setVideoEnded(false); }, [editOnScreen, st.coverBg.videoUrl]);
   const coverLocked = !editOnScreen && st.coverBg.kind === "video" && st.coverBg.lockUntilEnd && !videoEnded;
-
-  const [previewLang, setPreviewLang] = useState<"kh" | "en">("kh");
 
   const moveCover = (kind: CoverMoveKind, id: string | undefined, xPct: number, yPct: number) =>
     setSt((s) => {
@@ -1254,6 +1300,12 @@ const styles = `
 .eb-segsm { display: inline-flex; }
 .eb-segbtn { flex: 1; border: none; background: transparent; color: var(--c-muted); padding: 0.4rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: inherit; }
 .eb-segbtn[data-on="true"] { background: var(--c-accent); color: #fff; }
+
+/* Language tab toggle (KH / EN in edit panels) */
+.eb-langtabs { display: flex; gap: 0; border: 1px solid var(--c-border); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem; }
+.eb-langtab { flex: 1; border: none; background: var(--c-surface-2); color: var(--c-muted); padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.8125rem; font-weight: 700; font-family: inherit; transition: background .15s, color .15s; }
+.eb-langtab + .eb-langtab { border-left: 1px solid var(--c-border); }
+.eb-langtab[data-on="true"] { background: var(--c-accent); color: #fff; }
 
 /* Section panels */
 .eb-section { border: 1.5px solid var(--c-border); border-radius: 10px; overflow: hidden; background: var(--c-surface); transition: border-color .15s, background .15s; }

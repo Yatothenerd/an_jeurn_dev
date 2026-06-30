@@ -18,11 +18,6 @@ const isConfigured =
 type RedisLike = Pick<Redis, "get" | "set" | "del" | "incr" | "expire">;
 
 function createStub(): RedisLike {
-  if (process.env.NODE_ENV !== "production") {
-    console.warn(
-      "[redis] Upstash is not configured — caching disabled, falling back to the database."
-    );
-  }
   return {
     get: async () => null,
     set: async () => null,
