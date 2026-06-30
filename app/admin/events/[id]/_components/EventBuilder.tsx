@@ -20,7 +20,7 @@ import {
   type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
   type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type HandAnim, type Interaction,
   type Background, type BgKind, type CoverMoveKind, type OverlayButtons,
-  PvSetup, PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles,
+  PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles,
 } from "@/lib/builder/canvas";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -1057,6 +1057,9 @@ function DraggableStage({ children }: { children: React.ReactNode }) {
 }
 
 // ── Device frame (375×812) ───────────────────────────────────────────────────
+// Border-box dimensions of .eb-device (used to size the scaled footprint).
+const DEVICE_W = 375;
+const DEVICE_H = 812;
 
 function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, setSt, moveSection, guideCtx, big }: {
   st: BuilderState; tab: TabId; animKey: number; coverOpen: boolean; setCoverOpen: (v: boolean) => void;
@@ -1064,17 +1067,35 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
   moveSection: (from: number, to: number) => void; guideCtx: "cover" | "content"; big?: boolean;
 }) {
   // Responsive scale: shrink the 375px frame to fit its container.
+  // Measure the *preview column* (a stable grid track), NOT the framewrap — the
+  // framewrap is sized by the 375px device, so observing it would feed its own
+  // width back in and never shrink. transform:scale() leaves the layout box at
+  // 375px, so we also pin the framewrap to the scaled footprint below.
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   useEffect(() => {
     if (big) { setScale(1); return; }
     const el = wrapRef.current; if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const avail = el.clientWidth;
-      setScale(Math.min(1, Math.max(0.5, avail / 391)));   // 375 + 16 frame padding
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
+    const container = (el.closest(".eb-previewcol") as HTMLElement | null) ?? el.parentElement ?? el;
+    const measure = () => {
+      const avail = container.clientWidth;
+      if (avail <= 0) return;
+      // DEVICE_W is border-box (375). Leave a little breathing room each side.
+      setScale(Math.min(1, Math.max(0.5, (avail - 8) / DEVICE_W)));
+    };
+    // Measure now, again after paint (catches a late scrollbar narrowing the
+    // column), and on every resize. The ResizeObserver's initial/own callback
+    // isn't reliable for an already-stable element, so we don't depend on it.
+    measure();
+    const raf = requestAnimationFrame(measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(container);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, [big]);
 
   // Guest-preview lock: when NOT editing on screen, a "lock until video ends"
@@ -1106,7 +1127,14 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
   };
 
   return (
-    <div ref={wrapRef} className="eb-framewrap">
+    <div
+      ref={wrapRef}
+      className="eb-framewrap"
+      // transform:scale() doesn't change layout size, so reserve only the scaled
+      // footprint — otherwise the 375px box overflows the column and the phone
+      // gets clipped / pushed off-screen on narrow viewports.
+      style={big ? undefined : { width: Math.round(DEVICE_W * scale), height: Math.round(DEVICE_H * scale) }}
+    >
       <div className="eb-device" style={{ transform: `scale(${big ? 1 : scale})` }} data-anim={st.anim} key={animKey}>
         {/* status bar */}
         <div className="eb-statusbar">
@@ -1115,9 +1143,12 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
           <span>▮▮▮ 􀛨</span>
         </div>
         <div className="eb-screen">
-          {tab === "setup" && <PvSetup st={st} />}
+          {/* Setup tab previews the live sections page (read-only) so event
+              name / date / languages are reflected as the guest will see them. */}
+          {tab === "setup" && <PvContent st={st} lang={previewLang} />}
+          {tab === "setup" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
 
-          {(st.langs.khmer && st.langs.english) && (tab === "cover" || tab === "content") && (
+          {(st.langs.khmer && st.langs.english) && (tab === "setup" || tab === "cover" || tab === "content") && (
             <LangSwitcher lang={previewLang} onChange={setPreviewLang} />
           )}
 
@@ -1270,14 +1301,20 @@ const styles = `
 .eb-draghandle { font-size: 0.75rem; color: var(--c-muted); cursor: grab; user-select: none; display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.6rem; border: 1px solid var(--c-border); border-radius: 999px; background: var(--c-surface); touch-action: none; }
 .eb-draghandle:active { cursor: grabbing; }
 .eb-resetpos { background: none; border: none; color: var(--c-accent); cursor: pointer; font-size: 0.72rem; text-decoration: underline; }
-.eb-framewrap { width: 100%; display: flex; justify-content: center; }
+.eb-framewrap { width: 100%; max-width: 100%; margin: 0 auto; display: flex; justify-content: center; align-items: flex-start; overflow: hidden; }
 
 /* Device frame */
 .eb-device { width: 375px; height: 812px; flex-shrink: 0; transform-origin: top center; background: #000; border-radius: 44px; padding: 8px; box-shadow: 0 24px 60px rgba(0,0,0,0.45), 0 0 0 2px rgba(255,255,255,0.06) inset; position: relative; }
 .eb-statusbar { position: absolute; top: 8px; left: 8px; right: 8px; height: 38px; display: flex; align-items: center; justify-content: space-between; padding: 0 1.4rem; color: #fff; font-size: 0.72rem; font-weight: 600; z-index: 3; pointer-events: none; }
 .eb-notch { width: 120px; height: 26px; background: #000; border-radius: 0 0 16px 16px; }
 .eb-screen { width: 100%; height: 100%; border-radius: 36px; overflow: hidden; position: relative; background: #11151c; }
-.eb-screen > div { width: 100%; height: 100%; overflow-y: auto; }
+/* The tab content fills & scrolls the screen — but overlays (lang switcher,
+   floating buttons) must NOT be stretched to fill, or their contents get shoved
+   to the corner. Exclude them here and anchor them to the screen below. */
+.eb-screen > div:not(.pv-langsw):not(.pv-floatbtns) { width: 100%; height: 100%; overflow-y: auto; }
+/* In the live invite these overlays are position:fixed (real viewport). Inside
+   the scaled device frame that escapes the phone, so re-anchor to .eb-screen. */
+.eb-screen .pv-langsw { position: absolute; }
 
 /* Fullscreen modal */
 .eb-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
