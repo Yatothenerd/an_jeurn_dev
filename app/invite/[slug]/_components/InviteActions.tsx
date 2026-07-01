@@ -15,12 +15,13 @@ interface Props {
 function IconGift({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <rect x="3" y="11" width="18" height="11" rx="1.5" />
-      <rect x="2" y="7" width="20" height="5" rx="1" />
-      <rect x="11" y="7" width="2" height="15" />
-      <rect x="2" y="9" width="20" height="2" />
-      <path d="M12 7C10 7 7 4.5 8 2.5C9 0.5 12 3 12 7Z" />
-      <path d="M12 7C14 7 17 4.5 16 2.5C15 0.5 12 3 12 7Z" />
+      {/* flat gift box */}
+      <path d="M4 10h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
+      <path d="M3 6.5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2z" />
+      <rect x="10.5" y="6" width="3" height="15" rx="0.5" fill="rgba(0,0,0,0.28)" />
+      {/* bow */}
+      <path d="M12 6C10.5 6 7.5 4 8.4 2.4 9.2 1 12 3 12 6z" />
+      <path d="M12 6C13.5 6 16.5 4 15.6 2.4 14.8 1 12 3 12 6z" />
     </svg>
   );
 }
@@ -36,27 +37,25 @@ function IconRsvp({ size = 22 }: { size?: number }) {
 function IconMapPin({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-      <circle cx="12" cy="9" r="2.5" fill="rgba(0,0,0,0.3)" />
+      <path d="M12 2c-3.87 0-7 3.13-7 7 0 4.42 5.5 11.14 6.65 12.5a.45.45 0 0 0 .7 0C13.5 20.14 19 13.42 19 9c0-3.87-3.13-7-7-7z" />
+      <circle cx="12" cy="9" r="2.6" fill="rgba(0,0,0,0.3)" />
     </svg>
   );
 }
 
-function IconSpeakerOn({ size = 22 }: { size?: number }) {
+function IconPlay({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M3 9v6h4l5 5V4L7 9H3z" />
-      <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-      <path d="M14 3.23v2.06C16.89 6.15 19 8.83 19 12s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+      <path d="M8 5.14a1 1 0 0 1 1.53-.85l10 6.86a1 1 0 0 1 0 1.7l-10 6.86A1 1 0 0 1 8 18.86V5.14z" />
     </svg>
   );
 }
 
-function IconSpeakerOff({ size = 22 }: { size?: number }) {
+function IconPause({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M3 9v6h4l5 5V4L7 9H3z" />
-      <path d="M19 11.29l-1.42-1.42L15 12.46l-2.58-2.59L11 11.29l2.58 2.59L11 16.46l1.42 1.42L15 15.29l2.58 2.59 1.42-1.42-2.59-2.58z" />
+      <rect x="6" y="5" width="4" height="14" rx="1.2" />
+      <rect x="14" y="5" width="4" height="14" rx="1.2" />
     </svg>
   );
 }
@@ -130,7 +129,7 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, showRsvp = true,
           title={playing ? "Mute music" : "Play music"}
           aria-label={playing ? "Mute background music" : "Play background music"}
         >
-          {playing ? <IconSpeakerOn /> : <IconSpeakerOff />}
+          {playing ? <IconPause /> : <IconPlay />}
         </button>
       )}
     </div>

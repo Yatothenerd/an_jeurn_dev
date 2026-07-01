@@ -19,13 +19,13 @@ import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib
 import {
   type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
   type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type HandAnim, type Interaction,
-  type Background, type BgKind, type CoverMoveKind, type OverlayButtons,
+  type Background, type BgKind, type CoverMoveKind, type OverlayButtons, type OverlayLayout,
   PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles,
 } from "@/lib/builder/canvas";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type TabId = "setup" | "cover" | "content" | "guide" | "music";
+type TabId = "setup" | "cover" | "content" | "transitions" | "guide" | "music";
 
 export interface EventData {
   id: string; title: string; eventType: string; eventDate: string;
@@ -130,7 +130,7 @@ function freshState(ev: EventData): BuilderState {
       mkSection("rsvp", "RSVP"),
     ],
     music: { url: "", playAfterVideoEnd: false, playOnLoad: false, playOnScroll: true },
-    overlayButtons: { playPause: true, map: true, wishGift: true, scrollBack: true },
+    overlayButtons: { playPause: true, map: true, wishGift: true, scrollBack: true, layout: "float" },
     outerBg: { kind: "color", imageUrl: "", videoUrl: "", color: "#050709", blur: 0, opacity: 0.4, overlayColor: "#000000", autoplay: true, lockUntilEnd: false },
   };
 }
@@ -226,7 +226,7 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
     if (!draft?.coverGuide) seeded.coverGuide = oldGuide ?? base.coverGuide;
     if (!draft?.contentGuide) seeded.contentGuide = base.contentGuide;
     seeded.music = seeded.music ?? base.music;
-    seeded.overlayButtons = seeded.overlayButtons ?? base.overlayButtons;
+    seeded.overlayButtons = { ...base.overlayButtons, ...(seeded.overlayButtons ?? {}) };
     seeded.outerBg = seeded.outerBg ? fixBg(seeded.outerBg) : base.outerBg;
 
     // Link the event's existing saved images into the two backgrounds.
@@ -329,9 +329,9 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
         {/* ── LEFT: tabbed editor ─────────────────────────────────────────── */}
         <section className="eb-col eb-editor">
           <div className="eb-tabs">
-            {(["setup", "cover", "content", "guide", "music"] as TabId[]).map((id) => (
+            {(["setup", "cover", "content", "transitions", "guide", "music"] as TabId[]).map((id) => (
               <button key={id} type="button" className="eb-tab" data-active={tab === id} onClick={() => setTab(id)}>
-                {id === "setup" ? "Setup" : id === "cover" ? "Cover" : id === "content" ? "Content" : id === "guide" ? "Guide" : "Music"}
+                {id === "setup" ? "Setup" : id === "cover" ? "Cover" : id === "content" ? "Content" : id === "transitions" ? "Motion" : id === "guide" ? "Guide" : "Music"}
               </button>
             ))}
           </div>
@@ -343,6 +343,10 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
               <ContentTab st={st} patch={patch} setSection={setSection} addSection={addSection}
                 removeSection={removeSection} moveSection={moveSection}
                 setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} />
+            )}
+            {tab === "transitions" && (
+              <TransitionsTab st={st} patch={patch} setSection={setSection}
+                onOpenTicket={() => { setCoverOpen(true); }} onReplay={replay} />
             )}
             {tab === "guide" && <GuideTab st={st} setSt={setSt} which={guideCtx} setWhich={setGuideCtx} />}
             {tab === "music" && <MusicTab st={st} patch={patch} />}
@@ -404,11 +408,19 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
 
 // ── Setup tab ────────────────────────────────────────────────────────────────
 
-const OVERLAY_BTN_DEFS: { key: keyof OverlayButtons; label: string; desc: string }[] = [
+const OVERLAY_BTN_DEFS: { key: "playPause" | "map" | "wishGift" | "scrollBack"; label: string; desc: string }[] = [
   { key: "playPause", label: "Play / Pause", desc: "Music playback toggle" },
   { key: "map",       label: "Map",          desc: "Opens the venue map" },
   { key: "wishGift",  label: "Wish & Gift",  desc: "Jumps to the wishing section" },
   { key: "scrollBack",label: "Scroll Back",  desc: "Returns to the top of the invitation" },
+];
+
+const OVERLAY_LAYOUTS: { id: OverlayLayout; label: string; desc: string; icon: string }[] = [
+  { id: "float",  label: "Floating",   icon: "⣿", desc: "Stacked, bottom-right (default)" },
+  { id: "right",  label: "Right edge", icon: "⋮", desc: "Vertical, centered on the right" },
+  { id: "left",   label: "Left edge",  icon: "⋮", desc: "Vertical, centered on the left" },
+  { id: "bottom", label: "Bottom bar", icon: "⋯", desc: "Horizontal row along the bottom" },
+  { id: "top",    label: "Top bar",    icon: "⋯", desc: "Horizontal row along the top" },
 ];
 
 
@@ -453,6 +465,19 @@ function SetupTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderS
             <Toggle on={st.overlayButtons[key]} onChange={(v) => patch({ overlayButtons: { ...st.overlayButtons, [key]: v } })} />
           </div>
         ))}
+        <div className="eb-field">
+          <span className="eb-flbl">Placement</span>
+          <div className="eb-animgrid">
+            {OVERLAY_LAYOUTS.map((l) => (
+              <button key={l.id} type="button" className="eb-animbox" data-on={(st.overlayButtons.layout ?? "float") === l.id}
+                onClick={() => patch({ overlayButtons: { ...st.overlayButtons, layout: l.id } })}>
+                <span className="eb-animicon">{l.icon}</span>
+                <span className="eb-animlbl">{l.label}</span>
+                <span className="eb-animdesc">{l.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="eb-card">
@@ -525,10 +550,12 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
         <div className="eb-stack">
           {st.coverBlocks.map((b) => (
             <div key={b.id} className="eb-block">
-              <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
-              {st.langs.english && (
-                <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
-              )}
+              <div className="eb-langrow">
+                <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
+                {st.langs.english && (
+                  <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
+                )}
+              </div>
               <div className="eb-blockctl">
                 <select className="eb-input eb-fontsel" style={{ fontFamily: b.font }} value={b.font} onChange={(e) => setBlock(b.id, { font: e.target.value })}>
                   {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
@@ -542,8 +569,34 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
         </div>
       </div>
 
+      <div className="eb-card eb-rowbetween">
+        <div><div className="eb-flbl">Keep cover visible after open</div><div className="eb-muted eb-sm">Cover stays as the first screen on scroll</div></div>
+        <Toggle on={st.keepCover} onChange={(v) => patch({ keepCover: v })} />
+      </div>
+
+      <div className="eb-rowgap">
+        <button type="button" className="eb-btn-primary" onClick={onOpenTicket}>🎟 Open Ticket</button>
+        <button type="button" className="eb-btn-ghost" onClick={onReplay}>▶ Replay animation</button>
+      </div>
+    </div>
+  );
+}
+
+// ── Transitions / Motion tab ───────────────────────────────────────────────────
+// One consolidated place for every animated transition: the cover → content
+// "page-to-page" reveal (st.anim) and the per-section "section-to-section"
+// entrance animations (sec.anim). Both bind the same state edited elsewhere.
+
+function TransitionsTab({ st, patch, setSection, onOpenTicket, onReplay }: {
+  st: BuilderState; patch: (p: Partial<BuilderState>) => void;
+  setSection: (id: string, p: Partial<Section>) => void;
+  onOpenTicket: () => void; onReplay: () => void;
+}) {
+  return (
+    <div className="eb-stack">
       <div className="eb-card">
-        <div className="eb-cardhead">Animation style</div>
+        <div className="eb-cardhead">Page transition · Cover → Content</div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>How the cover opens into the invitation when a guest taps <strong>Open</strong>.</p>
         <div className="eb-animgrid">
           {ANIMATIONS.map((a) => (
             <button key={a.id} type="button" className="eb-animbox" data-on={st.anim === a.id} onClick={() => patch({ anim: a.id })}>
@@ -553,16 +606,30 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay }: {
             </button>
           ))}
         </div>
+        <div className="eb-rowgap">
+          <button type="button" className="eb-btn-primary" onClick={onOpenTicket}>🎟 Open Ticket</button>
+          <button type="button" className="eb-btn-ghost" onClick={onReplay}>▶ Replay</button>
+        </div>
       </div>
 
-      <div className="eb-card eb-rowbetween">
-        <div><div className="eb-flbl">Keep cover visible after open</div><div className="eb-muted eb-sm">Cover stays as the first screen on scroll</div></div>
-        <Toggle on={st.keepCover} onChange={(v) => patch({ keepCover: v })} />
-      </div>
-
-      <div className="eb-rowgap">
-        <button type="button" className="eb-btn-primary" onClick={onOpenTicket}>🎟 Open Ticket</button>
-        <button type="button" className="eb-btn-ghost" onClick={onReplay}>▶ Replay animation</button>
+      <div className="eb-card">
+        <div className="eb-cardhead">Section transitions · Section → Section</div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>Entrance animation played as each section scrolls into view. Scroll the preview to watch them.</p>
+        <div className="eb-stack">
+          {st.sections.map((sec) => (
+            <div key={sec.id} className="eb-rowbetween">
+              <div>
+                <div className="eb-flbl">{sec.name || SECTION_LABELS[sec.kind]}</div>
+                {!sec.visible && <div className="eb-muted eb-sm">Hidden</div>}
+              </div>
+              <select className="eb-input" style={{ width: 130 }} value={sec.anim}
+                onChange={(e) => setSection(sec.id, { anim: e.target.value as SectionAnim })}>
+                {SECTION_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+              </select>
+            </div>
+          ))}
+          {st.sections.length === 0 && <p className="eb-muted eb-sm" style={{ margin: 0 }}>No sections yet — add them in the Content tab.</p>}
+        </div>
       </div>
     </div>
   );
@@ -750,10 +817,12 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, h
       <div className="eb-stack">
         {sec.blocks.map((bl, idx) => (
           <div key={bl.id} className="eb-block">
-            <textarea className="eb-input eb-textarea" value={bl.text} onChange={(e) => setBlock(sec.id, bl.id, { text: e.target.value })} placeholder={hasEnglish ? "ខ្មែរ text…" : "Text…"} />
-            {hasEnglish && (
-              <textarea className="eb-input eb-textarea" value={sec.blocksEn?.[idx]?.text ?? ""} onChange={(e) => setEnBlockText(idx, e.target.value)} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
-            )}
+            <div className="eb-langrow">
+              <textarea className="eb-input eb-textarea" value={bl.text} onChange={(e) => setBlock(sec.id, bl.id, { text: e.target.value })} placeholder={hasEnglish ? "ខ្មែរ text…" : "Text…"} />
+              {hasEnglish && (
+                <textarea className="eb-input eb-textarea" value={sec.blocksEn?.[idx]?.text ?? ""} onChange={(e) => setEnBlockText(idx, e.target.value)} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
+              )}
+            </div>
             <div className="eb-blockctl">
               <select className="eb-input eb-fontsel" style={{ fontFamily: bl.font }} value={bl.font} onChange={(e) => setBlock(sec.id, bl.id, { font: e.target.value })}>
                 {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
@@ -1148,7 +1217,7 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
           {tab === "setup" && <PvContent st={st} lang={previewLang} />}
           {tab === "setup" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
 
-          {(st.langs.khmer && st.langs.english) && (tab === "setup" || tab === "cover" || tab === "content") && (
+          {(st.langs.khmer && st.langs.english) && (tab === "setup" || tab === "cover" || tab === "content" || tab === "transitions") && (
             <LangSwitcher lang={previewLang} onChange={setPreviewLang} />
           )}
 
@@ -1169,6 +1238,11 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
           {tab === "content" && <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} lang={previewLang} />}
           {tab === "content" && st.contentGuide.enabled && <GuideOverlay guide={st.contentGuide} />}
           {tab === "content" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
+
+          {/* Motion tab: tap Open to watch the page transition, then scroll for section transitions */}
+          {tab === "transitions" && (coverOpen
+            ? <PvContent st={st} lang={previewLang} />
+            : <PvCover st={st} onOpen={() => setCoverOpen(true)} animKey={animKey} lang={previewLang} />)}
 
           {tab === "guide" && (guideCtx === "cover" ? <PvCover st={st} animKey={animKey} /> : <PvContent st={st} />)}
           {tab === "guide" && (
@@ -1231,6 +1305,10 @@ const styles = `
 
 /* Cover blocks */
 .eb-block { border: 1px solid var(--c-border); border-radius: 10px; padding: 0.625rem; background: var(--c-surface-2); display: flex; flex-direction: column; gap: 0.5rem; }
+/* Khmer + English fields side-by-side on one editing row */
+.eb-langrow { display: flex; gap: 0.5rem; align-items: flex-start; }
+.eb-langrow > * { flex: 1; min-width: 0; }
+@media (max-width: 560px) { .eb-langrow { flex-direction: column; } }
 .eb-blockctl { display: flex; align-items: center; gap: 0.5rem; }
 .eb-fontsel { flex: 1; min-width: 0; padding: 0.4rem 0.5rem; font-size: 0.8rem; }
 .eb-range { flex: 1; accent-color: var(--c-accent); }

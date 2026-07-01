@@ -66,11 +66,16 @@ export interface MusicState {
   playOnScroll: boolean;
 }
 
+/** Where the floating action buttons sit and how they flow. */
+export type OverlayLayout = "float" | "top" | "bottom" | "left" | "right";
+
 export interface OverlayButtons {
   playPause: boolean;
   map: boolean;
   wishGift: boolean;
   scrollBack: boolean;
+  /** Placement / orientation of the button cluster. Defaults to "float". */
+  layout?: OverlayLayout;
 }
 
 export interface BuilderState {
@@ -209,11 +214,16 @@ function TransformHandles({
   }, [blockEl, coverRef]);
   if (!box) return null;
   const { l, t, w, h } = box;
-  const corners = [
-    { x: l,     y: t,     cur: "nw-resize" },
-    { x: l + w, y: t,     cur: "ne-resize" },
-    { x: l + w, y: t + h, cur: "se-resize" },
-    { x: l,     y: t + h, cur: "sw-resize" },
+  // Corners + edge midpoints — drag any handle (corner or edge) to expand/shrink.
+  const handles = [
+    { x: l,         y: t,         cur: "nw-resize" },
+    { x: l + w / 2, y: t,         cur: "n-resize"  },
+    { x: l + w,     y: t,         cur: "ne-resize" },
+    { x: l + w,     y: t + h / 2, cur: "e-resize"  },
+    { x: l + w,     y: t + h,     cur: "se-resize" },
+    { x: l + w / 2, y: t + h,     cur: "s-resize"  },
+    { x: l,         y: t + h,     cur: "sw-resize" },
+    { x: l,         y: t + h / 2, cur: "w-resize"  },
   ];
   const handleDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -230,7 +240,7 @@ function TransformHandles({
   return (
     <>
       <div className="pv-transform-box" style={{ left: `${l}%`, top: `${t}%`, width: `${w}%`, height: `${h}%` }} />
-      {corners.map((c, i) => (
+      {handles.map((c, i) => (
         <div key={i} className="pv-transform-handle" style={{ left: `${c.x}%`, top: `${c.y}%`, cursor: c.cur }}
           onPointerDown={handleDown} />
       ))}
@@ -549,7 +559,7 @@ export function FloatingOverlayButtons({ ob, onPlayPause, isPlaying, onScrollBac
   const visible = ob.playPause || ob.map || ob.wishGift || ob.scrollBack;
   if (!visible) return null;
   return (
-    <div className={`pv-floatbtns${preview ? " pv-floatbtns-preview" : ""}`}>
+    <div className={`pv-floatbtns${preview ? " pv-floatbtns-preview" : ""}`} data-layout={ob.layout ?? "float"}>
       {ob.playPause && (
         <button type="button" className="pv-floatbtn" onClick={onPlayPause} title={isPlaying ? "Pause" : "Play music"}>
           {isPlaying ? "⏸" : "▶"}
@@ -716,9 +726,14 @@ export const canvasStyles = `
 .pv-tclrdot { position: relative; width: 18px; height: 18px; border-radius: 4px; overflow: hidden; display: inline-block; cursor: pointer; border: 1px solid rgba(255,255,255,0.3); flex-shrink: 0; }
 .pv-tclrdot input[type="color"] { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); opacity: 0; cursor: pointer; }
 
-/* Floating overlay buttons (live invite) */
-.pv-floatbtns { position: fixed; bottom: 1.5rem; right: 1rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 50; }
-.pv-floatbtns-preview { position: absolute; bottom: 1rem; right: 0.5rem; }
+/* Floating overlay buttons (live invite) — placement driven by data-layout */
+.pv-floatbtns { position: fixed; display: flex; gap: 0.5rem; z-index: 50; }
+.pv-floatbtns-preview { position: absolute; }
+.pv-floatbtns[data-layout="float"]  { flex-direction: column; bottom: 1.5rem; right: 1rem; }
+.pv-floatbtns[data-layout="right"]  { flex-direction: column; top: 50%; right: 1rem; transform: translateY(-50%); }
+.pv-floatbtns[data-layout="left"]   { flex-direction: column; top: 50%; left: 1rem; transform: translateY(-50%); }
+.pv-floatbtns[data-layout="bottom"] { flex-direction: row; bottom: 1.5rem; left: 50%; transform: translateX(-50%); }
+.pv-floatbtns[data-layout="top"]    { flex-direction: row; top: 1rem; left: 50%; transform: translateX(-50%); }
 .pv-floatbtn { width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(15,15,25,0.78); color: #fff; font-size: 1rem; cursor: pointer; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
 
 /* Transform handles (scale / resize) */
