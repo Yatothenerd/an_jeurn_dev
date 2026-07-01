@@ -132,8 +132,9 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
         <div className={`${s.wrap} ${s.heroInner}`}>
           <img src="/logo/full.svg" alt="Anjeurn" className={s.heroLogo} />
           <span className={s.eyebrow}>{isKm ? "ការអញ្ជើញឌីជីថលខ្មែរ" : "Khmer digital invitations"}</span>
-          <h1 className={s.heroKh} lang="km">សិល្បៈនៃការអញ្ជើញ</h1>
-          <p className={s.heroEn}>The art of the <em>invitation</em>, made&nbsp;digital.</p>
+          {isKm
+            ? <h1 className={s.heroKh} lang="km">សិល្បៈនៃការអញ្ជើញ</h1>
+            : <h1 className={s.heroEn}>The art of the <em>invitation</em>, made&nbsp;digital.</h1>}
           <p className={s.heroLead}>
             {isKm
               ? "យើងបង្កើតការអញ្ជើញឌីជីថលដ៏ស្រស់ស្អាត សម្រាប់អាពាហ៍ពិពាហ៍ និងពិធីបុណ្យរបស់អ្នក — ងាយស្រួលចែករំលែក និងគួរឱ្យចងចាំ។"
@@ -220,7 +221,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
               <Link href="/login" key={th.name} className={`${s.themeCard} ${s[th.cls]}`}>
                 <span className={s.themeFrame} />
                 <h3 className={s.themeName}>{th.name}</h3>
-                <p className={s.themeKh} lang="km">{th.kh}</p>
+                {isKm && <p className={s.themeKh} lang="km">{th.kh}</p>}
                 <span className={s.themeTag}>{L(th.tag)}</span>
               </Link>
             ))}
@@ -242,7 +243,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
               <div key={tier.name} className={`${s.priceCard} ${tier.featured ? s.priceCardFeatured : ""}`}>
                 {tier.featured && <span className={s.priceBadge}>{L(t.pricing.popular)}</span>}
                 <h3 className={s.priceName}>{tier.name}</h3>
-                <p className={s.priceKh} lang="km">{tier.kh}</p>
+                {isKm && <p className={s.priceKh} lang="km">{tier.kh}</p>}
                 <div className={s.priceAmt}>{tier.price} <small>{L(t.pricing.perEvent)}</small></div>
                 <ul className={s.priceList}>
                   {tier.feats[lang].map((f) => <li key={f}>{f}</li>)}
