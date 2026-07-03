@@ -19,7 +19,7 @@ import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib
 import {
   type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
   type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type HandAnim, type Interaction,
-  type Background, type BgKind, type CoverMoveKind, type OverlayButtons, type OverlayLayout,
+  type Background, type BgKind, type CoverMoveKind, type OverlayButtons, type OverlayLayout, type OverlayShape,
   PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles,
 } from "@/lib/builder/canvas";
 
@@ -425,6 +425,14 @@ const OVERLAY_LAYOUTS: { id: OverlayLayout; label: string; desc: string; icon: s
   { id: "left",   label: "Left edge",  icon: "⋮", desc: "Vertical, centered on the left" },
   { id: "bottom", label: "Bottom bar", icon: "⋯", desc: "Horizontal row along the bottom" },
   { id: "top",    label: "Top bar",    icon: "⋯", desc: "Horizontal row along the top" },
+  { id: "custom", label: "Custom",     icon: "✥", desc: "Drag the buttons anywhere on the preview" },
+];
+
+const OVERLAY_SHAPES: { id: OverlayShape; label: string }[] = [
+  { id: "circle",  label: "Circle" },
+  { id: "rounded", label: "Rounded" },
+  { id: "square",  label: "Square" },
+  { id: "pill",    label: "Pill" },
 ];
 
 
@@ -474,10 +482,25 @@ function SetupTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderS
           <div className="eb-animgrid">
             {OVERLAY_LAYOUTS.map((l) => (
               <button key={l.id} type="button" className="eb-animbox" data-on={(st.overlayButtons.layout ?? "float") === l.id}
-                onClick={() => patch({ overlayButtons: { ...st.overlayButtons, layout: l.id } })}>
+                onClick={() => patch({ overlayButtons: { ...st.overlayButtons, layout: l.id, ...(l.id === "custom" && !st.overlayButtons.pos ? { pos: { xPct: 86, yPct: 82 } } : {}) } })}>
                 <span className="eb-animicon">{l.icon}</span>
                 <span className="eb-animlbl">{l.label}</span>
                 <span className="eb-animdesc">{l.desc}</span>
+              </button>
+            ))}
+          </div>
+          {(st.overlayButtons.layout ?? "float") === "custom" && (
+            <p className="eb-muted eb-sm" style={{ margin: "0.5rem 0 0" }}>Turn <strong>✎ Edit on screen</strong> ON in the preview, then drag the button cluster anywhere you like.</p>
+          )}
+        </div>
+        <div className="eb-field">
+          <span className="eb-flbl">Button shape</span>
+          <div className="eb-animgrid">
+            {OVERLAY_SHAPES.map((s) => (
+              <button key={s.id} type="button" className="eb-animbox" data-on={(st.overlayButtons.shape ?? "circle") === s.id}
+                onClick={() => patch({ overlayButtons: { ...st.overlayButtons, shape: s.id } })}>
+                <span className="eb-shapedemo" data-shape={s.id}>▶</span>
+                <span className="eb-animlbl">{s.label}</span>
               </button>
             ))}
           </div>
@@ -561,19 +584,10 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay, editLang = "kh", s
         <div className="eb-stack">
           {st.coverBlocks.map((b) => (
             <div key={b.id} className="eb-block">
-<<<<<<< HEAD
-              <div className="eb-langrow">
-                <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
-                {st.langs.english && (
-                  <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
-                )}
-              </div>
-=======
               {editLang === "en" && st.langs.english
                 ? <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)" }} />
                 : <input className="eb-input" value={b.text} onChange={(e) => setBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
               }
->>>>>>> origin/main
               <div className="eb-blockctl">
                 <select className="eb-input eb-fontsel" style={{ fontFamily: b.font }} value={b.font} onChange={(e) => setBlock(b.id, { font: e.target.value })}>
                   {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
@@ -701,6 +715,8 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
               <div className="eb-sechead">
                 <span className="eb-grip" title="Drag to reorder">⠿</span>
                 <input className="eb-secname" value={sec.name} onChange={(e) => setSection(sec.id, { name: e.target.value })} />
+                <button type="button" className="eb-iconbtn" title="Move up" disabled={i === 0} onClick={() => moveSection(i, i - 1)}>↑</button>
+                <button type="button" className="eb-iconbtn" title="Move down" disabled={i === st.sections.length - 1} onClick={() => moveSection(i, i + 1)}>↓</button>
                 <button type="button" className="eb-iconbtn" data-on={sec.showTitle} title={sec.showTitle ? "Hide section title" : "Show section title"} onClick={() => setSection(sec.id, { showTitle: !sec.showTitle })}>
                   <span style={{ fontSize: "0.7rem", fontWeight: 700 }}>T</span>
                 </button>
@@ -846,25 +862,6 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, h
         base[idx] = { ...base[idx], text };
         setSection(sec.id, { blocksEn: base });
       };
-<<<<<<< HEAD
-      return (
-      <div className="eb-stack">
-        {sec.blocks.map((bl, idx) => (
-          <div key={bl.id} className="eb-block">
-            <div className="eb-langrow">
-              <textarea className="eb-input eb-textarea" value={bl.text} onChange={(e) => setBlock(sec.id, bl.id, { text: e.target.value })} placeholder={hasEnglish ? "ខ្មែរ text…" : "Text…"} />
-              {hasEnglish && (
-                <textarea className="eb-input eb-textarea" value={sec.blocksEn?.[idx]?.text ?? ""} onChange={(e) => setEnBlockText(idx, e.target.value)} placeholder="English text…" style={{ borderColor: "var(--c-accent)", opacity: 0.8 }} />
-              )}
-            </div>
-            <div className="eb-blockctl">
-              <select className="eb-input eb-fontsel" style={{ fontFamily: bl.font }} value={bl.font} onChange={(e) => setBlock(sec.id, bl.id, { font: e.target.value })}>
-                {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
-              </select>
-              <ColorDot value={bl.color} onChange={(v) => setBlock(sec.id, bl.id, { color: v })} />
-              <button type="button" className="eb-iconbtn" title={bl.nowrap ? "No-wrap (tap to wrap)" : "Wrap (tap for no-wrap)"} onClick={() => setBlock(sec.id, bl.id, { nowrap: !bl.nowrap })}>{bl.nowrap ? "→" : "↵"}</button>
-              {sec.blocks.length > 1 && <button type="button" className="eb-iconbtn eb-danger" title="Remove row" onClick={() => removeBlock(sec.id, bl.id)}>✕</button>}
-=======
 
       if (isEn) {
         return (
@@ -884,7 +881,6 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, h
                   ))}
                 </div>
               </div>
->>>>>>> origin/main
             </div>
           </div>
         );
@@ -1259,6 +1255,15 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
     setSt((s) => ({ ...s, monogram: { ...s.monogram, scalePct } }));
   const editContentBlock = (secId: string, blockId: string, text: string) =>
     setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.map((b) => b.id === blockId ? { ...b, text } : b) } : x) }));
+  // Canva-style on-screen editing — style/position patches from the preview.
+  const patchContentBlock = (secId: string, blockId: string, p: Partial<SectionBlock>) =>
+    setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.map((b) => b.id === blockId ? { ...b, ...p } : b) } : x) }));
+  const patchSection = (secId: string, p: Partial<Section>) =>
+    setSt((s) => ({ ...s, sections: s.sections.map((x) => (x.id === secId ? { ...x, ...p } : x)) }));
+  // Dragging the floating buttons in the preview switches them to the free
+  // "custom" placement and records the spot.
+  const moveOverlayBtns = (xPct: number, yPct: number) =>
+    setSt((s) => ({ ...s, overlayButtons: { ...s.overlayButtons, layout: "custom", pos: { xPct, yPct } } }));
   const moveGuide = (kind: "hand" | "block", id: string | undefined, xPct: number, yPct: number) => {
     const key = guideCtx === "cover" ? "coverGuide" : "contentGuide";
     setSt((s) => kind === "hand"
@@ -1286,14 +1291,18 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
           {/* Setup tab previews the live sections page (read-only) so event
               name / date / languages are reflected as the guest will see them. */}
           {tab === "setup" && <PvContent st={st} lang={previewLang} />}
-          {tab === "setup" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
+          {tab === "setup" && <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />}
 
           {(st.langs.khmer && st.langs.english) && (tab === "setup" || tab === "cover" || tab === "content" || tab === "transitions") && (
             <LangSwitcher lang={previewLang} onChange={setPreviewLang} />
           )}
 
           {tab === "cover" && (coverOpen
-            ? <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} lang={previewLang} />
+            ? <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock}
+                onBlockPatch={editOnScreen ? patchContentBlock : undefined}
+                onSectionPatch={editOnScreen ? patchSection : undefined}
+                fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
+                onReorder={moveSection} lang={previewLang} />
             : <PvCover st={st} editable={editOnScreen} onMoveCover={moveCover}
                 onEditCoverBlock={editOnScreen ? editCoverBlock : undefined}
                 fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
@@ -1303,12 +1312,16 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
                 lang={previewLang} />)}
           {tab === "cover" && !coverOpen && st.coverGuide.enabled && !coverLocked && <GuideOverlay guide={st.coverGuide} />}
           {tab === "cover" && coverOpen && (
-            <FloatingOverlayButtons ob={st.overlayButtons} preview />
+            <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />
           )}
 
-          {tab === "content" && <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock} onReorder={moveSection} lang={previewLang} />}
+          {tab === "content" && <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock}
+            onBlockPatch={editOnScreen ? patchContentBlock : undefined}
+            onSectionPatch={editOnScreen ? patchSection : undefined}
+            fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
+            onReorder={moveSection} lang={previewLang} />}
           {tab === "content" && st.contentGuide.enabled && <GuideOverlay guide={st.contentGuide} />}
-          {tab === "content" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
+          {tab === "content" && <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />}
 
           {/* Motion tab: tap Open to watch the page transition, then scroll for section transitions */}
           {tab === "transitions" && (coverOpen
@@ -1321,7 +1334,7 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
           )}
 
           {tab === "music" && <PvContent st={st} />}
-          {tab === "music" && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
+          {tab === "music" && <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />}
         </div>
       </div>
     </div>
@@ -1385,6 +1398,7 @@ const styles = `
 .eb-range { flex: 1; accent-color: var(--c-accent); }
 .eb-iconbtn { width: 30px; height: 30px; border: 1px solid var(--c-border); background: var(--c-surface); border-radius: 7px; cursor: pointer; color: var(--c-text); font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .eb-iconbtn:hover { background: var(--c-surface-2); }
+.eb-iconbtn:disabled { opacity: 0.35; cursor: default; }
 .eb-danger { color: #dc2626; }
 .eb-add { background: transparent; border: 1px dashed var(--c-border); border-radius: 8px; padding: 0.4rem 0.75rem; font-size: 0.8rem; color: var(--c-muted); cursor: pointer; font-weight: 600; }
 .eb-add:hover { border-color: var(--c-accent); color: var(--c-accent); }
@@ -1397,6 +1411,13 @@ const styles = `
 .eb-animicon { font-size: 1.4rem; }
 .eb-animlbl { font-size: 0.85rem; font-weight: 600; color: var(--c-text); }
 .eb-animdesc { font-size: 0.7rem; color: var(--c-muted); }
+
+/* Overlay button shape swatches */
+.eb-shapedemo { width: 28px; height: 28px; background: rgba(15,15,25,0.85); color: #fff; font-size: 0.65rem; display: flex; align-items: center; justify-content: center; margin-bottom: 0.15rem; }
+.eb-shapedemo[data-shape="circle"]  { border-radius: 50%; }
+.eb-shapedemo[data-shape="rounded"] { border-radius: 9px; }
+.eb-shapedemo[data-shape="square"]  { border-radius: 3px; }
+.eb-shapedemo[data-shape="pill"]    { width: 40px; height: 24px; border-radius: 999px; }
 
 /* Segmented */
 .eb-seg { display: flex; gap: 0.25rem; background: var(--c-surface-2); border: 1px solid var(--c-border); border-radius: 9px; padding: 0.25rem; }

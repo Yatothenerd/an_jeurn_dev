@@ -29,8 +29,10 @@ export interface Background {
 
 /** Cover text element — freely drag-positioned on the cover. */
 export interface CoverBlock { id: string; text: string; textEn?: string; font: string; color: string; size: number; pos: Pos }
-/** A text cell inside a content section (font + color per box). */
-export interface SectionBlock { id: string; text: string; font: string; color: string; nowrap?: boolean }
+/** A text cell inside a content section (font + color per box).
+ *  `size` (px) and `dx`/`dy` (px nudge from flow position) are set by
+ *  dragging / the floating toolbar in the on-screen editor. */
+export interface SectionBlock { id: string; text: string; font: string; color: string; nowrap?: boolean; size?: number; dx?: number; dy?: number }
 /** Monogram / logo image shown on cover and/or content. */
 export interface Monogram { url: string; scalePct: number; pos: Pos; showCover: boolean; showContent: boolean }
 /** Guest-name placeholder shown on the cover (real name injected on the live invite). */
@@ -50,6 +52,7 @@ export interface Section {
   blocksEn?: SectionBlock[];     // EN parallel — falls back to blocks when not set
   columns: 1 | 2 | 3;
   imageUrl: string; imageScalePct: number;   // photo mode + its scale
+  imgDx?: number; imgDy?: number;            // photo nudge (px) from its flow position
   imageUrlEn?: string;           // EN photo — falls back to imageUrl when not set
   agenda: AgendaItem[];
   gallery: string[];                          // memory
@@ -67,7 +70,9 @@ export interface MusicState {
 }
 
 /** Where the floating action buttons sit and how they flow. */
-export type OverlayLayout = "float" | "top" | "bottom" | "left" | "right";
+export type OverlayLayout = "float" | "top" | "bottom" | "left" | "right" | "custom";
+/** Visual shape of each floating button. */
+export type OverlayShape = "circle" | "rounded" | "square" | "pill";
 
 export interface OverlayButtons {
   playPause: boolean;
@@ -76,6 +81,10 @@ export interface OverlayButtons {
   scrollBack: boolean;
   /** Placement / orientation of the button cluster. Defaults to "float". */
   layout?: OverlayLayout;
+  /** Button shape. Defaults to "circle". */
+  shape?: OverlayShape;
+  /** Free position (% of the invite column) — used when layout is "custom". */
+  pos?: Pos;
 }
 
 export interface BuilderState {
@@ -430,33 +439,58 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
 
 // ── Content body ────────────────────────────────────────────────────────────────
 
-export function PvContent({ st, editable = false, onEditBlock, onReorder, lang = "kh" }: {
+/** Canva-style on-screen editing context, threaded down to each section. */
+export interface ContentEditCtx {
+  activeId: string | null;                       // block id, or "img:<sectionId>"
+  setActive: (id: string | null) => void;
+  patchBlock: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
+  patchSection: (secId: string, p: Partial<Section>) => void;
+  fontOptions?: { label: string; stack: string }[];
+}
+
+export function PvContent({ st, editable = false, onEditBlock, onBlockPatch, onSectionPatch, fontOptions, onReorder, lang = "kh" }: {
   st: BuilderState; editable?: boolean;
   onEditBlock?: (secId: string, blockId: string, text: string) => void;
+  /** When provided (with onSectionPatch), enables Canva-style drag / resize /
+   *  inline-toolbar editing of text blocks and section photos. */
+  onBlockPatch?: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
+  onSectionPatch?: (secId: string, p: Partial<Section>) => void;
+  fontOptions?: { label: string; stack: string }[];
   onReorder?: (from: number, to: number) => void;
   lang?: "kh" | "en";
 }) {
   const dragFrom = useRef<number | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const visible = st.sections.map((s, i) => ({ s, i })).filter(({ s }) => s.visible);
   const mono = st.monogram;
+  const edit: ContentEditCtx | undefined = editable && onBlockPatch && onSectionPatch
+    ? { activeId, setActive: setActiveId, patchBlock: onBlockPatch, patchSection: onSectionPatch, fontOptions }
+    : undefined;
+  // Section drag-reorder (HTML5 DnD) fights with item dragging — the arrows /
+  // left panel handle ordering when the Canva-style editor is on.
+  const reorderable = editable && !!onReorder && !edit;
   return (
-    <div className="pv-content">
+    <div className="pv-content"
+      onPointerDown={edit ? (e) => {
+        // Click on empty space deselects the active item.
+        if (!(e.target as HTMLElement).closest(".pv-textblock, .pv-imgwrap, .pv-blocktoolbar, .pv-resizehandle")) setActiveId(null);
+      } : undefined}>
       <BackgroundLayer bg={st.contentBg} />
       <div className="pv-content-inner">
         {visible.map(({ s, i }) => (
           <Reveal key={s.id} anim={editable ? "none" : s.anim}>
           <div className="pv-sec"
-            draggable={editable && !!onReorder}
-            onDragStart={editable && onReorder ? () => (dragFrom.current = i) : undefined}
-            onDragOver={editable && onReorder ? (e) => e.preventDefault() : undefined}
-            onDrop={editable && onReorder ? () => { if (dragFrom.current !== null && dragFrom.current !== i) onReorder(dragFrom.current, i); dragFrom.current = null; } : undefined}
+            draggable={reorderable}
+            onDragStart={reorderable ? () => (dragFrom.current = i) : undefined}
+            onDragOver={reorderable ? (e) => e.preventDefault() : undefined}
+            onDrop={reorderable ? () => { if (dragFrom.current !== null && dragFrom.current !== i) onReorder!(dragFrom.current, i); dragFrom.current = null; } : undefined}
             data-edit={editable}>
             {/* Monogram appears only on Formal Wording sections */}
             {s.kind === "wording" && mono.showContent && mono.url && (
               <img className="pv-mono-content" src={mono.url} alt="" style={{ width: `${mono.scalePct}%` }} />
             )}
             {s.showTitle && <div className="pv-secname">{s.name}</div>}
-            <SectionBody s={s} editable={editable} onEditBlock={onEditBlock} lang={lang} />
+            <SectionBody s={s} editable={editable} onEditBlock={onEditBlock} lang={lang} edit={edit} />
           </div>
           </Reveal>
         ))}
@@ -465,16 +499,84 @@ export function PvContent({ st, editable = false, onEditBlock, onReorder, lang =
   );
 }
 
-function SectionBody({ s, editable, onEditBlock, lang = "kh" }: {
+function SectionBody({ s, editable, onEditBlock, lang = "kh", edit }: {
   s: Section; editable: boolean; onEditBlock?: (secId: string, blockId: string, text: string) => void; lang?: "kh" | "en";
+  edit?: ContentEditCtx;
 }) {
   const scalePct = Number.isFinite(s.imageScalePct) ? Math.min(100, Math.max(10, s.imageScalePct)) : 100;
   const scaled = (url: string) => <img src={url} alt="" className="pv-secimg" style={{ width: `${scalePct}%`, maxWidth: "100%", margin: "0 auto" }} />;
 
+  // ── Canva-style pointer interactions (drag to nudge, corner to resize) ──
+  // Deltas are divided by the device-preview CSS scale so a 10px drag on a
+  // scaled-down phone still moves the item 10 content-px.
+  const drag = useRef<{
+    kind: "block" | "img" | "img-resize"; secId: string; blockId?: string;
+    sx: number; sy: number; dx0: number; dy0: number; scale: number; moved: boolean;
+    scale0?: number; colW?: number;
+  } | null>(null);
+
+  const startItemDrag = (kind: "block" | "img", secId: string, blockId: string | undefined, dx0: number, dy0: number) => (e: React.PointerEvent) => {
+    if (!edit) return;
+    const activeKey = kind === "img" ? `img:${secId}` : blockId!;
+    if (edit.activeId === activeKey && kind === "block") return; // editing text — let the caret work
+    e.preventDefault();
+    const host = e.currentTarget as HTMLElement;
+    const scale = host.offsetWidth ? host.getBoundingClientRect().width / host.offsetWidth : 1;
+    drag.current = { kind, secId, blockId, sx: e.clientX, sy: e.clientY, dx0, dy0, scale, moved: false };
+    host.setPointerCapture?.(e.pointerId);
+  };
+  const startImgResize = (secId: string, scale0: number) => (e: React.PointerEvent) => {
+    if (!edit) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const handle = e.currentTarget as HTMLElement;
+    const col = handle.closest(".pv-sec") as HTMLElement | null;
+    const scale = col && col.offsetWidth ? col.getBoundingClientRect().width / col.offsetWidth : 1;
+    drag.current = { kind: "img-resize", secId, sx: e.clientX, sy: e.clientY, dx0: 0, dy0: 0, scale, moved: false, scale0, colW: col?.offsetWidth ?? 320 };
+    handle.setPointerCapture?.(e.pointerId);
+  };
+  const onDragMove = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || !edit) return;
+    const dx = (e.clientX - d.sx) / d.scale;
+    const dy = (e.clientY - d.sy) / d.scale;
+    if (!d.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+    d.moved = true;
+    if (d.kind === "block") edit.patchBlock(d.secId, d.blockId!, { dx: Math.round(d.dx0 + dx), dy: Math.round(d.dy0 + dy) });
+    else if (d.kind === "img") edit.patchSection(d.secId, { imgDx: Math.round(d.dx0 + dx), imgDy: Math.round(d.dy0 + dy) });
+    else edit.patchSection(d.secId, { imageScalePct: Math.max(10, Math.min(100, Math.round((d.scale0 ?? 100) + (dx / (d.colW ?? 320)) * 100))) });
+  };
+  const onDragEnd = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d || !edit || d.moved || d.kind === "img-resize") return;
+    // Click without movement toggles selection.
+    const key = d.kind === "img" ? `img:${d.secId}` : d.blockId!;
+    edit.setActive(edit.activeId === key ? null : key);
+  };
+
   // Photo mode — use EN image if set and lang=en, else KH/default image
   if (s.mode === "photo") {
     const url = (lang === "en" && s.imageUrlEn) ? s.imageUrlEn : s.imageUrl;
-    return url ? scaled(url) : <div className="pv-secph">Image</div>;
+    if (!url) return <div className="pv-secph">Image</div>;
+    const off = (s.imgDx || s.imgDy) ? `translate(${s.imgDx ?? 0}px, ${s.imgDy ?? 0}px)` : undefined;
+    if (!edit) {
+      return <img src={url} alt="" className="pv-secimg" style={{ width: `${scalePct}%`, maxWidth: "100%", margin: "0 auto", transform: off }} />;
+    }
+    const isActive = edit.activeId === `img:${s.id}`;
+    return (
+      <div className={`pv-imgwrap${isActive ? " pv-item-active" : ""}`} data-edit
+        style={{ width: `${scalePct}%`, margin: "0 auto", transform: off }}
+        onPointerDown={startItemDrag("img", s.id, undefined, s.imgDx ?? 0, s.imgDy ?? 0)}
+        onPointerMove={onDragMove} onPointerUp={onDragEnd}>
+        <img src={url} alt="" className="pv-secimg" style={{ width: "100%" }} draggable={false} />
+        {isActive && (
+          <span className="pv-resizehandle" title="Drag to resize"
+            onPointerDown={startImgResize(s.id, scalePct)}
+            onPointerMove={onDragMove} onPointerUp={onDragEnd} />
+        )}
+      </div>
+    );
   }
 
   switch (s.kind) {
@@ -524,13 +626,61 @@ function SectionBody({ s, editable, onEditBlock, lang = "kh" }: {
       const activeBlocks = (lang === "en" && s.blocksEn && s.blocksEn.length) ? s.blocksEn : s.blocks;
       return (
         <div className="pv-sectext" style={{ columnCount: s.columns }}>
-          {activeBlocks.map((bl) => (
-            <div key={bl.id} className="pv-textblock" style={{ fontFamily: bl.font, color: bl.color, whiteSpace: bl.nowrap ? "pre" : "pre-line" }}
-              contentEditable={editable && lang !== "en"} suppressContentEditableWarning
-              onBlur={editable && lang !== "en" && onEditBlock ? (e) => onEditBlock(s.id, bl.id, e.currentTarget.textContent ?? "") : undefined}>
-              {bl.text}
-            </div>
-          ))}
+          {activeBlocks.map((bl, idx) => {
+            // Layout (size + nudge) always comes from the KH structure so the
+            // EN mirror stays aligned with it.
+            const base = lang === "en" ? (s.blocks[idx] ?? bl) : bl;
+            const off = (base.dx || base.dy) ? `translate(${base.dx ?? 0}px, ${base.dy ?? 0}px)` : undefined;
+            const styleBase: React.CSSProperties = {
+              fontFamily: bl.font, color: bl.color, whiteSpace: bl.nowrap ? "pre" : "pre-line",
+              fontSize: base.size, transform: off,
+            };
+            if (!edit) {
+              return (
+                <div key={bl.id} className="pv-textblock" style={styleBase}
+                  contentEditable={editable && lang !== "en"} suppressContentEditableWarning
+                  onBlur={editable && lang !== "en" && onEditBlock ? (e) => onEditBlock(s.id, bl.id, e.currentTarget.textContent ?? "") : undefined}>
+                  {bl.text}
+                </div>
+              );
+            }
+            const canManipulate = lang !== "en"; // structure is edited in KH mode; EN mirrors it
+            const isActive = canManipulate && edit.activeId === bl.id;
+            return (
+              <div key={bl.id} className={`pv-textblock${isActive ? " pv-item-active" : ""}`}
+                data-edit={canManipulate}
+                style={{ ...styleBase, position: "relative", zIndex: isActive ? 20 : undefined }}
+                onPointerDown={canManipulate ? startItemDrag("block", s.id, bl.id, base.dx ?? 0, base.dy ?? 0) : undefined}
+                onPointerMove={canManipulate ? onDragMove : undefined}
+                onPointerUp={canManipulate ? onDragEnd : undefined}>
+                {isActive
+                  ? <BlockTextEdit text={bl.text}
+                      onChange={(t) => edit.patchBlock(s.id, bl.id, { text: t })}
+                      onClose={() => edit.setActive(null)} />
+                  : bl.text}
+                {isActive && (
+                  <div className="pv-blocktoolbar" style={{ top: "calc(100% + 6px)" }} onPointerDown={(e) => e.stopPropagation()}>
+                    {edit.fontOptions && edit.fontOptions.length > 0 && (
+                      <select className="pv-tsel" value={bl.font}
+                        onChange={(e) => edit.patchBlock(s.id, bl.id, { font: e.target.value })}>
+                        {edit.fontOptions.map((f) => <option key={f.label} value={f.stack}>{f.label}</option>)}
+                      </select>
+                    )}
+                    <input type="number" className="pv-tnum" min={10} max={72} value={bl.size ?? 15}
+                      onChange={(e) => edit.patchBlock(s.id, bl.id, { size: +e.target.value })} />
+                    <span className="pv-tclrdot" style={{ background: bl.color }}>
+                      <input type="color" value={pvHex(bl.color)}
+                        onChange={(e) => edit.patchBlock(s.id, bl.id, { color: e.target.value })} />
+                    </span>
+                    {(bl.dx || bl.dy) ? (
+                      <button type="button" className="pv-tbtn" title="Reset position"
+                        onClick={() => edit.patchBlock(s.id, bl.id, { dx: 0, dy: 0 })}>⟲</button>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       );
     }
@@ -550,29 +700,70 @@ export function LangSwitcher({ lang, onChange }: { lang: "kh" | "en"; onChange: 
 
 // ── Floating overlay buttons (live invite + admin preview) ──────────────────────
 
-export function FloatingOverlayButtons({ ob, onPlayPause, isPlaying, onScrollBack, onMap, onWish, preview = false }: {
+export function FloatingOverlayButtons({ ob, onPlayPause, isPlaying, onScrollBack, onMap, onWish, preview = false, editable = false, onMove }: {
   ob: OverlayButtons;
   onPlayPause?: () => void; isPlaying?: boolean;
   onScrollBack?: () => void; onMap?: () => void; onWish?: () => void;
   preview?: boolean;
+  /** Admin edit-on-screen mode — the whole cluster can be dragged to a custom spot. */
+  editable?: boolean;
+  onMove?: (xPct: number, yPct: number) => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+  const moved = useRef(false);
   const visible = ob.playPause || ob.map || ob.wishGift || ob.scrollBack;
   if (!visible) return null;
+
+  const shape = ob.shape ?? "circle";
+  const layout = ob.layout ?? "float";
+  const pos = ob.pos ?? { xPct: 86, yPct: 82 };
+  // Custom placement: preview positions inside the device column (% of the
+  // screen); the live invite is position:fixed, so anchor to the centered
+  // invite column (max-width 480px) rather than the raw viewport.
+  const style: React.CSSProperties | undefined = layout === "custom"
+    ? preview
+      ? { left: `${pos.xPct}%`, top: `${pos.yPct}%`, transform: "translate(-50%, -50%)" }
+      : { left: `calc(50% + ${(pos.xPct - 50) / 100} * min(100vw, 480px))`, top: `${pos.yPct}%`, transform: "translate(-50%, -50%)" }
+    : undefined;
+
+  const down = (e: React.PointerEvent) => {
+    if (!editable || !onMove) return;
+    dragging.current = true;
+    moved.current = false;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const drag = (e: React.PointerEvent) => {
+    if (!dragging.current || !onMove) return;
+    const parent = ref.current?.offsetParent as HTMLElement | null;
+    if (!parent) return;
+    const r = parent.getBoundingClientRect();
+    const x = Math.max(4, Math.min(96, ((e.clientX - r.left) / r.width) * 100));
+    const y = Math.max(4, Math.min(96, ((e.clientY - r.top) / r.height) * 100));
+    moved.current = true;
+    onMove(x, y);
+  };
+  const up = () => { dragging.current = false; };
+
   return (
-    <div className={`pv-floatbtns${preview ? " pv-floatbtns-preview" : ""}`} data-layout={ob.layout ?? "float"}>
+    <div ref={ref} className={`pv-floatbtns${preview ? " pv-floatbtns-preview" : ""}`}
+      data-layout={layout} data-edit={editable} style={style}
+      onPointerDown={down} onPointerMove={drag} onPointerUp={up}
+      // A drag shouldn't also trigger the button under the pointer.
+      onClickCapture={(e) => { if (moved.current) { e.preventDefault(); e.stopPropagation(); moved.current = false; } }}>
       {ob.playPause && (
-        <button type="button" className="pv-floatbtn" onClick={onPlayPause} title={isPlaying ? "Pause" : "Play music"}>
+        <button type="button" className="pv-floatbtn" data-shape={shape} onClick={onPlayPause} title={isPlaying ? "Pause" : "Play music"}>
           {isPlaying ? "⏸" : "▶"}
         </button>
       )}
       {ob.map && (
-        <button type="button" className="pv-floatbtn" onClick={onMap} title="Map">🗺</button>
+        <button type="button" className="pv-floatbtn" data-shape={shape} onClick={onMap} title="Map">🗺</button>
       )}
       {ob.wishGift && (
-        <button type="button" className="pv-floatbtn" onClick={onWish} title="Wish & Gift">🎁</button>
+        <button type="button" className="pv-floatbtn" data-shape={shape} onClick={onWish} title="Wish & Gift">🎁</button>
       )}
       {ob.scrollBack && (
-        <button type="button" className="pv-floatbtn" onClick={onScrollBack} title="Scroll back">↑</button>
+        <button type="button" className="pv-floatbtn" data-shape={shape} onClick={onScrollBack} title="Scroll back">↑</button>
       )}
     </div>
   );
@@ -734,7 +925,25 @@ export const canvasStyles = `
 .pv-floatbtns[data-layout="left"]   { flex-direction: column; top: 50%; left: 1rem; transform: translateY(-50%); }
 .pv-floatbtns[data-layout="bottom"] { flex-direction: row; bottom: 1.5rem; left: 50%; transform: translateX(-50%); }
 .pv-floatbtns[data-layout="top"]    { flex-direction: row; top: 1rem; left: 50%; transform: translateX(-50%); }
+.pv-floatbtns[data-layout="custom"] { flex-direction: column; }
+.pv-floatbtns[data-edit="true"] { cursor: grab; outline: 1px dashed rgba(255,255,255,0.55); outline-offset: 5px; border-radius: 10px; touch-action: none; }
 .pv-floatbtn { width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(15,15,25,0.78); color: #fff; font-size: 1rem; cursor: pointer; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.pv-floatbtn[data-shape="rounded"] { border-radius: 12px; }
+.pv-floatbtn[data-shape="square"]  { border-radius: 5px; }
+.pv-floatbtn[data-shape="pill"]    { width: 54px; height: 32px; border-radius: 999px; }
+.pv-floatbtns[data-layout="bottom"] .pv-floatbtn[data-shape="pill"], .pv-floatbtns[data-layout="top"] .pv-floatbtn[data-shape="pill"] { width: 46px; }
+
+/* Canva-style content editing — drag to nudge, click to select, corner to resize */
+.pv-textblock[data-edit="true"] { cursor: grab; touch-action: none; }
+.pv-textblock[data-edit="true"]:hover { outline: 1px dashed rgba(255,255,255,0.45); outline-offset: 2px; border-radius: 4px; }
+.pv-item-active { outline: 1.5px solid rgba(255,255,255,0.95) !important; outline-offset: 2px; border-radius: 4px; }
+.pv-imgwrap { position: relative; }
+.pv-imgwrap[data-edit] { cursor: grab; touch-action: none; }
+.pv-imgwrap[data-edit]:hover { outline: 1px dashed rgba(255,255,255,0.45); outline-offset: 2px; border-radius: 4px; }
+.pv-resizehandle { position: absolute; right: -8px; bottom: -8px; width: 15px; height: 15px; background: #fff; border: 1.5px solid rgba(0,0,0,0.45); border-radius: 3px; cursor: nwse-resize; z-index: 16; box-shadow: 0 1px 4px rgba(0,0,0,0.5); touch-action: none; }
+.pv-resizehandle:hover { background: #a0cfff; }
+.pv-tbtn { border: none; background: rgba(255,255,255,0.1); color: #fff; border-radius: 5px; width: 22px; height: 20px; font-size: 0.7rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.pv-tbtn:hover { background: rgba(255,255,255,0.2); }
 
 /* Transform handles (scale / resize) */
 .pv-transform-box { position: absolute; pointer-events: none; border: 1.5px dashed rgba(255,255,255,0.7); box-sizing: border-box; z-index: 15; border-radius: 2px; }
