@@ -32,7 +32,7 @@ export function TemplateHeader({ id, name, packageNames }: Props) {
     <div style={s.wrap}>
       {/* Breadcrumb */}
       <a href="/admin/themes" style={s.back}>
-        <span style={s.backArrow}>←</span> Template Library
+        <span style={s.backArrow}>←</span> Theme Studio
       </a>
 
       <div style={s.row}>

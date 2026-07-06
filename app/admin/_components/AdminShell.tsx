@@ -21,8 +21,8 @@ const GROUPS: { label: string; items: { href: string; icon: string; label: strin
     label: "Event",
     items: [
       { href: "/admin/events/new", icon: "new-invitation", label: "New Event" },
-      { href: "/admin/events", icon: "theme", label: "Event Format" },
-      { href: "/admin/themes", icon: "theme", label: "Theme Builder" },
+      { href: "/admin/events", icon: "invitation", label: "Events" },
+      { href: "/admin/themes", icon: "theme", label: "Theme Studio" },
       { href: "/admin/invitations", icon: "invitation", label: "Invitations" },
     ],
   },

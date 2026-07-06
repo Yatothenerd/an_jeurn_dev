@@ -14,7 +14,8 @@ interface TemplateRow {
   packageIds: string[];
 }
 interface PackageRow { id: string; name: string; slug: string }
-interface Props { templates: TemplateRow[]; packages: PackageRow[] }
+interface BuiltinTheme { id: string; name: string; palette: { bg: string; primary: string; accent: string; text: string } }
+interface Props { templates: TemplateRow[]; packages: PackageRow[]; builtinThemes?: BuiltinTheme[] }
 
 function paletteOf(overlay: Record<string, unknown> | null): string[] {
   const draft = (overlay?.builderDraft ?? {}) as Record<string, unknown>;
@@ -28,7 +29,7 @@ function paletteOf(overlay: Record<string, unknown> | null): string[] {
   ];
 }
 
-export function ThemesPageClient({ templates, packages }: Props) {
+export function ThemesPageClient({ templates, packages, builtinThemes = [] }: Props) {
   const router = useRouter();
   const [creating,       setCreating]       = useState(false);
   const [busyId,         setBusyId]         = useState<string | null>(null);
@@ -106,8 +107,8 @@ export function ThemesPageClient({ templates, packages }: Props) {
       {/* ── Page header ──────────────────────────────────────────── */}
       <div style={s.pageHeader}>
         <div>
-          <h1 style={s.heading}>Template Library</h1>
-          <p style={s.sub}>Design reusable themes and assign them to pricing packages.</p>
+          <h1 style={s.heading}>Theme Studio</h1>
+          <p style={s.sub}>Build reusable templates from base themes and assign them to pricing packages.</p>
         </div>
         <div style={s.headRight}>
           {templates.length > 0 && (
@@ -121,6 +122,33 @@ export function ThemesPageClient({ templates, packages }: Props) {
           </button>
         </div>
       </div>
+
+      {/* ── Built-in code themes ─────────────────────────────────── */}
+      {builtinThemes.length > 0 && (
+        <div style={s.builtinWrap}>
+          <div style={s.builtinHead}>
+            <div>
+              <h2 style={s.builtinTitle}>Built-in themes</h2>
+              <p style={s.builtinSub}>
+                Bespoke coded designs, fully database-driven. Apply one to an event from its <b>Theme editor</b> — content, images and colors sync live.
+              </p>
+            </div>
+          </div>
+          <div style={s.builtinRow}>
+            {builtinThemes.map(t => (
+              <div key={t.id} style={s.builtinCard}>
+                <span style={{ ...s.builtinSwatch, background: `linear-gradient(135deg, ${t.palette.primary} 0%, ${t.palette.accent} 100%)` }}>
+                  <span style={{ color: t.palette.bg, fontFamily: "Georgia,serif", fontStyle: "italic", fontSize: "1.1rem" }}>Aa</span>
+                </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={s.builtinName}>{t.name}</div>
+                  <div style={s.builtinId}>{t.id}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Empty state ───────────────────────────────────────────── */}
       {templates.length === 0 ? (
@@ -272,6 +300,17 @@ export function ThemesPageClient({ templates, packages }: Props) {
 /* ── Styles ──────────────────────────────────────────────────────────────────── */
 const s = {
   page: { padding: "0" },
+
+  /* built-in code themes */
+  builtinWrap:   { border: "1px solid var(--c-border)", borderRadius: 14, background: "var(--c-surface)", padding: "1rem 1.25rem", marginBottom: "1.5rem" },
+  builtinHead:   { marginBottom: "0.75rem" },
+  builtinTitle:  { margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--c-text)" },
+  builtinSub:    { margin: "0.2rem 0 0", fontSize: "0.8125rem", color: "var(--c-muted)" },
+  builtinRow:    { display: "flex", flexWrap: "wrap" as const, gap: "0.75rem" },
+  builtinCard:   { display: "flex", alignItems: "center", gap: "0.625rem", border: "1px solid var(--c-border)", borderRadius: 10, background: "var(--c-surface-2)", padding: "0.5rem 0.875rem 0.5rem 0.5rem" },
+  builtinSwatch: { width: 40, height: 40, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  builtinName:   { fontSize: "0.85rem", fontWeight: 700, color: "var(--c-text)", whiteSpace: "nowrap" as const },
+  builtinId:     { fontSize: "0.7rem", color: "var(--c-muted)", fontFamily: "monospace" },
 
   /* header */
   pageHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.75rem", gap: "1rem", flexWrap: "wrap" as const },

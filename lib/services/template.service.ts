@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import type { Prisma } from "@/app/generated/prisma";
 
 // ── Template (reusable design preset) service ────────────────────────────────
 //
@@ -42,10 +43,11 @@ const DESIGN_KEYS: (keyof TemplateDesign)[] = [
   "isAnimated",
 ];
 
-function pickDesign(input: Record<string, unknown>): Record<string, unknown> {
+function pickDesign(input: TemplateDesign): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const rec = input as unknown as Record<string, unknown>;
   for (const k of DESIGN_KEYS) {
-    if (k in input) out[k] = input[k];
+    if (k in rec) out[k] = rec[k];
   }
   return out;
 }
@@ -81,7 +83,7 @@ export const TemplateService = {
         name: name.trim(),
         isActive: isActive ?? true,
         sortOrder: sortOrder ?? 0,
-        ...pickDesign(input as Record<string, unknown>),
+        ...pickDesign(input),
         ...(packageIds && packageIds.length > 0
           ? { packages: { create: packageIds.map((packageId) => ({ packageId })) } }
           : {}),
@@ -91,7 +93,7 @@ export const TemplateService = {
   },
 
   async update(id: string, input: Partial<TemplateInput>) {
-    const data: Record<string, unknown> = { ...pickDesign(input as Record<string, unknown>) };
+    const data: Record<string, unknown> = { ...pickDesign(input) };
     if (typeof input.name === "string") data.name = input.name.trim();
     if (typeof input.isActive === "boolean") data.isActive = input.isActive;
     if (typeof input.sortOrder === "number") data.sortOrder = input.sortOrder;
@@ -110,7 +112,7 @@ export const TemplateService = {
 
   /** Replace the set of packages a template is tagged to. */
   async setPackages(templateId: string, packageIds: string[]) {
-    const unique = [...new Set(packageIds)];
+    const unique = Array.from(new Set(packageIds));
     await prisma.$transaction([
       prisma.packageTemplate.deleteMany({ where: { templateId } }),
       ...(unique.length > 0
@@ -126,45 +128,39 @@ export const TemplateService = {
   },
 
   /**
-   * Copy a template's design onto an event's invitation. The live invite renders
-   * from invitation.overlayConfig.builderDraft, so we transplant the template's
-   * builderDraft but keep the target event's identity (name / type / date) so an
-   * existing event is restyled, not renamed.
+   * Apply a template to an event: a wholesale SNAPSHOT copy of the template's
+   * design onto the event's invitation. Nothing from the previous design
+   * survives — no overlay merging — so a stale themeId or leftover builderDraft
+   * can never make a re-style a silent no-op. Only the event's identity
+   * (title / type / date) is preserved, injected into a transplanted builder
+   * draft when the template is a Freeform design.
    */
   async applyToEvent(templateId: string, eventId: string) {
     const template = await prisma.template.findUnique({ where: { id: templateId } });
     if (!template) throw new Error("Template not found");
 
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: { invitation: true },
-    });
+    const event = await prisma.event.findUnique({ where: { id: eventId } });
     if (!event) throw new Error("Event not found");
 
-    const tplOverlay = (template.overlayConfig as Record<string, unknown> | null) ?? {};
-    const tplDraft = (tplOverlay.builderDraft as Record<string, unknown> | undefined) ?? undefined;
+    // Deep-copy the template's overlay so the template row is never mutated.
+    const tplOverlay = JSON.parse(
+      JSON.stringify((template.overlayConfig as Record<string, unknown> | null) ?? {})
+    ) as Record<string, unknown>;
 
-    const existingOverlay = (event.invitation?.overlayConfig as Record<string, unknown> | null) ?? {};
-    const existingDraft = (existingOverlay.builderDraft as Record<string, unknown> | undefined) ?? undefined;
-
-    // Preserve the event's real identity inside the transplanted draft.
-    const identity = {
-      eventName: existingDraft?.eventName ?? event.title,
-      eventType: existingDraft?.eventType ?? event.eventType,
-      dateTime:
-        existingDraft?.dateTime ??
-        (event.eventDate ? new Date(event.eventDate).toISOString().slice(0, 16) : ""),
-    };
-
-    const mergedOverlay: Record<string, unknown> = {
-      ...existingOverlay,
-      ...tplOverlay,
-      ...(tplDraft ? { builderDraft: { ...tplDraft, ...identity } } : {}),
-    };
+    const tplDraft = tplOverlay.builderDraft as Record<string, unknown> | undefined;
+    if (tplDraft && typeof tplDraft === "object") {
+      tplOverlay.builderDraft = {
+        ...tplDraft,
+        eventName: event.title,
+        eventType: event.eventType,
+        dateTime: event.eventDate ? new Date(event.eventDate).toISOString().slice(0, 16) : "",
+      };
+    }
 
     const design = {
       contentType: template.contentType ?? "photo",
-      overlayConfig: mergedOverlay,
+      defaultSections: (template.defaultSections ?? undefined) as Prisma.InputJsonValue | undefined,
+      overlayConfig: tplOverlay as Prisma.InputJsonValue,
       backgroundUrl: template.backgroundUrl,
       backgroundVideoUrl: template.backgroundVideoUrl,
       coverUrl: template.coverUrl,

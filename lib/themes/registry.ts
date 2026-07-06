@@ -1,18 +1,24 @@
-// Theme registry. Royal Khmer is the only / default theme. (Other themes were
-// retired — admin designs everything on this base.)
+// Theme registry — every rendering engine the invite page can use.
+//
+// "standard" is the token fallback (shared `.inv-*` system), "freeform" wraps
+// the builder canvas, and the rest are bespoke code themes. design.themeId
+// (see ./design.ts) always resolves to exactly one of these.
 
 import type { ThemeModule, ThemeTokens } from "./types";
+import { standardTheme } from "./themes/standard";
+import { freeformTheme } from "./themes/freeform";
 import { royalKhmer } from "./themes/royal-khmer";
+import { sweetHearts } from "./themes/sweet-hearts";
 
-const MODULES: ThemeModule[] = [royalKhmer];
+const MODULES: ThemeModule[] = [standardTheme, freeformTheme, royalKhmer, sweetHearts];
 
 export const THEMES: Record<string, ThemeModule> = Object.fromEntries(
   MODULES.map((m) => [m.id, m])
 );
 
-export const DEFAULT_THEME = royalKhmer;
+export const DEFAULT_THEME = standardTheme;
 
-/** Resolve a theme module by id, falling back to Royal Khmer. */
+/** Resolve a theme module by id, falling back to Standard. */
 export function getTheme(themeId: string): ThemeModule {
   return THEMES[themeId] ?? DEFAULT_THEME;
 }
@@ -20,6 +26,29 @@ export function getTheme(themeId: string): ThemeModule {
 /** Resolve just the design tokens for a theme (used by thumbnails / palettes). */
 export function getThemeTokens(themeId: string): ThemeTokens {
   return getTheme(themeId).tokens;
+}
+
+/** Serializable summary of every registered theme (safe to pass server → client). */
+export interface ThemeSummary {
+  id: string;
+  name: string;
+  /** How the theme renders: bespoke code sections, the builder canvas, or the token fallback. */
+  kind: "code" | "builder" | "standard";
+  palette: { bg: string; primary: string; accent: string; text: string };
+}
+
+export function listThemeSummaries(): ThemeSummary[] {
+  return MODULES.map((m) => ({
+    id: m.id,
+    name: m.name,
+    kind: m.id === "theme-freeform" ? "builder" : m.id === "theme-standard" ? "standard" : "code",
+    palette: {
+      bg: m.tokens.bg,
+      primary: m.tokens.primary,
+      accent: m.tokens.accent,
+      text: m.tokens.text,
+    },
+  }));
 }
 
 export { buildInviteCss, buildFontsHref } from "./shared/standard-css";

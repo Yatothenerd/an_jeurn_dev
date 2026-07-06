@@ -1,0 +1,28 @@
+import type { ThemeModule } from "../types";
+
+// The builder canvas wrapped as a theme. When design.themeId resolves to this
+// id, the invite page renders BuilderInvite from design.builderDraft instead of
+// the section pipeline — that branch lives in the invite page because the
+// builder ships its own full-page renderer. Tokens exist only for pickers and
+// thumbnails (dark canvas defaults from lib/builder/canvas.tsx freshState).
+export const freeformTheme: ThemeModule = {
+  id: "theme-freeform",
+  name: "Freeform (Builder)",
+  tokens: {
+    id: "theme-freeform",
+    font: "Georgia, 'Times New Roman', serif",
+    bg: "#11151c",
+    altBg: "#1b2430",
+    cardBg: "rgba(255,255,255,0.06)",
+    coverGradient: "linear-gradient(180deg, #1b2430 0%, #11151c 100%)",
+    text: "#ffffff",
+    primary: "#ffffff",
+    muted: "rgba(255,255,255,0.55)",
+    accent: "#c9a96e",
+    border: "rgba(201,169,110,0.35)",
+    btnBg: "#c9a96e",
+    btnText: "#11151c",
+    musicBg: "rgba(0,0,0,0.50)",
+    musicColor: "#c9a96e",
+  },
+};

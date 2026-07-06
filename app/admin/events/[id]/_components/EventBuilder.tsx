@@ -265,9 +265,13 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
       const url = isTemplate
         ? `/api/admin/templates/${templateMode!.templateId}`
         : `/api/admin/events/${event.id}`;
+      // Designing in the builder IS choosing the Freeform theme — set it
+      // explicitly so the live invite renders this draft (design.themeId is
+      // the sole renderer key; see lib/themes/design.ts).
+      const overlayConfig = { ...(invitation?.overlayConfig ?? {}), builderDraft: st, themeId: "theme-freeform" };
       const body = isTemplate
         ? {
-            overlayConfig: { ...(invitation?.overlayConfig ?? {}), builderDraft: st },
+            overlayConfig,
             isAnimated: true,
             coverUrl: coverUrl ?? null,
             backgroundUrl: backgroundUrl ?? null,
@@ -277,7 +281,7 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
         : {
             title: st.eventName.trim(), eventType: st.eventType,
             eventDate: st.dateTime ? new Date(st.dateTime).toISOString() : undefined,
-            overlayConfig: { ...(invitation?.overlayConfig ?? {}), builderDraft: st },
+            overlayConfig,
             isAnimated: true,
             ...(coverUrl ? { coverUrl } : {}),
             ...(backgroundUrl ? { backgroundUrl } : {}),

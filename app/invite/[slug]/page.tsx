@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/services/auth.service";
 import { getCachedInvite, setCachedInvite, type InviteData } from "@/lib/utils/invite-cache";
 import { STANDARD_CSS, buildFontsHref, DEFAULT_FONTS } from "@/lib/themes/shared/standard-css";
+import { getTheme } from "@/lib/themes/registry";
+import { resolveDesign, FREEFORM_THEME_ID, STANDARD_THEME_ID, type DesignPalette } from "@/lib/themes/design";
+import { STANDARD_TOKENS } from "@/lib/themes/themes/standard";
 import { khqrItems } from "./_components/khqr-utils";
 import type { SectionComponents, SectionType, ThemeTokens, ThemeLayout } from "@/lib/themes/types";
 import { DB_SECTIONS } from "./_components/db-section-map";
@@ -42,29 +45,6 @@ const STANDARD_SECTIONS: SectionComponents = {
   wishing: WishingSection,
   image: ImageSection,
   guestlist: GuestlistSection,
-};
-
-// ── Fallback token defaults ────────────────────────────────────────────────────
-
-const DEFAULT_TOKENS: ThemeTokens = {
-  font: "'Georgia','Times New Roman',serif",
-  bg: "transparent",
-  altBg: "rgba(0,0,0,0.10)",
-  cardBg: "rgba(255,255,255,0.10)",
-  coverGradient: "linear-gradient(to bottom, rgba(0,0,0,0.32), rgba(0,0,0,0.08))",
-  text: "#ffffff",
-  primary: "#ffffff",
-  muted: "rgba(255,255,255,0.55)",
-  accent: "#c9a96e",
-  border: "rgba(201,169,110,0.44)",
-  btnBg: "#c9a96e",
-  btnText: "#fff",
-  musicBg: "rgba(0,0,0,0.50)",
-  musicColor: "#c9a96e",
-  title:    "#ffffff",
-  subtitle: "rgba(255,255,255,0.88)",
-  header:   "#c9a96e",
-  body:     "rgba(255,255,255,0.85)",
 };
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
@@ -278,100 +258,74 @@ export default async function InvitePage({
 
   const inv = data.invitation;
 
-  // Builder-driven invite: if this event was authored in the new EventBuilder,
-  // render it directly from the saved builder state so guests see exactly what
-  // the editor preview shows. Legacy (theme-based) events fall through below.
-  const builderDraft = (inv.overlayConfig as Record<string, unknown> | null)?.builderDraft as BuilderState | undefined;
-  if (builderDraft && typeof builderDraft === "object" && Array.isArray(builderDraft.sections)) {
-    let gName: string | null = null;
-    if (g) {
-      const guest = await prisma.guest.findFirst({ where: { token: g, eventId: data.event.id }, select: { name: true } });
-      gName = guest?.name ?? null;
-    }
-    return <BuilderInvite state={builderDraft} guestName={gName ?? undefined} />;
+  // ONE design document drives rendering (lib/themes/design.ts). The adapter
+  // reads the legacy columns; design.themeId is the only renderer key.
+  const design = resolveDesign({
+    overlayConfig: inv.overlayConfig,
+    defaultSections: inv.defaultSections,
+    sectionRows: data.sections,
+  });
+  const { gate, page } = design;
+
+  // Personalized guest name
+  let guestName: string | null = null;
+  if (g) {
+    const guest = await prisma.guest.findFirst({
+      where: { token: g, eventId: data.event.id },
+      select: { name: true },
+    });
+    guestName = guest?.name ?? null;
   }
 
+  // Freeform theme — the builder canvas ships its own full-page renderer.
+  if (design.themeId === FREEFORM_THEME_ID) {
+    return <BuilderInvite state={design.builderDraft as BuilderState} guestName={guestName ?? undefined} />;
+  }
+
+  const themeMod = getTheme(design.themeId);
+  const isStandard = themeMod.id === STANDARD_THEME_ID;
+  const baseTokens: ThemeTokens = { ...STANDARD_TOKENS, ...themeMod.tokens };
   const isPhotoMode = inv.contentType === "photo";
 
-  // Build tokens from the invitation's overlayConfig (colors + fonts).
-  // Two palettes: `colorScheme` drives the content sections, `gateColorScheme`
-  // drives the landing page (gate); the latter falls back to the former.
-  type CS = {
-    text?: string; accent?: string;
-    title?: string; subtitle?: string; header?: string; body?: string; muted?: string;
-  };
-  const oc = inv.overlayConfig as {
-    colorScheme?: CS;
-    gateColorScheme?: CS;
-    fonts?: { heading?: string; body?: string; headingScale?: number; bodyScale?: number };
-    backgroundBlur?: number;
-    sectionBlur?: number;
-    sectionOverlay?: { enabled: boolean; color: string; opacity: number };
-    gateOverlay?: { enabled: boolean; color: string; opacity: number };
-    actionButton?: { bg: string; color: string };
-    revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
-    keepCoverAfterOpen?: boolean;
-    scrollGuide?: boolean;
-    gatePosition?: "top" | "center" | "bottom";
-    showGuestName?: boolean;
-    guestFrameUrl?: string | null;
-    monogram?: { gate: boolean; sections: boolean };
-    elementPositions?: ElementPositions;
-    showRsvp?: boolean;
-  } | null;
+  const headingFont  = design.fonts.heading || baseTokens.headingFont || (isStandard ? DEFAULT_FONTS.heading : baseTokens.font);
+  const bodyFont     = design.fonts.body    || baseTokens.font;
+  const { headingScale, bodyScale } = design.fonts;
+  // Action-button colors follow the active theme unless the design overrides them.
+  const actionButton = page.actionButton ?? { bg: baseTokens.musicBg, color: baseTokens.musicColor };
 
-  const headingFont  = oc?.fonts?.heading || DEFAULT_FONTS.heading;
-  const bodyFont      = oc?.fonts?.body    || DEFAULT_FONTS.body;
-  const headingScale = oc?.fonts?.headingScale ?? 1;
-  const bodyScale    = oc?.fonts?.bodyScale ?? 1;
-  const backgroundBlur    = oc?.backgroundBlur ?? 0;
-  const sectionBlur       = oc?.sectionBlur ?? 0;
-  const sectionOverlay    = oc?.sectionOverlay ?? { enabled: false, color: "#000000", opacity: 0.25 };
-  const gateOverlay       = oc?.gateOverlay ?? { enabled: false, color: "#000000", opacity: 0.45 };
-  const actionButton      = oc?.actionButton ?? { bg: "rgba(0,0,0,0.5)", color: "#c9a96e" };
-  const revealStyle       = oc?.revealStyle ?? "fade";
-  const keepCoverAfterOpen = oc?.keepCoverAfterOpen ?? true;
-  const scrollGuide       = oc?.scrollGuide ?? true;
-  const gatePosition      = oc?.gatePosition ?? "center";
-  const showGuestName     = oc?.showGuestName ?? true;
-  const guestFrameUrl     = oc?.guestFrameUrl ?? null;
-  const monogram          = oc?.monogram ?? { gate: true, sections: false };
-  const elementPositions  = oc?.elementPositions ?? undefined;
-  const showRsvp          = oc?.showRsvp ?? true;
-
-  const buildTokens = (c: CS): ThemeTokens => ({
-    ...DEFAULT_TOKENS,
+  // Two palettes: `design.palette` drives the content sections,
+  // `design.gatePalette` drives the landing page (gate).
+  const buildTokens = (c: DesignPalette): ThemeTokens => ({
+    ...baseTokens,
     font:        bodyFont,
     headingFont,
     headingScale,
     bodyScale,
-    text:     c.text     ?? DEFAULT_TOKENS.text,
-    primary:  c.text     ?? DEFAULT_TOKENS.primary,
-    accent:   c.accent   ?? DEFAULT_TOKENS.accent,
-    border:   c.accent   ? c.accent + "44" : DEFAULT_TOKENS.border,
-    btnBg:    c.accent   ?? DEFAULT_TOKENS.btnBg,
-    musicColor: c.accent ?? DEFAULT_TOKENS.musicColor,
-    muted:    c.muted    ?? DEFAULT_TOKENS.muted,
-    title:    c.title    ?? c.text    ?? DEFAULT_TOKENS.title,
-    subtitle: c.subtitle ?? c.text    ?? DEFAULT_TOKENS.subtitle,
-    header:   c.header   ?? c.accent  ?? DEFAULT_TOKENS.header,
-    body:     c.body     ?? c.text    ?? DEFAULT_TOKENS.body,
-    coverGradient: isPhotoMode ? "transparent"
+    text:     c.text     ?? baseTokens.text,
+    primary:  c.text     ?? baseTokens.primary,
+    accent:   c.accent   ?? baseTokens.accent,
+    border:   c.accent   ? c.accent + "44" : baseTokens.border,
+    btnBg:    c.accent   ?? baseTokens.btnBg,
+    musicColor: c.accent ?? baseTokens.musicColor,
+    muted:    c.muted    ?? baseTokens.muted,
+    title:    c.title    ?? c.text    ?? baseTokens.title,
+    subtitle: c.subtitle ?? c.text    ?? baseTokens.subtitle,
+    header:   c.header   ?? c.accent  ?? baseTokens.header,
+    body:     c.body     ?? c.text    ?? baseTokens.body,
+    coverGradient: !isStandard ? baseTokens.coverGradient
+      : isPhotoMode ? "transparent"
       : "linear-gradient(to bottom, rgba(0,0,0,0.32), rgba(0,0,0,0.08))",
   });
 
-  const cs = oc?.colorScheme ?? {};
-  const tokens     = { ...buildTokens(cs), showMonogramInSections: monogram.sections };
-  const gateTokens = buildTokens(oc?.gateColorScheme ?? cs);
+  const tokens     = { ...buildTokens(design.palette), showMonogramInSections: gate.monogram.sections };
+  const gateTokens = buildTokens(design.gatePalette);
 
-  const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS };
-  const layout: ThemeLayout = {};
+  const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS, ...(themeMod.sections ?? {}) };
+  const layout: ThemeLayout = themeMod.layout ?? {};
 
-  // Active sections come from invitation.defaultSections (admin-configured via EventWizard)
-  const rawDs = inv.defaultSections as Array<{ type: string; included: boolean; content: unknown }> | null;
-  const activeSections: InviteData["sections"] = rawDs
-    ? rawDs.filter((s) => s.included).map((s, i) => ({ id: `ds-${i}`, type: s.type, sortOrder: i, content: s.content }))
-    : data.sections;
+  const activeSections: InviteData["sections"] = design.sections
+    .filter((s) => s.included)
+    .map((s) => ({ id: s.id, type: s.type, sortOrder: s.sortOrder, content: s.content }));
 
   const activeMusicUrl = inv.musicUrl ?? null;
 
@@ -382,16 +336,6 @@ export default async function InvitePage({
 
   // Cover asset passed to cover section renderer
   const themeAssets = inv.coverUrl ? { cover: inv.coverUrl } : undefined;
-
-  // Personalized guest name (g is already destructured above)
-  let guestName: string | null = null;
-  if (g) {
-    const guest = await prisma.guest.findFirst({
-      where: { token: g, eventId: data.event.id },
-      select: { name: true },
-    });
-    guestName = guest?.name ?? null;
-  }
 
   // Guestlist widget — loaded fresh so counts are live
   const hasGuestlist = activeSections.some((s) => s.type === "guestlist");
@@ -419,7 +363,7 @@ export default async function InvitePage({
 
   // When "show cover after opening" is off, the cover lives only on the gate —
   // drop it from the scrolling sections so guests land straight on the content.
-  const renderedSections = keepCoverAfterOpen
+  const renderedSections = gate.keepCoverAfterOpen
     ? activeSections
     : activeSections.filter((s) => s.type !== "cover");
 
@@ -427,15 +371,17 @@ export default async function InvitePage({
 
   const shell = (
     <div
-      className="invite-shell"
-      style={{ background: "transparent" }}
+      className={`invite-shell${layout.shellClass ? ` ${layout.shellClass}` : ""}`}
+      // Themes with a shell class paint their own background via CSS; otherwise
+      // the shell stays transparent over the fixed page background.
+      style={layout.shellClass ? undefined : { background: "transparent" }}
     >
       {renderedSections.map((sec) => {
         const node = renderSection(sec, data, tokens, components, themeAssets, guestName, guests, showGuestNames);
         if (!node) return null;
 
         if (sec.type === "cover") {
-          return <Fragment key={sec.id}>{node}</Fragment>;
+          return <Fragment key={sec.id}>{layout.wrapCover ? layout.wrapCover(node, tokens) : node}</Fragment>;
         }
 
         const wrapped = layout.wrapSection
@@ -451,7 +397,7 @@ export default async function InvitePage({
 
       {layout.footer?.({ tokens, eventTitle: data.event.title })}
 
-      {showRsvp && (
+      {page.showRsvp && (
         <RsvpModal
           eventId={data.event.id}
           hasGuestControl={pkg?.hasGuestControl ?? false}
@@ -463,7 +409,7 @@ export default async function InvitePage({
         venueMapUrl={pkg?.hasLocation ? data.event.venueMapUrl : null}
         musicUrl={pkg?.hasMusic ? activeMusicUrl : null}
         hasKhqr={hasKhqr}
-        showRsvp={showRsvp}
+        showRsvp={page.showRsvp}
         theme={{ btnBg: actionButton.bg, btnText: actionButton.color }}
       />
 
@@ -475,8 +421,8 @@ export default async function InvitePage({
     <>
       <ThemePoller slug={slug} loadedAt={loadedAt} />
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-      <link rel="stylesheet" href={buildFontsHref()} />
-      <style dangerouslySetInnerHTML={{ __html: STANDARD_CSS }} />
+      <link rel="stylesheet" href={buildFontsHref(themeMod.fonts)} />
+      <style dangerouslySetInnerHTML={{ __html: STANDARD_CSS + (themeMod.css ?? "") }} />
 
       {/* Sections background — always rendered; gate renders its own bg on top */}
       {bgUrl && (
@@ -488,13 +434,13 @@ export default async function InvitePage({
               className="inv-fixed-bg-media"
               style={{
                 backgroundImage: `url(${bgUrl})`,
-                ...(sectionBlur > 0 ? { filter: `blur(${sectionBlur}px)`, transform: "scale(1.06)" } : {}),
+                ...(page.sectionBlur > 0 ? { filter: `blur(${page.sectionBlur}px)`, transform: "scale(1.06)" } : {}),
               }}
             />
           )}
           {showBgScrim && <div className="inv-fixed-bg-scrim" />}
-          {sectionOverlay.enabled && (
-            <div style={{ position: "absolute", inset: 0, background: sectionOverlay.color, opacity: sectionOverlay.opacity }} />
+          {page.sectionOverlay.enabled && (
+            <div style={{ position: "absolute", inset: 0, background: page.sectionOverlay.color, opacity: page.sectionOverlay.opacity }} />
           )}
         </div>
       )}
@@ -507,16 +453,16 @@ export default async function InvitePage({
           theme={gateTokens}
           bgUrl={inv.coverUrl || inv.backgroundUrl}
           coverUrl={gateMonogramUrl}
-          gateOverlay={gateOverlay}
-          revealStyle={revealStyle}
-          scrollGuide={scrollGuide}
-          scrollToContent={keepCoverAfterOpen}
-          position={gatePosition}
-          blur={backgroundBlur}
-          showGuestName={showGuestName}
-          guestFrameUrl={guestFrameUrl}
-          showMonogram={monogram.gate}
-          elementPositions={elementPositions}
+          gateOverlay={gate.overlay}
+          revealStyle={gate.revealStyle}
+          scrollGuide={gate.scrollGuide}
+          scrollToContent={gate.keepCoverAfterOpen}
+          position={gate.position}
+          blur={gate.backgroundBlur}
+          showGuestName={gate.showGuestName}
+          guestFrameUrl={gate.guestFrameUrl}
+          showMonogram={gate.monogram.gate}
+          elementPositions={gate.elementPositions as ElementPositions | undefined}
         >
           {shell}
         </InviteGate>

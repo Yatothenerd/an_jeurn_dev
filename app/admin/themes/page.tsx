@@ -2,10 +2,12 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/services/auth.service";
 import { prisma } from "@/lib/db/prisma";
 import { ThemesPageClient } from "./_components/ThemesPageClient";
+import { listThemeSummaries } from "@/lib/themes/registry";
 
-export const metadata = { title: "Admin — Theme Builder" };
+export const metadata = { title: "Admin — Theme Studio" };
 
-// Theme Builder: admins create reusable design templates and tag them to packages.
+// Theme Studio: admins create reusable Templates (from base Themes) and tag
+// them to packages. Templates are the only catalog events choose from.
 export default async function ThemesPage() {
   const session = await getSession();
   if (!session || session.role !== "admin") redirect("/login");
@@ -30,5 +32,5 @@ export default async function ThemesPage() {
   }));
   const pkgs = packages.map((p) => ({ id: p.id, name: p.name, slug: p.slug }));
 
-  return <ThemesPageClient templates={tpl} packages={pkgs} />;
+  return <ThemesPageClient templates={tpl} packages={pkgs} builtinThemes={listThemeSummaries()} />;
 }
