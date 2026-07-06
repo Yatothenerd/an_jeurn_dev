@@ -98,7 +98,9 @@ export function BuilderInvite({ state, guestName }: { state: BuilderState; guest
 
   return (
     <div className="bi-outer" style={outerBgCss(outerBg)}>
-      <style>{canvasStyles + biStyles}</style>
+      {/* dangerouslySetInnerHTML: React HTML-escapes text children of <style>
+          on the server, breaking attribute selectors pre-hydration. */}
+      <style dangerouslySetInnerHTML={{ __html: canvasStyles + biStyles }} />
       {/* Outer video background (desktop/laptop only) */}
       {outerBg?.kind === "video" && outerBg.videoUrl && (
         <div className="bi-outer-bg">

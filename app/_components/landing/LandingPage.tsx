@@ -105,7 +105,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
       <nav className={s.nav}>
         <div className={`${s.wrap} ${s.navInner}`}>
           <Link href="/" className={s.brand}>
-            <img src="/logo/kh-eng.svg" alt="Anjeurn" style={{ height: 44, display: "block" }} />
+            <span className={`${s.logoThemed} ${s.navLogo}`} role="img" aria-label="Anjeurn" />
           </Link>
 
           <div className={s.navLinks}>
@@ -131,7 +131,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
       <header className={s.hero}>
         <div className={`${s.wrap} ${s.heroInner}`}>
           <img src="/logo/full.svg" alt="Anjeurn" className={s.heroLogo} />
-          <span className={s.eyebrow}>{isKm ? "ការអញ្ជើញឌីជីថលខ្មែរ" : "Khmer digital invitations"}</span>
+          {/* <span className={s.eyebrow}>{isKm ? "ការអញ្ជើញឌីជីថលខ្មែរ" : "Khmer digital invitations"}</span> */}
           {isKm
             ? <h1 className={s.heroKh} lang="km">សិល្បៈនៃការអញ្ជើញ</h1>
             : <h1 className={s.heroEn}>The art of the <em>invitation</em>, made&nbsp;digital.</h1>}
@@ -284,7 +284,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
         <div className={s.wrap}>
           <div className={s.footTop}>
             <div className={s.footBrand}>
-              <img src="/logo/kh-eng.svg" alt="Anjeurn" style={{ height: 40, display: "block" }} />
+              <span className={`${s.logoThemed} ${s.footLogo}`} role="img" aria-label="Anjeurn" />
               <p className={s.footBlurb}>{L(t.footer.blurb)}</p>
             </div>
             <div>

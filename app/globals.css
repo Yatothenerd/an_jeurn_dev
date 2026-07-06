@@ -119,51 +119,96 @@ a {
 }
 
 /* ── Admin design system (tokens, light/dark via [data-theme]) ───────────────── */
-/* Light tokens are global so any page (admin or client) can use them; the admin
-   root flips to dark when data-theme="dark". */
-/* Rebranded to the anjeurn red-wine identity — the whole admin (wizard,
-   builder, every page) inherits these tokens, so retuning them here restyles
-   everything at once. Accent is a deep burgundy that stays readable with white
-   text; neutrals carry a faint wine tint to tie the palette together. */
+/* Light  → warm ivory/parchment, sepia-taupe, vintage & elegant (ref: Dollainey / Grimsteil)
+   Dark   → near-black maroon + warm gold, prestige theater (ref: La Vela Saigon Hotel) */
 :root {
-  --c-bg: #f7eff0;
-  --c-surface: #fffafb;
-  --c-surface-2: #f1e3e5;
-  --c-text: #3a1a20;
-  --c-muted: #8a6168;
-  --c-border: #e7d4d7;
-  --c-accent: #7a2233;
-  --c-accent-soft: #f3dadf;
-  --c-lime: var(--c-accent);
-  --c-lime-text: #ffffff;
-  --c-shadow: rgba(58, 26, 32, 0.10);
-  --c-sidebar: #fffafb;
-  --c-sidebar-text: #6b454c;
-  --c-sidebar-active-bg: #7a2233;
+  --c-bg:          #f2ece0;          /* warm ivory — aged parchment page  */
+  --c-bg-grad:     linear-gradient(165deg, #f5f0e5 0%, #f2ece0 45%, #ece2cd 100%);
+  --c-surface:     #faf7f1;          /* cream card surface                */
+  --c-surface-2:   #ede5d5;          /* secondary / input fill            */
+  --c-text:        #2a1c0d;          /* deep warm brown                   */
+  --c-muted:       #8a7055;          /* sepia-taupe secondary text        */
+  --c-border:      #d6c9b0;          /* light tan border                  */
+  --c-accent:      #6b4a2a;          /* rich tobacco / sepia accent       */
+  --c-accent-grad: linear-gradient(135deg, #7d5733, #5d3f22);
+  --c-accent-soft: rgba(107,74,42,0.12);
+  --c-lime:        var(--c-accent);
+  --c-lime-text:   #ffffff;
+  --c-shadow:      rgba(42,28,13,0.10);
+  --c-sidebar:     #faf7f1;
+  --c-sidebar-text: #6e5540;
+  --c-sidebar-active-bg: #6b4a2a;
+  /* Ornate detailing (frames, corner accents) + theme-driven logo fill */
+  --ornate-line:   rgba(107,74,42,0.20);
+  --ornate-dot:    rgba(107,74,42,0.38);
+  --ornate-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z' fill='none' stroke='%236b4a2a' stroke-opacity='0.045'/%3E%3Cpath d='M28 16 L40 28 L28 40 L16 28 Z' fill='none' stroke='%236b4a2a' stroke-opacity='0.035'/%3E%3Ccircle cx='28' cy='28' r='1.6' fill='%236b4a2a' fill-opacity='0.05'/%3E%3C/svg%3E");
+  --logo-grad:     linear-gradient(135deg, #6b4a2a 0%, #9a7835 55%, #6b1228 100%);
 }
 [data-theme="dark"] {
-  --c-bg: #1a0e11;
-  --c-surface: #241317;
-  --c-surface-2: #2f191e;
-  --c-text: #f4e2e5;
-  --c-muted: #c0939b;
-  --c-border: #3c2229;
-  --c-accent: #b8455a;
-  --c-accent-soft: #3a1820;
-  --c-lime: var(--c-accent);
-  --c-lime-text: #ffffff;
-  --c-shadow: rgba(0, 0, 0, 0.45);
-  --c-sidebar: #1f0f13;
-  --c-sidebar-text: #c0939b;
-  --c-sidebar-active-bg: #7a2233;
+  /* Golden-red → red prestige gradient (ember & wine over near-black) */
+  --c-bg:          #200808;
+  --c-bg-grad:     linear-gradient(155deg, #2a1206 0%, #3d0e0c 48%, #1a0505 100%);
+  --c-surface:     #2a100d;          /* dark ember surface                */
+  --c-surface-2:   #3a1710;          /* warm red-brown / input fill       */
+  --c-text:        #f3e3c3;          /* warm antique cream                */
+  --c-muted:       #c09a6a;          /* warm tan secondary                */
+  --c-border:      #4a2114;          /* ember border                      */
+  --c-accent:      #d99a2b;          /* warm gold                         */
+  --c-accent-grad: linear-gradient(135deg, #e0a83c 0%, #b91c1c 100%);
+  --c-accent-soft: rgba(217,154,43,0.16);
+  --c-lime:        var(--c-accent);
+  --c-lime-text:   #200808;
+  --c-shadow:      rgba(0,0,0,0.55);
+  --c-sidebar:     #230a07;
+  --c-sidebar-text: #d4ac72;
+  --c-sidebar-active-bg: #7a3216;
+  --ornate-line:   rgba(224,168,60,0.22);
+  --ornate-dot:    rgba(224,168,60,0.48);
+  --ornate-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z' fill='none' stroke='%23e0a83c' stroke-opacity='0.05'/%3E%3Cpath d='M28 16 L40 28 L28 40 L16 28 Z' fill='none' stroke='%23b91c1c' stroke-opacity='0.07'/%3E%3Ccircle cx='28' cy='28' r='1.6' fill='%23e0a83c' fill-opacity='0.06'/%3E%3C/svg%3E");
+  --logo-grad:     linear-gradient(135deg, #f0be4e 0%, #d99a2b 40%, #c22a2a 100%);
 }
 
 .admin-shell {
   display: flex;
   min-height: 100vh;
-  background: var(--c-bg);
+  background: var(--ornate-pattern), var(--c-bg-grad, var(--c-bg));
+  background-attachment: fixed;
   color: var(--c-text);
   font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* ── Ornate detailing — inner hairline frame + corner accents on surfaces ──── */
+.admin-card, .brand-panel, .eb-card, .data-table-wrap { position: relative; }
+.admin-card::after, .brand-panel::after, .eb-card::after {
+  content: ""; position: absolute; inset: 5px;
+  border: 1px solid var(--ornate-line); border-radius: 8px;
+  pointer-events: none;
+}
+.admin-card::before, .brand-panel::before, .eb-card::before {
+  content: ""; position: absolute; inset: 5px; pointer-events: none; z-index: 1;
+  background:
+    radial-gradient(circle 2px at 0 0,       var(--ornate-dot) 98%, transparent) no-repeat 0 0 / 6px 6px,
+    radial-gradient(circle 2px at 100% 0,    var(--ornate-dot) 98%, transparent) no-repeat 100% 0 / 6px 6px,
+    radial-gradient(circle 2px at 0 100%,    var(--ornate-dot) 98%, transparent) no-repeat 0 100% / 6px 6px,
+    radial-gradient(circle 2px at 100% 100%, var(--ornate-dot) 98%, transparent) no-repeat 100% 100% / 6px 6px;
+}
+
+/* Primary actions & active nav pick up the theme accent gradient */
+.btn-create, .btn-primary, .brand-btn, .admin-navlink.active {
+  background: var(--c-accent-grad, var(--c-accent));
+}
+
+/* ── Theme-colored logo (SVG used as a mask, filled with the theme gradient) ── */
+.logo-themed {
+  display: inline-block; flex-shrink: 0;
+  background: var(--logo-grad, var(--c-accent));
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-position: center; mask-position: center;
+}
+.logo-mark {
+  width: 33px; height: 34px;
+  -webkit-mask-image: url("/logo/mark.svg"); mask-image: url("/logo/mark.svg");
 }
 .admin-sidebar {
   width: 240px;
@@ -506,25 +551,24 @@ a {
 .icon-btn.ok { background: #dcfce7; border-color: #bbf7d0; color: #166534; }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   anjeurn brand — elegant red-wine design tokens
-   Shared by the public marketing site (/) and restyled admin surfaces.
-   Variable names keep the historical "gold" labels, but the values are now the
-   red-wine palette — change the values here to retune the brand everywhere.
+   anjeurn brand — vintage ivory & sepia design tokens
+   Light: warm parchment / tobacco (Dollainey / Grimsteil aesthetic)
+   Dark:  deep maroon / warm gold (La Vela Saigon prestige)
    ════════════════════════════════════════════════════════════════════════════ */
 :root {
-  --brand-cream:      #f8f0f1;  /* page background          */
-  --brand-cream-2:    #f2e6e8;  /* alt section background   */
-  --brand-paper:      #fffafb;  /* cards / surfaces         */
-  --brand-ink:        #3a1a20;  /* primary text             */
-  --brand-ink-soft:   #6b454c;  /* secondary text           */
-  --brand-gold:       #8c2f43;  /* primary accent (red wine)*/
-  --brand-gold-deep:  #6f2233;  /* hover / deep wine        */
-  --brand-gold-soft:  rgba(140,47,67,0.14);
-  --brand-maroon:     #5a0016;  /* rich CTA / dark bands    */
-  --brand-maroon-2:   #3e0010;
-  --brand-rose:       #b76e79;  /* romantic secondary       */
-  --brand-line:       rgba(140,47,67,0.30);
-  --brand-shadow:     0 18px 50px -20px rgba(58,26,32,0.35);
+  --brand-cream:      #f2ece0;              /* warm ivory — aged parchment  */
+  --brand-cream-2:    #ede5d5;              /* alt section — darker parchment */
+  --brand-paper:      #faf7f1;              /* cards / surfaces             */
+  --brand-ink:        #2a1c0d;              /* deep warm brown              */
+  --brand-ink-soft:   #7a6245;              /* secondary warm brown         */
+  --brand-gold:       #6b4a2a;              /* tobacco / sepia accent       */
+  --brand-gold-deep:  #4e3318;              /* hover / darker sepia         */
+  --brand-gold-soft:  rgba(107,74,42,0.12);
+  --brand-maroon:     #2c150a;              /* rich dark tone / CTA bands   */
+  --brand-maroon-2:   #1a0c06;
+  --brand-rose:       #9b7a58;              /* dusty warm tan / tertiary    */
+  --brand-line:       rgba(107,74,42,0.22);
+  --brand-shadow:     0 18px 50px -20px rgba(42,28,13,0.32);
   --brand-serif:      "Playfair Display", "Cormorant Garamond", Georgia, "Times New Roman", serif;
   --brand-khmer:      "Moul", "Kantumruy Pro", "Noto Serif Khmer", "Khmer OS Muol Light", serif;
   --brand-khmer-body: "Kantumruy Pro", "Noto Sans Khmer", "Khmer OS", sans-serif;
@@ -578,7 +622,7 @@ select.brand-input { cursor: pointer; }
   padding: 0.8rem 1.5rem; border: 1px solid transparent; border-radius: 999px;
   font-size: 0.95rem; font-weight: 600; font-family: inherit; cursor: pointer;
   background: var(--brand-gold); color: #fff;
-  box-shadow: 0 10px 24px -12px rgba(140,47,67,0.9);
+  box-shadow: 0 10px 24px -12px rgba(107,74,42,0.60);
   transition: background 0.15s, transform 0.15s;
 }
 .brand-btn:hover:not(:disabled) { background: var(--brand-gold-deep); transform: translateY(-1px); }

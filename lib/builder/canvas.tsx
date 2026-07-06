@@ -13,6 +13,8 @@ import { useRef, useState, useEffect } from "react";
 export type Mode = "photo" | "text";
 export type AnimId = "fade" | "envelope" | "curtain" | "slideUp" | "zoomBlur" | "rise" | "flip" | "doors";
 export type SectionAnim = "none" | "fade" | "slideUp" | "zoom";
+/** Continuous ambient motion applied to a section while it's on screen. */
+export type IdleAnim = "none" | "float" | "pulse" | "sway" | "shimmer";
 export type HandAnim = "pulse" | "tap" | "drag";
 export type Interaction = "click" | "drag";
 export type BgKind = "color" | "photo" | "gif" | "video";
@@ -46,6 +48,9 @@ export interface GuideState {
 
 export type SectionKind = "wording" | "agenda" | "memory" | "aba" | "map" | "wishing" | "rsvp" | "custom";
 
+/** Optional per-section background image layered over the shared content bg. */
+export interface SectionBg { imageUrl: string; blur: number; opacity: number; overlayColor: string }
+
 export interface Section {
   id: string; name: string; kind: SectionKind; visible: boolean; showTitle: boolean; mode: Mode;
   blocks: SectionBlock[];        // text-mode content (rows), flowed into `columns`
@@ -60,6 +65,12 @@ export interface Section {
   map: { url: string; imageUrl: string };
   wishing: { placeholder: string };
   anim: SectionAnim;             // entrance animation when scrolled into view
+  idle?: IdleAnim;               // continuous ambient motion (default "none")
+  /** Show the cover monogram at the top of this section. Undefined falls back
+   *  to the legacy behaviour: wording sections follow monogram.showContent. */
+  showMonogram?: boolean;
+  /** Per-section background image (over the shared content background). */
+  bg?: SectionBg | null;
 }
 
 export interface MusicState {
@@ -83,6 +94,8 @@ export interface OverlayButtons {
   layout?: OverlayLayout;
   /** Button shape. Defaults to "circle". */
   shape?: OverlayShape;
+  /** Visual style: free-floating "button" (default) or edge-attached "tab". */
+  btnStyle?: "button" | "tab";
   /** Free position (% of the invite column) — used when layout is "custom". */
   pos?: Pos;
 }
@@ -90,6 +103,10 @@ export interface OverlayButtons {
 export interface BuilderState {
   eventName: string; eventType: string; dateTime: string; langs: { khmer: boolean; english: boolean };
   coverBlocks: CoverBlock[]; openBtnPos: Pos; anim: AnimId; keepCover: boolean;
+  /** Show the "Open" button on the cover (default true). */
+  showOpenBtn?: boolean;
+  /** Opening the invite by scrolling / swiping up on the cover (default false). */
+  openOnScroll?: boolean;
   coverBg: Background; contentBg: Background;
   sections: Section[];
   coverGuide: GuideState; contentGuide: GuideState;
@@ -347,8 +364,22 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
     startPos.current = { x: e.clientX, y: e.clientY };
   };
 
+  // Scroll / swipe-up to open — alternative (or complement) to the button.
+  const touchY = useRef<number | null>(null);
+  const scrollOpens = !!st.openOnScroll && !editable && !locked && !!onOpen;
+  const onWheel = scrollOpens ? (e: React.WheelEvent) => { if (e.deltaY > 8) onOpen!(); } : undefined;
+  const onTouchStart = scrollOpens ? (e: React.TouchEvent) => { touchY.current = e.touches[0]?.clientY ?? null; } : undefined;
+  const onTouchMove = scrollOpens ? (e: React.TouchEvent) => {
+    if (touchY.current == null) return;
+    const dy = touchY.current - (e.touches[0]?.clientY ?? touchY.current);
+    if (dy > 32) { touchY.current = null; onOpen!(); }
+  } : undefined;
+
+  const showBtn = st.showOpenBtn ?? true;
+
   return (
-    <div ref={ref} className="pv-cover" onPointerMove={move} onPointerUp={end}>
+    <div ref={ref} className="pv-cover" onPointerMove={move} onPointerUp={end}
+      onWheel={onWheel} onTouchStart={onTouchStart} onTouchMove={onTouchMove}>
       <BackgroundLayer bg={st.coverBg} onVideoEnded={onVideoEnded} />
       <div className={`pv-cover-stage anim-${st.anim}`} key={animKey}>
         {mono.showCover && mono.url && (
@@ -424,12 +455,13 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
             {guestNameValue || gn.text}
           </div>
         )}
-        {onOpen && (
-          <button type="button" className="pv-openbtn" data-edit={editable} disabled={!editable && locked}
-            style={{ left: `${st.openBtnPos.xPct}%`, top: `${st.openBtnPos.yPct}%`, opacity: !editable && locked ? 0.5 : 1 }}
+        {onOpen && (showBtn || editable) && (
+          <button type="button" className="pv-openbtn" data-edit={editable} data-hidden={!showBtn}
+            disabled={!editable && locked}
+            style={{ left: `${st.openBtnPos.xPct}%`, top: `${st.openBtnPos.yPct}%`, opacity: !editable && locked ? 0.5 : !showBtn ? 0.35 : 1 }}
             onPointerDown={start("open")}
             onClick={() => { if (!editable && !locked) onOpen?.(); }}>
-            {!editable && locked ? "Please wait…" : "Open Ticket"}
+            {!editable && locked ? "Please wait…" : !showBtn ? "Open (hidden)" : "Open Ticket"}
           </button>
         )}
       </div>
@@ -477,23 +509,34 @@ export function PvContent({ st, editable = false, onEditBlock, onBlockPatch, onS
       } : undefined}>
       <BackgroundLayer bg={st.contentBg} />
       <div className="pv-content-inner">
-        {visible.map(({ s, i }) => (
+        {visible.map(({ s, i }) => {
+          // Monogram: explicit per-section toggle, falling back to the legacy
+          // "show on Formal Wording" behaviour for older drafts.
+          const showMono = (s.showMonogram ?? (s.kind === "wording" && mono.showContent)) && !!mono.url;
+          const idle = s.idle ?? "none";
+          return (
           <Reveal key={s.id} anim={editable ? "none" : s.anim}>
-          <div className="pv-sec"
+          <div className={`pv-sec${idle !== "none" ? ` anim-idle-${idle}` : ""}${s.bg?.imageUrl ? " pv-sec-hasbg" : ""}`}
             draggable={reorderable}
             onDragStart={reorderable ? () => (dragFrom.current = i) : undefined}
             onDragOver={reorderable ? (e) => e.preventDefault() : undefined}
             onDrop={reorderable ? () => { if (dragFrom.current !== null && dragFrom.current !== i) onReorder!(dragFrom.current, i); dragFrom.current = null; } : undefined}
             data-edit={editable}>
-            {/* Monogram appears only on Formal Wording sections */}
-            {s.kind === "wording" && mono.showContent && mono.url && (
+            {s.bg?.imageUrl && (
+              <div className="pv-secbg" aria-hidden>
+                <img src={s.bg.imageUrl} alt="" style={{ filter: s.bg.blur ? `blur(${s.bg.blur}px)` : undefined }} />
+                <div className="pv-secbg-scrim" style={{ background: s.bg.overlayColor, opacity: s.bg.opacity }} />
+              </div>
+            )}
+            {showMono && (
               <img className="pv-mono-content" src={mono.url} alt="" style={{ width: `${mono.scalePct}%` }} />
             )}
             {s.showTitle && <div className="pv-secname">{s.name}</div>}
             <SectionBody s={s} editable={editable} onEditBlock={onEditBlock} lang={lang} edit={edit} />
           </div>
           </Reveal>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -717,6 +760,7 @@ export function FloatingOverlayButtons({ ob, onPlayPause, isPlaying, onScrollBac
 
   const shape = ob.shape ?? "circle";
   const layout = ob.layout ?? "float";
+  const btnStyle = ob.btnStyle ?? "button";
   const pos = ob.pos ?? { xPct: 86, yPct: 82 };
   // Custom placement: preview positions inside the device column (% of the
   // screen); the live invite is position:fixed, so anchor to the centered
@@ -747,7 +791,7 @@ export function FloatingOverlayButtons({ ob, onPlayPause, isPlaying, onScrollBac
 
   return (
     <div ref={ref} className={`pv-floatbtns${preview ? " pv-floatbtns-preview" : ""}`}
-      data-layout={layout} data-edit={editable} style={style}
+      data-layout={layout} data-btnstyle={btnStyle} data-edit={editable} style={style}
       onPointerDown={down} onPointerMove={drag} onPointerUp={up}
       // A drag shouldn't also trigger the button under the pointer.
       onClickCapture={(e) => { if (moved.current) { e.preventDefault(); e.stopPropagation(); moved.current = false; } }}>
@@ -899,6 +943,27 @@ export const canvasStyles = `
 .pv-guestname[data-edit="true"] { pointer-events: auto; cursor: grab; outline: 1px dashed rgba(255,255,255,0.5); outline-offset: 3px; border-radius: 4px; }
 .pv-openbtn:disabled { cursor: default; }
 
+/* Per-section background image (layered over the shared content background) */
+.pv-sec { position: relative; }
+.pv-sec-hasbg { border-radius: 14px; overflow: hidden; padding: 1.25rem 1rem; }
+.pv-secbg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.pv-secbg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pv-secbg-scrim { position: absolute; inset: 0; }
+.pv-sec-hasbg > *:not(.pv-secbg) { position: relative; z-index: 1; }
+
+/* Per-section idle (ambient) animations — run continuously */
+.anim-idle-float   { animation: ebIdleFloat 4.5s ease-in-out infinite; }
+.anim-idle-pulse   { animation: ebIdlePulse 3.2s ease-in-out infinite; }
+.anim-idle-sway    { animation: ebIdleSway 5.5s ease-in-out infinite; }
+.anim-idle-shimmer { animation: ebIdleShimmer 3.8s ease-in-out infinite; }
+@keyframes ebIdleFloat   { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes ebIdlePulse   { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+@keyframes ebIdleSway    { 0%,100% { transform: rotate(-0.6deg); } 50% { transform: rotate(0.6deg); } }
+@keyframes ebIdleShimmer { 0%,100% { opacity: 1; } 50% { opacity: 0.72; } }
+@media (prefers-reduced-motion: reduce) {
+  .anim-idle-float, .anim-idle-pulse, .anim-idle-sway, .anim-idle-shimmer { animation: none; }
+}
+
 /* Per-section entrance animations (revealed on scroll) */
 .anim-sec-pre { opacity: 0; }
 .anim-sec-fade { animation: secFade .7s ease both; }
@@ -932,6 +997,21 @@ export const canvasStyles = `
 .pv-floatbtn[data-shape="square"]  { border-radius: 5px; }
 .pv-floatbtn[data-shape="pill"]    { width: 54px; height: 32px; border-radius: 999px; }
 .pv-floatbtns[data-layout="bottom"] .pv-floatbtn[data-shape="pill"], .pv-floatbtns[data-layout="top"] .pv-floatbtn[data-shape="pill"] { width: 46px; }
+
+/* "Tab" style — edge-attached tabs instead of free-floating buttons */
+.pv-floatbtns[data-btnstyle="tab"] { gap: 2px; }
+.pv-floatbtns[data-btnstyle="tab"] .pv-floatbtn { border-radius: 0; box-shadow: 0 2px 10px rgba(0,0,0,0.35); background: rgba(15,15,25,0.88); }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="float"] .pv-floatbtn,
+.pv-floatbtns[data-btnstyle="tab"][data-layout="right"] .pv-floatbtn { border-radius: 10px 0 0 10px; width: 42px; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="left"] .pv-floatbtn { border-radius: 0 10px 10px 0; width: 42px; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="bottom"] .pv-floatbtn { border-radius: 10px 10px 0 0; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="top"] .pv-floatbtn { border-radius: 0 0 10px 10px; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="custom"] .pv-floatbtn { border-radius: 8px; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="float"] { right: 0; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="right"] { right: 0; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="left"] { left: 0; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="bottom"] { bottom: 0; }
+.pv-floatbtns[data-btnstyle="tab"][data-layout="top"] { top: 0; }
 
 /* Canva-style content editing — drag to nudge, click to select, corner to resize */
 .pv-textblock[data-edit="true"] { cursor: grab; touch-action: none; }

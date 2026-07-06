@@ -18,14 +18,17 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib/themes/shared/standard-css";
 import {
   type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
-  type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type HandAnim, type Interaction,
+  type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type IdleAnim, type SectionBg, type HandAnim, type Interaction,
   type Background, type BgKind, type CoverMoveKind, type OverlayButtons, type OverlayLayout, type OverlayShape,
   PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles,
 } from "@/lib/builder/canvas";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type TabId = "setup" | "cover" | "content" | "transitions" | "guide" | "music";
+type WizardStep = "identity" | "sections" | "assets" | "preview";
+const WIZARD_STEPS: WizardStep[] = ["identity", "sections", "assets", "preview"];
+const nextStep = (s: WizardStep): WizardStep => WIZARD_STEPS[WIZARD_STEPS.indexOf(s) + 1] ?? s;
+const prevStep = (s: WizardStep): WizardStep => WIZARD_STEPS[WIZARD_STEPS.indexOf(s) - 1] ?? s;
 
 export interface EventData {
   id: string; title: string; eventType: string; eventDate: string;
@@ -58,6 +61,11 @@ const ANIMATIONS: { id: AnimId; label: string; icon: string; desc: string }[] = 
 
 const SECTION_ANIMS: { id: SectionAnim; label: string }[] = [
   { id: "none", label: "None" }, { id: "fade", label: "Fade" }, { id: "slideUp", label: "Slide" }, { id: "zoom", label: "Zoom" },
+];
+
+const IDLE_ANIMS: { id: IdleAnim; label: string }[] = [
+  { id: "none", label: "None" }, { id: "float", label: "Float" }, { id: "pulse", label: "Pulse" },
+  { id: "sway", label: "Sway" }, { id: "shimmer", label: "Shimmer" },
 ];
 
 const HAND_PRESETS = ["👆", "☝️", "👇", "🤙", "✋", "🫵", "👈", "👉"];
@@ -111,6 +119,8 @@ function freshState(ev: EventData): BuilderState {
     openBtnPos: { xPct: 50, yPct: 82 },
     anim: "fade",
     keepCover: true,
+    showOpenBtn: true,
+    openOnScroll: false,
     coverBg:   { kind: "color", imageUrl: "", videoUrl: "", color: "#1b2430", blur: 0, opacity: 0.4, overlayColor: "#000000", autoplay: true, lockUntilEnd: false },
     contentBg: { kind: "color", imageUrl: "", videoUrl: "", color: "#11151c", blur: 0, opacity: 0.4, overlayColor: "#000000", autoplay: true, lockUntilEnd: false },
     coverGuide:   mkGuide("Tap to open"),
@@ -186,7 +196,7 @@ interface Props {
 
 export function EventBuilder({ event, invitation, templateMode }: Props) {
   const isTemplate = !!templateMode;
-  const [tab, setTab] = useState<TabId>("setup");
+  const [step, setStep] = useState<WizardStep>("identity");
   const [st, setSt] = useState<BuilderState>(() => {
     const base = freshState(event);
     const draft = invitation?.overlayConfig?.builderDraft as
@@ -208,6 +218,8 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
     seeded.contentBg = fixBg(seeded.contentBg);
     seeded.coverBlocks = (seeded.coverBlocks ?? base.coverBlocks).map((b, i) => ({ ...b, pos: b.pos ?? { xPct: 50, yPct: 38 + i * 12 } }));
     seeded.openBtnPos = seeded.openBtnPos ?? base.openBtnPos;
+    seeded.showOpenBtn = seeded.showOpenBtn ?? true;
+    seeded.openOnScroll = seeded.openOnScroll ?? false;
     seeded.monogram = seeded.monogram ?? base.monogram;
     seeded.guestName = seeded.guestName ?? base.guestName;
     seeded.sections = (seeded.sections ?? base.sections).map((s) => {
@@ -240,15 +252,38 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
   });
   const [editOnScreen, setEditOnScreen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [animKey, setAnimKey] = useState(0);          // bump to replay animation
-  const [coverOpen, setCoverOpen] = useState(false);  // "Open Ticket" toggles cover→content in preview
-  const [guideCtx, setGuideCtx] = useState<"cover" | "content">("cover"); // which guide the Hover Guide tab edits
+  const [animKey, setAnimKey] = useState(0);
+  const [coverOpen, setCoverOpen] = useState(false);
+  const [guideCtx, setGuideCtx] = useState<"cover" | "content">("cover");
+  const [contentSubTab, setContentSubTab] = useState<"cover" | "sections">("cover");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [previewLang, setPreviewLang] = useState<"kh" | "en">("kh");
 
   const patch = useCallback((p: Partial<BuilderState>) => setSt((s) => ({ ...s, ...p })), []);
+
+  async function handleStepChange(next: WizardStep) {
+    // Auto-save when navigating between steps (fire-and-forget; errors shown in savebar).
+    setSaving(true); setErr("");
+    try {
+      const imgOf = (b: Background) => ((b.kind === "photo" || b.kind === "gif") && b.imageUrl ? b.imageUrl : undefined);
+      const vidOf = (b: Background) => (b.kind === "video" && b.videoUrl ? b.videoUrl : undefined);
+      const coverUrl = imgOf(st.coverBg); const backgroundUrl = imgOf(st.contentBg);
+      const backgroundVideoUrl = vidOf(st.coverBg) ?? vidOf(st.contentBg) ?? null;
+      const musicUrl = st.music?.url || null;
+      const url = isTemplate ? `/api/admin/templates/${templateMode!.templateId}` : `/api/admin/events/${event.id}`;
+      const overlayConfig = { ...(invitation?.overlayConfig ?? {}), builderDraft: st, themeId: "theme-freeform" };
+      await fetch(url, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isTemplate
+          ? { overlayConfig, isAnimated: true, coverUrl: coverUrl ?? null, backgroundUrl: backgroundUrl ?? null, backgroundVideoUrl, musicUrl }
+          : { title: st.eventName.trim(), eventType: st.eventType, eventDate: st.dateTime ? new Date(st.dateTime).toISOString() : undefined, overlayConfig, isAnimated: true, ...(coverUrl ? { coverUrl } : {}), ...(backgroundUrl ? { backgroundUrl } : {}), ...(backgroundVideoUrl ? { backgroundVideoUrl } : {}), musicUrl }),
+      });
+    } catch { /* silent */ } finally { setSaving(false); }
+    setStep(next);
+    setCoverOpen(false);
+  }
 
   // ── Save: persists the whole builder state to the DB (invitation.overlayConfig
   // .builderDraft drives the live invite). `publish` flips the invite live.
@@ -326,52 +361,65 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
   // Live-preview inline edit of a content block
   const editContentBlock = (secId: string, blockId: string, text: string) => setBlock(secId, blockId, { text });
 
+  const canNext = step !== "identity" || !!st.monogram.url;
+
   return (
     <>
-      <style>{styles + canvasStyles}</style>
+      {/* dangerouslySetInnerHTML: React HTML-escapes text children of <style>
+          on the server (&quot;), breaking attribute selectors pre-hydration and
+          triggering hydration-mismatch warnings. */}
+      <style dangerouslySetInnerHTML={{ __html: styles + canvasStyles }} />
 
       <div className="eb-root">
-        {/* ── LEFT: tabbed editor ─────────────────────────────────────────── */}
+        {/* ── LEFT: wizard editor ─────────────────────────────────────────── */}
         <section className="eb-col eb-editor">
-          <div className="eb-tabs">
-            {(["setup", "cover", "content", "transitions", "guide", "music"] as TabId[]).map((id) => (
-              <button key={id} type="button" className="eb-tab" data-active={tab === id} onClick={() => setTab(id)}>
-                {id === "setup" ? "Setup" : id === "cover" ? "Cover" : id === "content" ? "Content" : id === "transitions" ? "Motion" : id === "guide" ? "Guide" : "Music"}
-              </button>
-            ))}
-          </div>
+          <WizardNav step={step} onStep={handleStepChange} monogramDone={!!st.monogram.url} stepsCompleted={WIZARD_STEPS.indexOf(step)} />
 
           <div className="eb-panel">
-            {tab === "setup" && <SetupTab st={st} patch={patch} />}
-            {tab === "cover" && <CoverTab st={st} patch={patch} setSt={setSt} onOpenTicket={() => { setCoverOpen(true); }} onReplay={replay} editLang={previewLang} setEditLang={setPreviewLang} />}
-            {tab === "content" && (
-              <ContentTab st={st} patch={patch} setSection={setSection} addSection={addSection}
+            {step === "identity" && <IdentityStep st={st} patch={patch} />}
+            {step === "sections" && (
+              <ContentStep
+                st={st} patch={patch} setSt={setSt}
+                setSection={setSection} addSection={addSection}
                 removeSection={removeSection} moveSection={moveSection}
                 setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock}
-                editLang={previewLang} setEditLang={setPreviewLang} />
+                editLang={previewLang} setEditLang={setPreviewLang}
+                subTab={contentSubTab} setSubTab={setContentSubTab}
+                onOpenTicket={() => setCoverOpen(true)} onReplay={replay}
+              />
             )}
-            {tab === "transitions" && (
-              <TransitionsTab st={st} patch={patch} setSection={setSection}
-                onOpenTicket={() => { setCoverOpen(true); }} onReplay={replay} />
+            {step === "assets" && (
+              <AssetsStep st={st} patch={patch} setSt={setSt}
+                setSection={setSection} guideCtx={guideCtx} setGuideCtx={setGuideCtx} />
             )}
-            {tab === "guide" && <GuideTab st={st} setSt={setSt} which={guideCtx} setWhich={setGuideCtx} />}
-            {tab === "music" && <MusicTab st={st} patch={patch} />}
+            {step === "preview" && <PreviewControls onReplay={replay} onOpenTicket={() => { setCoverOpen(false); replay(); }} />}
           </div>
 
           <div className="eb-savebar">
-            <span className="eb-muted" style={err ? { color: "#dc2626" } : saved ? { color: "#16a34a" } : undefined}>
-              {err ? `⚠ ${err}`
-                : saved ? (isTemplate ? "✓ Saved template" : "✓ Saved to event")
-                : saving ? "Saving…"
-                : isTemplate ? "Saved as a reusable template" : "Saved to this event's invitation"}
-            </span>
-            <div className="eb-rowgap">
-              <button type="button" className="eb-btn-ghost" disabled={saving} onClick={() => save(false)}>
-                {isTemplate ? "Save template" : "Save"}
-              </button>
-              {!isTemplate && !invitation?.isPublished && (
-                <button type="button" className="eb-btn-primary" disabled={saving} onClick={() => save(true)}>Save &amp; Publish ↗</button>
-              )}
+            <div className="eb-wiz-footer">
+              <div className="eb-rowgap">
+                {step !== "identity" && (
+                  <button type="button" className="eb-btn-ghost" onClick={() => handleStepChange(prevStep(step))}>← Back</button>
+                )}
+                {step !== "preview" && (
+                  <button type="button" className="eb-btn-primary" disabled={!canNext || saving} onClick={() => handleStepChange(nextStep(step))}>
+                    {saving ? "Saving…" : step === "assets" ? "Preview →" : "Next →"}
+                  </button>
+                )}
+              </div>
+              <div className="eb-rowgap" style={{ alignItems: "center" }}>
+                {(err || saved) && (
+                  <span style={{ fontSize: "0.8rem", color: err ? "#dc2626" : "#16a34a" }}>
+                    {err ? `⚠ ${err}` : "✓ Saved"}
+                  </span>
+                )}
+                <button type="button" className="eb-btn-ghost" disabled={saving} onClick={() => save(false)}>
+                  {isTemplate ? "Save template" : "Save"}
+                </button>
+                {!isTemplate && !invitation?.isPublished && (
+                  <button type="button" className="eb-btn-primary" disabled={saving} onClick={() => save(true)}>Publish ↗</button>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -384,15 +432,15 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
           />
           <DraggableStage>
             <DeviceFrame
-              st={st} tab={tab} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
+              st={st} step={step} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
               editOnScreen={editOnScreen} setSt={setSt} moveSection={moveSection} guideCtx={guideCtx}
+              contentSubTab={contentSubTab}
               previewLang={previewLang} setPreviewLang={setPreviewLang}
             />
           </DraggableStage>
         </section>
       </div>
 
-      {/* ── Fullscreen modal preview ──────────────────────────────────────── */}
       {fullscreen && (
         <div className="eb-overlay" onClick={(e) => { if (e.target === e.currentTarget) setFullscreen(false); }}>
           <div className="eb-overlay-inner">
@@ -402,8 +450,9 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
             />
             <DraggableStage>
               <DeviceFrame
-                st={st} tab={tab} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
+                st={st} step={step} animKey={animKey} coverOpen={coverOpen} setCoverOpen={setCoverOpen}
                 editOnScreen={editOnScreen} setSt={setSt} moveSection={moveSection} guideCtx={guideCtx} big
+                contentSubTab={contentSubTab}
                 previewLang={previewLang} setPreviewLang={setPreviewLang}
               />
             </DraggableStage>
@@ -437,6 +486,11 @@ const OVERLAY_SHAPES: { id: OverlayShape; label: string }[] = [
   { id: "rounded", label: "Rounded" },
   { id: "square",  label: "Square" },
   { id: "pill",    label: "Pill" },
+];
+
+const OVERLAY_BTN_STYLES: { id: "button" | "tab"; label: string; desc: string }[] = [
+  { id: "button", label: "Button", desc: "Free-floating round buttons" },
+  { id: "tab",    label: "Tab",    desc: "Attached to the screen edge" },
 ];
 
 
@@ -505,6 +559,17 @@ function SetupTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderS
                 onClick={() => patch({ overlayButtons: { ...st.overlayButtons, shape: s.id } })}>
                 <span className="eb-shapedemo" data-shape={s.id}>▶</span>
                 <span className="eb-animlbl">{s.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="eb-field">
+          <span className="eb-flbl">Style</span>
+          <div className="eb-seg">
+            {OVERLAY_BTN_STYLES.map((s) => (
+              <button key={s.id} type="button" className="eb-segbtn" data-on={(st.overlayButtons.btnStyle ?? "button") === s.id}
+                onClick={() => patch({ overlayButtons: { ...st.overlayButtons, btnStyle: s.id } })} title={s.desc}>
+                {s.label}
               </button>
             ))}
           </div>
@@ -673,7 +738,7 @@ function TransitionsTab({ st, patch, setSection, onOpenTicket, onReplay }: {
 
 // ── Content tab ──────────────────────────────────────────────────────────────
 
-function ContentTab({ st, patch, setSection, addSection, removeSection, moveSection, setBlock, addBlock, removeBlock, editLang = "kh", setEditLang }: {
+function ContentTab({ st, patch, setSection, addSection, removeSection, moveSection, setBlock, addBlock, removeBlock, editLang = "kh", setEditLang, hideBg = false }: {
   st: BuilderState; patch: (p: Partial<BuilderState>) => void;
   setSection: (id: string, p: Partial<Section>) => void;
   addSection: (kind?: SectionKind) => void; removeSection: (id: string) => void;
@@ -681,6 +746,7 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
   setBlock: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
   addBlock: (secId: string) => void; removeBlock: (secId: string, blockId: string) => void;
   editLang?: "kh" | "en"; setEditLang?: (l: "kh" | "en") => void;
+  hideBg?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(st.sections[0]?.id ?? null);
   const dragFrom = useRef<number | null>(null);
@@ -689,10 +755,10 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
   return (
     <div className="eb-stack">
       {/* Content background — separate from the cover background */}
-      <div className="eb-card">
+      {!hideBg && <div className="eb-card">
         <div className="eb-cardhead">Content Background</div>
         <BackgroundEditor value={st.contentBg} onChange={(b) => patch({ contentBg: b })} />
-      </div>
+      </div>}
 
       {/* Language toggle for editing */}
       {st.langs.english && st.langs.khmer && setEditLang && (
@@ -743,11 +809,25 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
                   </div>
 
                   <div className="eb-rowbetween">
-                    <span className="eb-flbl">Section animation</span>
+                    <span className="eb-flbl">Entrance animation</span>
                     <select className="eb-input" style={{ width: 130 }} value={sec.anim} onChange={(e) => setSection(sec.id, { anim: e.target.value as SectionAnim })}>
                       {SECTION_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
                     </select>
                   </div>
+                  <div className="eb-rowbetween">
+                    <div><span className="eb-flbl">Idle animation</span><div className="eb-muted eb-sm">Gentle motion while on screen</div></div>
+                    <select className="eb-input" style={{ width: 130 }} value={sec.idle ?? "none"} onChange={(e) => setSection(sec.id, { idle: e.target.value as IdleAnim })}>
+                      {IDLE_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                    </select>
+                  </div>
+                  {st.monogram.url && (
+                    <div className="eb-rowbetween">
+                      <span className="eb-flbl">Show monogram</span>
+                      <Toggle on={sec.showMonogram ?? (sec.kind === "wording" && st.monogram.showContent)}
+                        onChange={(v) => setSection(sec.id, { showMonogram: v })} />
+                    </div>
+                  )}
+                  <SectionBgEditor sec={sec} setSection={setSection} />
 
                   <SectionKindEditor sec={sec} setSection={setSection} setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} hasEnglish={st.langs.english} editLang={editLang} />
 
@@ -766,6 +846,27 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
           ))}
         </select>
       </div>
+    </div>
+  );
+}
+
+// Per-section background image (over the shared content background) with blur & overlay.
+function SectionBgEditor({ sec, setSection }: { sec: Section; setSection: (id: string, p: Partial<Section>) => void }) {
+  const bg = sec.bg;
+  const set = (p: Partial<SectionBg>) =>
+    setSection(sec.id, { bg: { imageUrl: "", blur: 0, opacity: 0.35, overlayColor: "#000000", ...(bg ?? {}), ...p } });
+  return (
+    <div className="eb-field">
+      <span className="eb-flbl">Section background</span>
+      <UploadBox label="Background image (optional)" value={bg?.imageUrl ?? ""} onChange={(url) => set({ imageUrl: url })} />
+      {bg?.imageUrl && (
+        <>
+          <Slider label="Blur" min={0} max={40} suffix="px" value={bg.blur} onChange={(v) => set({ blur: v })} />
+          <div className="eb-rowbetween"><span className="eb-flbl">Overlay color</span><ColorDot value={bg.overlayColor} onChange={(v) => set({ overlayColor: v })} /></div>
+          <Slider label="Overlay opacity" min={0} max={100} suffix="%" value={Math.round(bg.opacity * 100)} onChange={(v) => set({ opacity: v / 100 })} />
+          <button type="button" className="eb-removelink" onClick={() => setSection(sec.id, { bg: null })}>Remove section background</button>
+        </>
+      )}
     </div>
   );
 }
@@ -899,6 +1000,7 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, h
                 <select className="eb-input eb-fontsel" style={{ fontFamily: bl.font }} value={bl.font} onChange={(e) => setBlock(sec.id, bl.id, { font: e.target.value })}>
                   {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
                 </select>
+                <input type="range" min={11} max={48} value={bl.size ?? 15} onChange={(e) => setBlock(sec.id, bl.id, { size: +e.target.value })} className="eb-range" title="Font size" />
                 <ColorDot value={bl.color} onChange={(v) => setBlock(sec.id, bl.id, { color: v })} />
                 <button type="button" className="eb-iconbtn" title={bl.nowrap ? "No-wrap (tap to wrap)" : "Wrap (tap for no-wrap)"} onClick={() => setBlock(sec.id, bl.id, { nowrap: !bl.nowrap })}>{bl.nowrap ? "→" : "↵"}</button>
                 {sec.blocks.length > 1 && <button type="button" className="eb-iconbtn eb-danger" title="Remove row" onClick={() => removeBlock(sec.id, bl.id)}>✕</button>}
@@ -987,6 +1089,379 @@ function MusicTab({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderS
           </div>
           <Toggle on={m.playOnScroll} onChange={(v) => setMusic({ playOnScroll: v })} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Wizard navigation bar ────────────────────────────────────────────────────
+
+const WIZARD_META: { id: WizardStep; label: string }[] = [
+  { id: "identity", label: "Identity" },
+  { id: "sections", label: "Sections" },
+  { id: "assets",   label: "Assets" },
+  { id: "preview",  label: "Preview" },
+];
+
+function WizardNav({ step, onStep, monogramDone, stepsCompleted }: {
+  step: WizardStep; onStep: (s: WizardStep) => void;
+  monogramDone: boolean; stepsCompleted: number;
+}) {
+  return (
+    <nav className="wiz-nav" aria-label="Builder steps">
+      {WIZARD_META.map((s, i) => {
+        const active = s.id === step;
+        const done = i < stepsCompleted || (s.id === "identity" && monogramDone && !active);
+        return (
+          <button key={s.id} type="button" className="wiz-step" data-active={active} data-done={done && !active}
+            onClick={() => onStep(s.id)} title={s.label}>
+            <span className="wiz-dot">{done && !active ? "✓" : i + 1}</span>
+            <span className="wiz-lbl">{s.label}</span>
+            {i < WIZARD_META.length - 1 && <span className="wiz-connector" aria-hidden />}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+// ── Step 1: Identity ──────────────────────────────────────────────────────────
+
+function IdentityStep({ st, patch }: { st: BuilderState; patch: (p: Partial<BuilderState>) => void }) {
+  return (
+    <div className="eb-stack">
+      <div className="eb-card">
+        <div className="eb-cardhead">Event Identity</div>
+        <Field label="Event name">
+          <input className="eb-input" value={st.eventName} onChange={(e) => patch({ eventName: e.target.value })} placeholder="Sophea & Dara's Wedding" />
+        </Field>
+        <Field label="Event type">
+          <select className="eb-input" value={st.eventType} onChange={(e) => patch({ eventType: e.target.value })}>
+            {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Field>
+        <Field label="Date & time">
+          <input type="datetime-local" className="eb-input" value={st.dateTime} onChange={(e) => patch({ dateTime: e.target.value })} />
+        </Field>
+        <div className="eb-field">
+          <span className="eb-flbl">Languages</span>
+          <div className="eb-checkrow">
+            {(["khmer", "english"] as const).map((k) => (
+              <label key={k} className="eb-check" data-on={st.langs[k]}>
+                <input type="checkbox" checked={st.langs[k]} onChange={(e) => patch({ langs: { ...st.langs, [k]: e.target.checked } })} />
+                <span>{k === "khmer" ? "ខ្មែរ Khmer" : "English"}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="eb-card">
+        <div className="eb-cardhead eb-rowbetween">
+          Monogram / Logo
+          <span className="wiz-required">Required</span>
+        </div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>Upload your monogram or logo — required before continuing. Shown in the header and invitation preview.</p>
+        <UploadBox label="Upload logo / monogram (PNG, SVG, WEBP)" accept="image/png,image/webp,image/svg+xml,image/jpeg" value={st.monogram.url} onChange={(url) => patch({ monogram: { ...st.monogram, url } })} />
+        {st.monogram.url ? (
+          <div className="eb-stack">
+            <Slider label="Size" min={6} max={60} suffix="%" value={st.monogram.scalePct} onChange={(v) => patch({ monogram: { ...st.monogram, scalePct: v } })} />
+            <div className="eb-rowbetween"><span className="eb-flbl">Show on cover</span><Toggle on={st.monogram.showCover} onChange={(v) => patch({ monogram: { ...st.monogram, showCover: v } })} /></div>
+            <div className="eb-rowbetween"><span className="eb-flbl">Show on content</span><Toggle on={st.monogram.showContent} onChange={(v) => patch({ monogram: { ...st.monogram, showContent: v } })} /></div>
+          </div>
+        ) : (
+          <p className="wiz-req-hint">Upload required to proceed to the next step.</p>
+        )}
+      </div>
+
+      <div className="eb-card">
+        <div className="eb-cardhead eb-rowbetween">Guest name <Toggle on={st.guestName.enabled} onChange={(v) => patch({ guestName: { ...st.guestName, enabled: v } })} /></div>
+        {st.guestName.enabled && (
+          <div className="eb-stack">
+            <Field label="Placeholder text"><input className="eb-input" value={st.guestName.text} onChange={(e) => patch({ guestName: { ...st.guestName, text: e.target.value } })} /></Field>
+            <div className="eb-blockctl">
+              <select className="eb-input eb-fontsel" style={{ fontFamily: st.guestName.font }} value={st.guestName.font} onChange={(e) => patch({ guestName: { ...st.guestName, font: e.target.value } })}>
+                {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
+              </select>
+              <ColorDot value={st.guestName.color} onChange={(v) => patch({ guestName: { ...st.guestName, color: v } })} />
+            </div>
+            <Slider label="Size" min={11} max={40} suffix="px" value={st.guestName.size} onChange={(v) => patch({ guestName: { ...st.guestName, size: v } })} />
+            <p className="eb-muted eb-sm" style={{ margin: 0 }}>The guest&apos;s real name replaces this on the live invite. Drag on the preview to position.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Step 2: Content (Cover sub-tab + Sections sub-tab) ───────────────────────
+
+function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, moveSection, setBlock, addBlock, removeBlock, editLang = "kh", setEditLang, subTab, setSubTab, onOpenTicket, onReplay }: {
+  st: BuilderState; patch: (p: Partial<BuilderState>) => void;
+  setSt: React.Dispatch<React.SetStateAction<BuilderState>>;
+  setSection: (id: string, p: Partial<Section>) => void;
+  addSection: (kind?: SectionKind) => void; removeSection: (id: string) => void;
+  moveSection: (from: number, to: number) => void;
+  setBlock: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
+  addBlock: (secId: string) => void; removeBlock: (secId: string, blockId: string) => void;
+  editLang?: "kh" | "en"; setEditLang?: (l: "kh" | "en") => void;
+  subTab: "cover" | "sections"; setSubTab: (t: "cover" | "sections") => void;
+  onOpenTicket: () => void; onReplay: () => void;
+}) {
+  const setCoverBlock = (id: string, p: Partial<CoverBlock>) =>
+    setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.map((b) => (b.id === id ? { ...b, ...p } : b)) }));
+  const addCoverBlock = () =>
+    setSt((s) => ({ ...s, coverBlocks: [...s.coverBlocks, { id: uid(), text: "New text", font: DEFAULT_FONTS.body, color: "#ffffff", size: 18, pos: { xPct: 50, yPct: 60 } }] }));
+  const removeCoverBlock = (id: string) =>
+    setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.filter((b) => b.id !== id) }));
+
+  return (
+    <div className="eb-stack">
+      {/* Sub-tab switcher */}
+      <div className="eb-seg">
+        <button type="button" className="eb-segbtn" data-on={subTab === "cover"} onClick={() => setSubTab("cover")}>Cover</button>
+        <button type="button" className="eb-segbtn" data-on={subTab === "sections"} onClick={() => setSubTab("sections")}>Sections</button>
+      </div>
+
+      {/* Cover sub-tab */}
+      {subTab === "cover" && (
+        <div className="eb-stack">
+          <div className="eb-card">
+            <div className="eb-cardhead">Cover Background</div>
+            <BackgroundEditor value={st.coverBg} onChange={(b) => patch({ coverBg: b })} />
+          </div>
+
+          <div className="eb-card">
+            <div className="eb-cardhead">Open Interaction</div>
+            <div className="eb-rowbetween">
+              <div><div className="eb-flbl">Open button</div><div className="eb-muted eb-sm">Guests tap the button to open the invitation</div></div>
+              <Toggle on={st.showOpenBtn ?? true} onChange={(v) => patch({ showOpenBtn: v })} />
+            </div>
+            <div className="eb-rowbetween">
+              <div><div className="eb-flbl">Scroll to open</div><div className="eb-muted eb-sm">Swiping / scrolling up on the cover opens it</div></div>
+              <Toggle on={st.openOnScroll ?? false} onChange={(v) => patch({ openOnScroll: v })} />
+            </div>
+            {!(st.showOpenBtn ?? true) && !(st.openOnScroll ?? false) && (
+              <p className="wiz-req-hint">Both are off — guests would have no way to open the invitation. Enable at least one.</p>
+            )}
+            <div className="eb-rowbetween">
+              <div><div className="eb-flbl">Show monogram on cover</div><div className="eb-muted eb-sm">The logo uploaded in the Identity step</div></div>
+              <Toggle on={st.monogram.showCover} onChange={(v) => patch({ monogram: { ...st.monogram, showCover: v } })} />
+            </div>
+          </div>
+
+          <div className="eb-card">
+            <div className="eb-cardhead eb-rowbetween">
+              Cover Text
+              <button type="button" className="eb-add" onClick={addCoverBlock}>+ Add</button>
+            </div>
+            {st.langs.english && st.langs.khmer && setEditLang && (
+              <div className="eb-langtabs">
+                <button type="button" className="eb-langtab" data-on={editLang === "kh"} onClick={() => setEditLang("kh")}>ខ្មែរ</button>
+                <button type="button" className="eb-langtab" data-on={editLang === "en"} onClick={() => setEditLang("en")}>EN</button>
+              </div>
+            )}
+            <div className="eb-stack">
+              {st.coverBlocks.map((b) => (
+                <div key={b.id} className="eb-block">
+                  {editLang === "en" && st.langs.english
+                    ? <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setCoverBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)" }} />
+                    : <input className="eb-input" value={b.text} onChange={(e) => setCoverBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
+                  }
+                  <div className="eb-blockctl">
+                    <select className="eb-input eb-fontsel" style={{ fontFamily: b.font }} value={b.font} onChange={(e) => setCoverBlock(b.id, { font: e.target.value })}>
+                      {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
+                    </select>
+                    <input type="range" min={11} max={48} value={b.size} onChange={(e) => setCoverBlock(b.id, { size: +e.target.value })} className="eb-range" title="Size" />
+                    <ColorDot value={b.color} onChange={(v) => setCoverBlock(b.id, { color: v })} />
+                    <button type="button" className="eb-iconbtn eb-danger" title="Remove" onClick={() => removeCoverBlock(b.id)}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="eb-rowgap">
+              <button type="button" className="eb-btn-primary" onClick={onOpenTicket}>🎟 Open Ticket</button>
+              <button type="button" className="eb-btn-ghost" onClick={onReplay}>▶ Replay</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sections sub-tab */}
+      {subTab === "sections" && (
+        <div className="eb-stack">
+          <div className="eb-card">
+            <div className="eb-cardhead">Content Background</div>
+            <BackgroundEditor value={st.contentBg} onChange={(b) => patch({ contentBg: b })} />
+          </div>
+          <ContentTab
+            st={st} patch={patch} setSection={setSection} addSection={addSection}
+            removeSection={removeSection} moveSection={moveSection}
+            setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock}
+            editLang={editLang} setEditLang={setEditLang} hideBg
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Step 3: Assets ────────────────────────────────────────────────────────────
+
+function AssetsStep({ st, patch, setSt, setSection, guideCtx, setGuideCtx }: {
+  st: BuilderState; patch: (p: Partial<BuilderState>) => void;
+  setSt: React.Dispatch<React.SetStateAction<BuilderState>>;
+  setSection: (id: string, p: Partial<Section>) => void;
+  guideCtx: "cover" | "content"; setGuideCtx: (w: "cover" | "content") => void;
+}) {
+  const [openPanel, setOpenPanel] = useState<string | null>("music");
+  const toggle = (id: string) => setOpenPanel(p => p === id ? null : id);
+
+  return (
+    <div className="eb-stack">
+      {/* Music */}
+      <div className="eb-card">
+        <button type="button" className="wiz-accordion" onClick={() => toggle("music")}>
+          <span className="eb-flbl">Background Music</span>
+          <span>{openPanel === "music" ? "▲" : "▼"}</span>
+        </button>
+        {openPanel === "music" && (
+          <div className="eb-stack">
+            <AudioUploadBox label="Upload audio (MP3, AAC, OGG)" value={st.music.url} onChange={(url) => patch({ music: { ...st.music, url } })} />
+            <div className="eb-rowbetween"><div><div className="eb-flbl">Play on invitation load</div></div><Toggle on={st.music.playOnLoad} onChange={(v) => patch({ music: { ...st.music, playOnLoad: v } })} /></div>
+            <div className="eb-rowbetween"><div><div className="eb-flbl">Play on first touch</div></div><Toggle on={st.music.playOnScroll} onChange={(v) => patch({ music: { ...st.music, playOnScroll: v } })} /></div>
+            <div className="eb-rowbetween"><div><div className="eb-flbl">Play after cover video ends</div></div><Toggle on={st.music.playAfterVideoEnd} onChange={(v) => patch({ music: { ...st.music, playAfterVideoEnd: v } })} /></div>
+          </div>
+        )}
+      </div>
+
+      {/* Motion / transitions */}
+      <div className="eb-card">
+        <button type="button" className="wiz-accordion" onClick={() => toggle("motion")}>
+          <span className="eb-flbl">Motion & Transitions</span>
+          <span>{openPanel === "motion" ? "▲" : "▼"}</span>
+        </button>
+        {openPanel === "motion" && (
+          <div className="eb-stack">
+            <p className="eb-muted eb-sm" style={{ margin: 0 }}>Cover → content page transition:</p>
+            <div className="eb-animgrid">
+              {ANIMATIONS.map((a) => (
+                <button key={a.id} type="button" className="eb-animbox" data-on={st.anim === a.id} onClick={() => patch({ anim: a.id })}>
+                  <span className="eb-animicon">{a.icon}</span>
+                  <span className="eb-animlbl">{a.label}</span>
+                  <span className="eb-animdesc">{a.desc}</span>
+                </button>
+              ))}
+            </div>
+            <p className="eb-muted eb-sm" style={{ margin: 0 }}>Per-section entrance animations:</p>
+            {st.sections.map((sec) => (
+              <div key={sec.id} className="eb-rowbetween">
+                <div className="eb-flbl">{sec.name || SECTION_LABELS[sec.kind]}</div>
+                <select className="eb-input" style={{ width: 120 }} value={sec.anim} onChange={(e) => setSection(sec.id, { anim: e.target.value as SectionAnim })}>
+                  {SECTION_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Overlay buttons */}
+      <div className="eb-card">
+        <button type="button" className="wiz-accordion" onClick={() => toggle("overlay")}>
+          <span className="eb-flbl">Floating Buttons</span>
+          <span>{openPanel === "overlay" ? "▲" : "▼"}</span>
+        </button>
+        {openPanel === "overlay" && (
+          <div className="eb-stack">
+            {OVERLAY_BTN_DEFS.map(({ key, label, desc }) => (
+              <div key={key} className="eb-rowbetween">
+                <div><div className="eb-flbl">{label}</div><div className="eb-muted eb-sm">{desc}</div></div>
+                <Toggle on={st.overlayButtons[key]} onChange={(v) => patch({ overlayButtons: { ...st.overlayButtons, [key]: v } })} />
+              </div>
+            ))}
+            <div className="eb-field">
+              <span className="eb-flbl">Placement</span>
+              <div className="eb-animgrid">
+                {OVERLAY_LAYOUTS.map((l) => (
+                  <button key={l.id} type="button" className="eb-animbox" data-on={(st.overlayButtons.layout ?? "float") === l.id}
+                    onClick={() => patch({ overlayButtons: { ...st.overlayButtons, layout: l.id } })}>
+                    <span className="eb-animicon">{l.icon}</span>
+                    <span className="eb-animlbl">{l.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="eb-field">
+              <span className="eb-flbl">Shape</span>
+              <div className="eb-animgrid">
+                {OVERLAY_SHAPES.map((s) => (
+                  <button key={s.id} type="button" className="eb-animbox" data-on={(st.overlayButtons.shape ?? "circle") === s.id}
+                    onClick={() => patch({ overlayButtons: { ...st.overlayButtons, shape: s.id } })}>
+                    <span className="eb-shapedemo" data-shape={s.id}>▶</span>
+                    <span className="eb-animlbl">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="eb-field">
+              <span className="eb-flbl">Style</span>
+              <div className="eb-seg">
+                {OVERLAY_BTN_STYLES.map((s) => (
+                  <button key={s.id} type="button" className="eb-segbtn" data-on={(st.overlayButtons.btnStyle ?? "button") === s.id}
+                    onClick={() => patch({ overlayButtons: { ...st.overlayButtons, btnStyle: s.id } })} title={s.desc}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Hand-symbol onboarding guide (cover + content) */}
+      <div className="eb-card">
+        <button type="button" className="wiz-accordion" onClick={() => toggle("guide")}>
+          <span className="eb-flbl">Hand Guide (Onboarding)</span>
+          <span>{openPanel === "guide" ? "▲" : "▼"}</span>
+        </button>
+        {openPanel === "guide" && (
+          <GuideTab st={st} setSt={setSt} which={guideCtx} setWhich={setGuideCtx} />
+        )}
+      </div>
+
+      {/* Desktop outer bg */}
+      <div className="eb-card">
+        <button type="button" className="wiz-accordion" onClick={() => toggle("outerBg")}>
+          <span className="eb-flbl">Desktop Background</span>
+          <span>{openPanel === "outerBg" ? "▲" : "▼"}</span>
+        </button>
+        {openPanel === "outerBg" && <BackgroundEditor value={st.outerBg} onChange={(b) => patch({ outerBg: b })} />}
+      </div>
+    </div>
+  );
+}
+
+// ── Step 4: Preview controls ──────────────────────────────────────────────────
+
+function PreviewControls({ onReplay, onOpenTicket }: { onReplay: () => void; onOpenTicket: () => void }) {
+  return (
+    <div className="eb-stack">
+      <div className="eb-card">
+        <div className="eb-cardhead">Live Preview</div>
+        <p className="eb-muted eb-sm" style={{ margin: 0 }}>Your invitation is shown live on the right. Interact as a guest would — tap Open to see the cover transition, then scroll through sections.</p>
+        <div className="eb-rowgap">
+          <button type="button" className="eb-btn-primary" onClick={onOpenTicket}>▶ Play from start</button>
+          <button type="button" className="eb-btn-ghost" onClick={onReplay}>↺ Replay animation</button>
+        </div>
+      </div>
+      <div className="eb-card">
+        <div className="eb-cardhead">Tips</div>
+        <ul className="wiz-tips">
+          <li>Turn on <strong>Edit on screen</strong> in the preview toolbar to drag elements.</li>
+          <li>Use <strong>Full screen</strong> to see the invitation at full size.</li>
+          <li>Hit <strong>Publish ↗</strong> in the save bar when you are ready to share.</li>
+        </ul>
       </div>
     </div>
   );
@@ -1202,10 +1677,11 @@ function DraggableStage({ children }: { children: React.ReactNode }) {
 const DEVICE_W = 375;
 const DEVICE_H = 812;
 
-function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, setSt, moveSection, guideCtx, big, previewLang, setPreviewLang }: {
-  st: BuilderState; tab: TabId; animKey: number; coverOpen: boolean; setCoverOpen: (v: boolean) => void;
+function DeviceFrame({ st, step, animKey, coverOpen, setCoverOpen, editOnScreen, setSt, moveSection, guideCtx, big, contentSubTab, previewLang, setPreviewLang }: {
+  st: BuilderState; step: WizardStep; animKey: number; coverOpen: boolean; setCoverOpen: (v: boolean) => void;
   editOnScreen: boolean; setSt: React.Dispatch<React.SetStateAction<BuilderState>>;
   moveSection: (from: number, to: number) => void; guideCtx: "cover" | "content"; big?: boolean;
+  contentSubTab: "cover" | "sections";
   previewLang: "kh" | "en"; setPreviewLang: (l: "kh" | "en") => void;
 }) {
   // Responsive scale: shrink the 375px frame to fit its container.
@@ -1292,16 +1768,46 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
           <span>▮▮▮ 􀛨</span>
         </div>
         <div className="eb-screen">
-          {/* Setup tab previews the live sections page (read-only) so event
-              name / date / languages are reflected as the guest will see them. */}
-          {tab === "setup" && <PvContent st={st} lang={previewLang} />}
-          {tab === "setup" && <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />}
-
-          {(st.langs.khmer && st.langs.english) && (tab === "setup" || tab === "cover" || tab === "content" || tab === "transitions") && (
-            <LangSwitcher lang={previewLang} onChange={setPreviewLang} />
+          {/* Step 1: Identity — show cover so monogram placement is visible */}
+          {step === "identity" && (
+            <PvCover st={st} editable={editOnScreen} onMoveCover={moveCover}
+              onEditCoverBlock={editOnScreen ? editCoverBlock : undefined}
+              fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
+              onResizeMono={editOnScreen ? resizeMono : undefined}
+              onOpen={() => setCoverOpen(true)} animKey={animKey}
+              locked={coverLocked} onVideoEnded={() => setVideoEnded(true)}
+              lang={previewLang} />
           )}
 
-          {tab === "cover" && (coverOpen
+          {/* Step 2: Content — Cover sub-tab shows PvCover, Sections sub-tab shows PvContent */}
+          {step === "sections" && contentSubTab === "cover" && (
+            <PvCover st={st} editable={editOnScreen} onMoveCover={moveCover}
+              onEditCoverBlock={editOnScreen ? editCoverBlock : undefined}
+              fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
+              onResizeMono={editOnScreen ? resizeMono : undefined}
+              onOpen={() => setCoverOpen(true)} animKey={animKey}
+              locked={coverLocked} onVideoEnded={() => setVideoEnded(true)}
+              lang={previewLang} />
+          )}
+          {step === "sections" && contentSubTab === "cover" && !coverOpen && st.coverGuide.enabled && !coverLocked && (
+            <GuideOverlay guide={st.coverGuide} />
+          )}
+          {step === "sections" && contentSubTab === "sections" && (
+            <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock}
+              onBlockPatch={editOnScreen ? patchContentBlock : undefined}
+              onSectionPatch={editOnScreen ? patchSection : undefined}
+              fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
+              onReorder={moveSection} lang={previewLang} />
+          )}
+          {step === "sections" && contentSubTab === "sections" && (
+            <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />
+          )}
+          {step === "sections" && contentSubTab === "sections" && st.contentGuide.enabled && (
+            <GuideOverlay guide={st.contentGuide} />
+          )}
+
+          {/* Step 3: Assets — cover/content toggle so cover bg and blocks are previewable */}
+          {step === "assets" && (coverOpen
             ? <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock}
                 onBlockPatch={editOnScreen ? patchContentBlock : undefined}
                 onSectionPatch={editOnScreen ? patchSection : undefined}
@@ -1313,32 +1819,22 @@ function DeviceFrame({ st, tab, animKey, coverOpen, setCoverOpen, editOnScreen, 
                 onResizeMono={editOnScreen ? resizeMono : undefined}
                 onOpen={() => setCoverOpen(true)} animKey={animKey}
                 locked={coverLocked} onVideoEnded={() => setVideoEnded(true)}
-                lang={previewLang} />)}
-          {tab === "cover" && !coverOpen && st.coverGuide.enabled && !coverLocked && <GuideOverlay guide={st.coverGuide} />}
-          {tab === "cover" && coverOpen && (
-            <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />
+                lang={previewLang} />
           )}
+          {step === "assets" && !coverOpen && st.coverGuide.enabled && !coverLocked && <GuideOverlay guide={st.coverGuide} />}
+          {step === "assets" && coverOpen && <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />}
 
-          {tab === "content" && <PvContent st={st} editable={editOnScreen} onEditBlock={editContentBlock}
-            onBlockPatch={editOnScreen ? patchContentBlock : undefined}
-            onSectionPatch={editOnScreen ? patchSection : undefined}
-            fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
-            onReorder={moveSection} lang={previewLang} />}
-          {tab === "content" && st.contentGuide.enabled && <GuideOverlay guide={st.contentGuide} />}
-          {tab === "content" && <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />}
-
-          {/* Motion tab: tap Open to watch the page transition, then scroll for section transitions */}
-          {tab === "transitions" && (coverOpen
+          {/* Step 4: Preview — full guest-like interactive experience */}
+          {step === "preview" && (coverOpen
             ? <PvContent st={st} lang={previewLang} />
-            : <PvCover st={st} onOpen={() => setCoverOpen(true)} animKey={animKey} lang={previewLang} />)}
-
-          {tab === "guide" && (guideCtx === "cover" ? <PvCover st={st} animKey={animKey} /> : <PvContent st={st} />)}
-          {tab === "guide" && (
-            <GuideOverlay guide={guideCtx === "cover" ? st.coverGuide : st.contentGuide} editable onMove={moveGuide} />
+            : <PvCover st={st} onOpen={() => setCoverOpen(true)} animKey={animKey} lang={previewLang} />
           )}
+          {step === "preview" && coverOpen && <FloatingOverlayButtons ob={st.overlayButtons} preview />}
 
-          {tab === "music" && <PvContent st={st} />}
-          {tab === "music" && <FloatingOverlayButtons ob={st.overlayButtons} preview editable={editOnScreen} onMove={moveOverlayBtns} />}
+          {/* Lang switcher — visible on all steps when both languages enabled */}
+          {(st.langs.khmer && st.langs.english) && (
+            <LangSwitcher lang={previewLang} onChange={setPreviewLang} />
+          )}
         </div>
       </div>
     </div>
@@ -1466,8 +1962,8 @@ const styles = `
 .eb-galcell button { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; border: none; background: rgba(0,0,0,0.6); color: #fff; cursor: pointer; font-size: 0.6rem; line-height: 1; }
 
 /* Save bar */
-.eb-savebar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.875rem 1rem; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; position: sticky; bottom: 0; }
-.eb-btn-primary { padding: 0.5rem 1.25rem; background: var(--c-accent); color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+.eb-savebar { display: flex; align-items: center; padding: 0.75rem 1rem; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; position: sticky; bottom: 0; }
+.eb-btn-primary { padding: 0.5rem 1.25rem; background: var(--c-accent-grad, var(--c-accent)); color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
 .eb-btn-ghost { padding: 0.5rem 1rem; background: var(--c-surface-2); color: var(--c-text); border: 1px solid var(--c-border); border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
 
 /* Preview column */
@@ -1509,4 +2005,42 @@ const styles = `
 /* Music tab */
 .eb-audiowrap { display: flex; flex-direction: column; }
 .eb-audio { width: 100%; border-radius: 8px; }
+
+/* ── Wizard navigation ───────────────────────────────────────────────────── */
+.wiz-nav { display: flex; align-items: center; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 0.375rem; position: sticky; top: 3.5rem; z-index: 5; gap: 0; overflow: hidden; }
+.wiz-step { display: flex; align-items: center; gap: 0.45rem; flex: 1; border: none; background: transparent; cursor: pointer; padding: 0.5rem 0.5rem; border-radius: 8px; font-family: inherit; position: relative; transition: background .15s; }
+.wiz-step:hover { background: var(--c-surface-2); }
+.wiz-step[data-active="true"] { background: var(--c-surface-2); }
+.wiz-dot { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--c-border); color: var(--c-muted); display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; flex-shrink: 0; background: var(--c-surface); transition: border-color .15s, background .15s, color .15s; }
+.wiz-step[data-active="true"] .wiz-dot { border-color: var(--c-accent); color: var(--c-accent); background: var(--c-accent-soft); }
+.wiz-step[data-done="true"] .wiz-dot { background: #dcfce7; border-color: #22c55e; color: #15803d; }
+.wiz-lbl { font-size: 0.75rem; font-weight: 600; color: var(--c-muted); white-space: nowrap; transition: color .15s; }
+.wiz-step[data-active="true"] .wiz-lbl { color: var(--c-text); }
+.wiz-step[data-done="true"] .wiz-lbl { color: var(--c-text); }
+.wiz-connector { position: absolute; right: 0; top: 50%; height: 14px; width: 1px; background: var(--c-border); transform: translateY(-50%); }
+
+/* Wizard misc */
+.wiz-required { font-size: 0.65rem; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.15rem 0.4rem; background: #fee2e2; border-radius: 4px; }
+.wiz-req-hint { font-size: 0.78rem; color: #dc2626; margin: 0; padding: 0.5rem 0.75rem; background: #fee2e2; border-radius: 8px; }
+.wiz-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; width: 100%; }
+.wiz-accordion { display: flex; align-items: center; justify-content: space-between; width: 100%; border: none; background: transparent; cursor: pointer; font-family: inherit; padding: 0; color: var(--c-text); }
+.wiz-accordion:hover .eb-flbl { color: var(--c-accent); }
+.wiz-tips { margin: 0; padding: 0 0 0 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.wiz-tips li { font-size: 0.8rem; color: var(--c-muted); line-height: 1.5; }
+
+/* ── Hover state fixes ───────────────────────────────────────────────────── */
+.eb-btn-primary { transition: filter .15s, box-shadow .15s; }
+.eb-btn-primary:hover:not(:disabled) { filter: brightness(1.12); box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.eb-btn-ghost { transition: background .15s, border-color .15s, color .15s, box-shadow .15s; }
+.eb-btn-ghost:hover:not(:disabled) { background: var(--c-surface); border-color: var(--c-accent); color: var(--c-accent); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.eb-btn-primary:disabled, .eb-btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
+.eb-chip { transition: background .15s, box-shadow .15s, border-color .15s; }
+.eb-chip:hover { background: var(--c-surface-2); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.eb-chip[data-on="true"]:hover { background: var(--c-accent); }
+.eb-animbox { transition: border-color .15s, background .15s, box-shadow .15s; }
+.eb-animbox:hover:not([data-on="true"]) { border-color: var(--c-accent); background: var(--c-surface); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.eb-iconbtn { transition: background .15s, border-color .15s, box-shadow .15s; }
+.eb-iconbtn:hover:not(:disabled) { background: var(--c-surface-2); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.eb-add { transition: border-color .15s, color .15s; }
+.eb-segbtn { transition: background .15s, color .15s; }
 `;
