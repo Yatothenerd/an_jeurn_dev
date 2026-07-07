@@ -69,8 +69,11 @@ export default async function EventContentPage({
         defaultSections: inv?.defaultSections ?? null,
         coverUrl: inv?.coverUrl ?? null,
         musicUrl: inv?.musicUrl ?? null,
+        backgroundUrl: inv?.backgroundUrl ?? null,
+        backgroundVideoUrl: inv?.backgroundVideoUrl ?? null,
       }}
       themeName={getTheme(design.themeId).name}
+      designLocked={!!getTheme(design.themeId).preset}
       sectionRows={(inv?.sections ?? []).map((s) => ({ type: s.type, content: s.content }))}
       initialPhotos={(inv?.photos ?? []).map((p) => ({ id: p.id, url: p.url }))}
     />

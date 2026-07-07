@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { DesignFloatButtons } from "@/lib/themes/design";
 
 interface Props {
   venueMapUrl?: string | null;
@@ -8,6 +9,8 @@ interface Props {
   hasKhqr: boolean;
   showRsvp?: boolean;
   theme: { btnBg: string; btnText: string };
+  /** Position / shape / size / hover / visibility — design.page.floatButtons. */
+  config?: DesignFloatButtons;
 }
 
 // ── Flat SVG icons ────────────────────────────────────────────────────────────
@@ -62,7 +65,16 @@ function IconPause({ size = 22 }: { size?: number }) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, showRsvp = true, theme }: Props) {
+const DEFAULT_CONFIG: DesignFloatButtons = {
+  position: "right",
+  shape: "circle",
+  size: 46,
+  hover: "lift",
+  show: { rsvp: true, khqr: true, map: true, music: true },
+};
+
+export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, showRsvp = true, theme, config }: Props) {
+  const cfg = config ?? DEFAULT_CONFIG;
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [musicFailed, setMusicFailed] = useState(false);
@@ -91,7 +103,7 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, showRsvp = true,
   }
 
   function scrollToKhqr() {
-    document.getElementById("inv-khqr")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("inv-sec-khqr")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const showMusic = !!musicUrl && !musicFailed;
@@ -100,61 +112,50 @@ export function InviteActions({ venueMapUrl, musicUrl, hasKhqr, showRsvp = true,
     window.dispatchEvent(new CustomEvent("anjeurn:open-rsvp"));
   }
 
-  const btn: React.CSSProperties = { ...s.btn, background: theme.btnBg, color: theme.btnText };
+  const size = Math.max(36, Math.min(72, cfg.size || 46));
+  const iconSize = Math.round(size * 0.48);
+  const btnClass = `inv-fab shape-${cfg.shape} hv-${cfg.hover}`;
+  const btnStyle: React.CSSProperties = {
+    width: size,
+    height: size,
+    background: theme.btnBg,
+    color: theme.btnText,
+  };
+
+  const buttons = [
+    cfg.show.rsvp && showRsvp && (
+      <button key="rsvp" onClick={openRsvp} className={btnClass} style={btnStyle} title="RSVP" aria-label="Open RSVP form">
+        <IconRsvp size={iconSize} />
+      </button>
+    ),
+    cfg.show.khqr && hasKhqr && (
+      <button key="khqr" onClick={scrollToKhqr} className={btnClass} style={btnStyle} title="Gift / ABA KHQR" aria-label="Go to contribution section">
+        <IconGift size={iconSize} />
+      </button>
+    ),
+    cfg.show.map && venueMapUrl && (
+      <button key="map" onClick={openMap} className={btnClass} style={btnStyle} title="Get directions" aria-label="Open venue map">
+        <IconMapPin size={iconSize} />
+      </button>
+    ),
+    cfg.show.music && showMusic && (
+      <button
+        key="music"
+        onClick={toggleMusic}
+        className={btnClass}
+        style={btnStyle}
+        title={playing ? "Mute music" : "Play music"}
+        aria-label={playing ? "Mute background music" : "Play background music"}
+      >
+        {playing ? <IconPause size={iconSize} /> : <IconPlay size={iconSize} />}
+      </button>
+    ),
+  ].filter(Boolean);
 
   return (
-    <div style={s.stack}>
+    <div className="inv-fab-wrap">
       {musicUrl && <audio ref={audioRef} src={musicUrl} loop preload="none" />}
-
-      {showRsvp && (
-        <button onClick={openRsvp} style={btn} title="RSVP" aria-label="Open RSVP form">
-          <IconRsvp />
-        </button>
-      )}
-
-      {hasKhqr && (
-        <button onClick={scrollToKhqr} style={btn} title="Gift / ABA KHQR" aria-label="Go to contribution section">
-          <IconGift />
-        </button>
-      )}
-      {venueMapUrl && (
-        <button onClick={openMap} style={btn} title="Get directions" aria-label="Open venue map">
-          <IconMapPin />
-        </button>
-      )}
-      {showMusic && (
-        <button
-          onClick={toggleMusic}
-          style={btn}
-          title={playing ? "Mute music" : "Play music"}
-          aria-label={playing ? "Mute background music" : "Play background music"}
-        >
-          {playing ? <IconPause /> : <IconPlay />}
-        </button>
-      )}
+      {buttons.length > 0 && <div className={`inv-fab-stack pos-${cfg.position}`}>{buttons}</div>}
     </div>
   );
 }
-
-const s = {
-  stack: {
-    position: "fixed" as const,
-    bottom: "7rem",
-    right: "1.25rem",
-    zIndex: 100,
-    display: "flex",
-    flexDirection: "column" as const,
-    gap: "0.6rem",
-  },
-  btn: {
-    width: "46px",
-    height: "46px",
-    borderRadius: "50%",
-    border: "none",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.22)",
-  },
-} as const;

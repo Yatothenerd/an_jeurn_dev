@@ -34,6 +34,8 @@ export interface ThemeSummary {
   name: string;
   /** How the theme renders: bespoke code sections, the builder canvas, or the token fallback. */
   kind: "code" | "builder" | "standard";
+  /** Preset themes are design-locked — only content edits are allowed. */
+  locked: boolean;
   palette: { bg: string; primary: string; accent: string; text: string };
 }
 
@@ -42,6 +44,7 @@ export function listThemeSummaries(): ThemeSummary[] {
     id: m.id,
     name: m.name,
     kind: m.id === "theme-freeform" ? "builder" : m.id === "theme-standard" ? "standard" : "code",
+    locked: !!m.preset,
     palette: {
       bg: m.tokens.bg,
       primary: m.tokens.primary,

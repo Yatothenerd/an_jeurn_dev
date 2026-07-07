@@ -20,6 +20,8 @@ export interface ThemeTokens {
   font: string;
   /** Display/heading font stack (cover title, gate title, countdown digits). Falls back to `font`. */
   headingFont?: string;
+  /** Section-header font stack (the small uppercase labels). Falls back to `headingFont`, then `font`. */
+  headerFont?: string;
   /** Size multiplier for heading text (default 1). */
   headingScale?: number;
   /** Size multiplier for body text (default 1). */
@@ -111,6 +113,13 @@ export interface ThemeLayout {
 export interface ThemeModule {
   id: string;
   name: string;
+  /**
+   * Preset themes are design-locked: admins may update *content* only.
+   * Palette / typography / per-section styling controls are hidden for them,
+   * keeping the designed look intact. The freeform builder and the standard
+   * token theme stay fully editable.
+   */
+  preset?: boolean;
   tokens: ThemeTokens;
   /** Bespoke CSS injected only when this theme is the active one. */
   css?: string;

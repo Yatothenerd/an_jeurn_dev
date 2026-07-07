@@ -169,7 +169,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
       <section id="services" className={s.section}>
         <div className={s.wrap}>
           <div className={s.sectionHead}>
-            <div className={s.ornament}><span>✦</span></div>
+            <div className={s.ornament}><span>❦</span></div>
             <span className={s.eyebrow}>{L(t.services.eyebrow)}</span>
             <h2 className={s.sectionTitle}>{L(t.services.title)}</h2>
             <p className={s.sectionSub}>{L(t.services.sub)}</p>
@@ -190,7 +190,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
       <section id="how" className={`${s.section} ${s.sectionAlt}`}>
         <div className={s.wrap}>
           <div className={s.sectionHead}>
-            <div className={s.ornament}><span>✦</span></div>
+            <div className={s.ornament}><span>❦</span></div>
             <span className={s.eyebrow}>{L(t.how.eyebrow)}</span>
             <h2 className={s.sectionTitle}>{L(t.how.title)}</h2>
             <p className={s.sectionSub}>{L(t.how.sub)}</p>
@@ -211,7 +211,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
       <section id="themes" className={s.section}>
         <div className={s.wrap}>
           <div className={s.sectionHead}>
-            <div className={s.ornament}><span>✦</span></div>
+            <div className={s.ornament}><span>❦</span></div>
             <span className={s.eyebrow}>{L(t.themes.eyebrow)}</span>
             <h2 className={s.sectionTitle}>{L(t.themes.title)}</h2>
             <p className={s.sectionSub}>{L(t.themes.sub)}</p>
@@ -233,7 +233,7 @@ export function LandingPage({ entranceStyle = "fade" }: { entranceStyle?: Entran
       <section id="pricing" className={`${s.section} ${s.sectionAlt}`}>
         <div className={s.wrap}>
           <div className={s.sectionHead}>
-            <div className={s.ornament}><span>✦</span></div>
+            <div className={s.ornament}><span>❦</span></div>
             <span className={s.eyebrow}>{L(t.pricing.eyebrow)}</span>
             <h2 className={s.sectionTitle}>{L(t.pricing.title)}</h2>
             <p className={s.sectionSub}>{L(t.pricing.sub)}</p>

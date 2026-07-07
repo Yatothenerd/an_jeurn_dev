@@ -4,6 +4,8 @@ interface CoverContent {
   heading?: string;
   subheading?: string;
   guestLabel?: string;
+  /** Uploaded monogram / logo — displayed prominently at the top of the cover. */
+  logoUrl?: string;
 }
 
 interface Props {
@@ -13,9 +15,11 @@ interface Props {
   venueName?: string | null;
   guestName?: string | null;
   theme: ThemeTokens;
+  assets?: Record<string, string>;
 }
 
-export function CoverSection({ content, eventTitle, eventDate, venueName, guestName, theme }: Props) {
+export function CoverSection({ content, eventTitle, eventDate, venueName, guestName, theme, assets }: Props) {
+  const monogramUrl = content.logoUrl || (theme.showMonogramInSections ? assets?.cover : null);
   const date = new Date(eventDate);
   const formatted = date.toLocaleDateString("en-US", {
     weekday: "long",
@@ -39,6 +43,10 @@ export function CoverSection({ content, eventTitle, eventDate, venueName, guestN
       {cornerPos.map((pos) => (
         <span key={pos} className={`${cornerClass} ${pos}`} style={{ color: theme.accent }} />
       ))}
+
+      {monogramUrl && (
+        <img src={monogramUrl} alt="Monogram" className="inv-monogram" style={{ border: `2px solid ${theme.accent}55` }} />
+      )}
 
       <p className="inv-pretitle" style={{ color: theme.accent }}>
         {content.subheading || "You are cordially invited"}

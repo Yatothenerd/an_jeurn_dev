@@ -2,6 +2,7 @@
 
 import { useCountdown } from "@/lib/themes/shared/use-countdown";
 import { useWishForm } from "@/lib/themes/shared/use-wish-form";
+import { useLangContent } from "./InviteLang";
 import type { ThemeTokens } from "@/lib/themes/types";
 import type { InviteWish } from "@/lib/utils/invite-cache";
 import { khqrItems, type KhqrContent } from "./khqr-utils";
@@ -15,9 +16,41 @@ const tok = {
   body:     (t: ThemeTokens) => t.body     ?? t.text,
   muted:    (t: ThemeTokens) => t.muted,
   heading:  (t: ThemeTokens) => t.headingFont ?? t.font,
+  headerFont: (t: ThemeTokens) => t.headerFont ?? t.headingFont ?? t.font,
   hs:       (t: ThemeTokens) => t.headingScale ?? 1,
   bs:       (t: ThemeTokens) => t.bodyScale ?? 1,
 };
+
+// ── Per-section fine-tuning ───────────────────────────────────────────────────
+// Editors may attach `content._style` to any text section for per-textbox
+// overrides (font / color / size) on top of the theme's font scheme.
+export interface SectionTextStyle {
+  titleFont?: string;
+  titleColor?: string;
+  /** Multiplier on the theme heading scale (0.6–1.6). */
+  titleScale?: number;
+  bodyFont?: string;
+  bodyColor?: string;
+  /** Multiplier on the theme body scale (0.6–1.6). */
+  bodyScale?: number;
+  headerColor?: string;
+}
+
+/** Merge a section's `_style` overrides into the theme tokens for that section. */
+function styled(theme: ThemeTokens, content: unknown): ThemeTokens {
+  const st = (content as { _style?: SectionTextStyle } | null)?._style;
+  if (!st || typeof st !== "object") return theme;
+  return {
+    ...theme,
+    headingFont:  st.titleFont  || theme.headingFont,
+    title:        st.titleColor || theme.title,
+    headingScale: (theme.headingScale ?? 1) * (st.titleScale || 1),
+    font:         st.bodyFont   || theme.font,
+    body:         st.bodyColor  || theme.body,
+    bodyScale:    (theme.bodyScale ?? 1) * (st.bodyScale || 1),
+    header:       st.headerColor || theme.header,
+  };
+}
 
 /** Scale a rem size by a multiplier, e.g. remScale(1.875, theme.headingScale). */
 const remScale = (base: number, scale = 1) => `${+(base * scale).toFixed(4)}rem`;
@@ -26,7 +59,9 @@ const remScale = (base: number, scale = 1) => `${+(base * scale).toFixed(4)}rem`
 
 function SecWrap({ children, theme }: { children: React.ReactNode; theme: ThemeTokens }) {
   return (
+    // .inv-db-sec = full-screen fit (portrait-capped on desktop) + flex centering
     <section
+      className="inv-db-sec"
       style={{
         padding: "3.25rem 1.75rem",
         borderTop: `1px solid ${theme.border}`,
@@ -35,7 +70,7 @@ function SecWrap({ children, theme }: { children: React.ReactNode; theme: ThemeT
         color: tok.body(theme),
       }}
     >
-      <div style={{ maxWidth: 400, margin: "0 auto" }}>{children}</div>
+      <div style={{ maxWidth: 400, margin: "0 auto", width: "100%" }}>{children}</div>
     </section>
   );
 }
@@ -55,7 +90,7 @@ function SecHead({ label, theme }: { icon?: string; label: string; theme: ThemeT
           fontWeight: 600,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
-          fontFamily: tok.heading(theme),
+          fontFamily: tok.headerFont(theme),
           color: tok.header(theme),
         }}
       >
@@ -77,7 +112,9 @@ interface CoverProps {
   assets?: Record<string, string>;
 }
 
-export function DbCoverSection({ content, eventTitle, eventDate, venueName, guestName, theme, assets }: CoverProps) {
+export function DbCoverSection({ content: baseContent, eventTitle, eventDate, venueName, guestName, theme: baseTheme, assets }: CoverProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
   const formatted = new Date(eventDate).toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -85,24 +122,26 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
     day: "numeric",
   });
 
-  // This section only renders when "Show cover after opening" is on, so it acts as
-  // a mirror of the landing: same hero photo + heading/subheading + date.
+  // This section only renders when "Show cover after opening" is on, so it acts
+  // as a mirror of the landing gate: the same cover image becomes the section's
+  // full-bleed background (with a scrim for readability).
   const heroUrl = content.imageUrl ?? assets?.cover ?? null;
-  const monogramUrl = theme.showMonogramInSections ? (content.logoUrl ?? assets?.cover) : null;
+  // The uploaded monogram/logo always shows; the cover photo doubles as a
+  // fallback monogram only when the design enables section monograms.
+  const monogramUrl = content.logoUrl || (theme.showMonogramInSections ? assets?.cover : null);
 
   return (
     <section
+      className="inv-db-sec"
       style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
         textAlign: "center",
         padding: "5rem 1.75rem 4rem",
         fontFamily: theme.font,
         color: tok.body(theme),
-        background: theme.coverGradient,
+        background: heroUrl
+          ? `linear-gradient(to bottom, rgba(0,0,0,0.38), rgba(0,0,0,0.22) 45%, rgba(0,0,0,0.45)), url(${heroUrl}) center / cover no-repeat`
+          : theme.coverGradient,
       }}
     >
       {monogramUrl && (
@@ -110,26 +149,13 @@ export function DbCoverSection({ content, eventTitle, eventDate, venueName, gues
           src={monogramUrl}
           alt="Monogram"
           style={{
-            width: 104,
-            height: 104,
+            width: "clamp(96px, 30vw, 140px)",
+            height: "clamp(96px, 30vw, 140px)",
             borderRadius: "50%",
             objectFit: "cover",
             marginBottom: "1.5rem",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}
-        />
-      )}
-
-      {heroUrl && (
-        <img
-          src={heroUrl}
-          alt="Cover"
-          style={{
-            width: "100%",
-            maxHeight: 280,
-            objectFit: "cover",
-            borderRadius: 12,
-            marginBottom: "1.25rem",
+            border: `2px solid ${theme.accent}55`,
           }}
         />
       )}
@@ -222,7 +248,9 @@ interface WordingProps {
   theme: ThemeTokens;
 }
 
-export function DbWordingSection({ content, theme }: WordingProps) {
+export function DbWordingSection({ content: baseContent, theme: baseTheme }: WordingProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
   const hasImage = !!content.imageUrl;
   const hasText = !!(content.text && content.text.trim());
   if (!hasImage && !hasText) return null;
@@ -377,7 +405,9 @@ interface DetailsProps {
   theme: ThemeTokens;
 }
 
-export function DbDetailsSection({ content, venueName, venueMapUrl, theme }: DetailsProps) {
+export function DbDetailsSection({ content: baseContent, venueName, venueMapUrl, theme: baseTheme }: DetailsProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
   // Only show photo items that actually have an uploaded image (imageUrl non-empty)
   const photoItems = (content.photoItems ?? []).filter((it) => it.imageUrl);
   // Only show text items that have a non-empty value (ignore placeholder rows with value:"")
@@ -528,7 +558,9 @@ interface GalleryProps {
   theme: ThemeTokens;
 }
 
-export function DbGallerySection({ content, photos, theme }: GalleryProps) {
+export function DbGallerySection({ content: baseContent, photos, theme: baseTheme }: GalleryProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
   if (photos.length === 0) return null;
 
   return (
@@ -571,7 +603,9 @@ interface VideoProps {
   theme: ThemeTokens;
 }
 
-export function DbVideoSection({ content, theme }: VideoProps) {
+export function DbVideoSection({ content: baseContent, theme: baseTheme }: VideoProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
   const thumbnailUrl = (content as { thumbnailUrl?: string }).thumbnailUrl;
   if (!content.url && !thumbnailUrl) return null;
 
@@ -652,7 +686,9 @@ interface WishingProps {
   theme: ThemeTokens;
 }
 
-export function DbWishingSection({ invitationId, initialWishes, content, theme }: WishingProps) {
+export function DbWishingSection({ invitationId, initialWishes, content: baseContent, theme: baseTheme }: WishingProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
   const { wishes, name, setName, message, setMessage, submitting, submitted, error, handleSubmit } =
     useWishForm(invitationId, initialWishes);
 
@@ -816,7 +852,9 @@ interface KhqrProps {
   theme: ThemeTokens;
 }
 
-export function DbKhqrSection({ content, theme }: KhqrProps) {
+export function DbKhqrSection({ content: baseContent, theme: baseTheme }: KhqrProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
   const items = khqrItems(content);
   if (items.length === 0) return null;
 

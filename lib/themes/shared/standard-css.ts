@@ -110,7 +110,7 @@ img { max-width: 100%; }
   background: rgba(0,0,0,0.28);
 }
 
-/* ── Cover ── */
+/* ── Cover — full-screen fit (svh tracks the real mobile viewport) ── */
 .inv-cover {
   padding: 4rem 1.5rem 3rem;
   text-align: center;
@@ -118,9 +118,28 @@ img { max-width: 100%; }
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  min-height: 78vh;
   justify-content: center;
   position: relative;
+}
+
+/* Full-screen sections: on phones each section fills the device screen; on
+   desktop the invite stays a 430px portrait card, so cap the height at a
+   phone-portrait ratio instead of stretching to the tall desktop viewport. */
+.inv-cover, .inv-section, .inv-db-sec {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+@media (min-width: 500px) {
+  .inv-cover, .inv-section, .inv-db-sec { min-height: min(100svh, 812px); }
+}
+
+/* Cover monogram / logo — prominent, scales with the viewport */
+.inv-monogram {
+  width: clamp(88px, 30vw, 136px);
+  height: clamp(88px, 30vw, 136px);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
 .inv-pretitle { font-size: 0.7rem; letter-spacing: 0.25em; text-transform: uppercase; opacity: 0.75; }
 .inv-script { font-family: 'Great Vibes', cursive; font-size: 3.4rem; line-height: 1.1; }
@@ -150,8 +169,19 @@ img { max-width: 100%; }
 .orn-bl { bottom: 14px; left: 14px; transform: scaleY(-1); }
 .orn-br { bottom: 14px; right: 14px; transform: scale(-1, -1); }
 
-/* ── Sections ── */
-.inv-section { padding: 2.75rem 1.5rem; }
+/* ── Sections — full-screen fit (height rules shared with .inv-cover above) ── */
+.inv-section {
+  padding: 2.75rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+/* DB-theme section wrapper (SecWrap in DbThemeSections) */
+.inv-db-sec {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 .inv-section-title { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
 .inv-section-title .line { flex: 1; height: 1px; background: currentColor; opacity: 0.14; }
 .inv-section-title span { font-size: 0.66rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.55; white-space: nowrap; }
@@ -198,26 +228,119 @@ img { max-width: 100%; }
 .inv-deco-band.floral { background-image: url('/themes/patterns/gold-floral-damask.jpg'); }
 .inv-deco-band.lace { background-image: url('/themes/patterns/thai-lace-border.jpg'); }
 
-/* ── Opening gate + scroll guide (universal — every theme opens with this) ── */
-.inv-gate { position: fixed; inset: 0; z-index: 2000; max-width: 430px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; padding: 3.5rem 1.5rem; }
-/* Reveal animations — chosen per invite (overlayConfig.revealStyle) */
-.inv-gate.is-opening.reveal-fade     { animation: inv-gate-out 0.7s ease forwards; }
-.inv-gate.is-opening.reveal-slideUp  { animation: inv-gate-slideup 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
-.inv-gate.is-opening.reveal-envelope { transform-origin: top center; animation: inv-gate-envelope 0.85s ease forwards; }
-.inv-gate.is-opening.reveal-curtain  { animation: inv-gate-fade 0.75s ease forwards; }
-@keyframes inv-gate-out      { to { opacity: 0; transform: scale(1.06); visibility: hidden; } }
-@keyframes inv-gate-slideup  { to { opacity: 0.35; transform: translateY(-100%); visibility: hidden; } }
-@keyframes inv-gate-envelope { 35% { opacity: 1; } to { opacity: 0; transform: perspective(1400px) rotateX(-92deg) translateY(-14%); visibility: hidden; } }
-@keyframes inv-gate-fade     { to { opacity: 0; visibility: hidden; } }
-.inv-curtain { will-change: transform; z-index: 0; }
-.inv-gate.is-opening.reveal-curtain .inv-curtain-l { animation: inv-curtain-l 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
-.inv-gate.is-opening.reveal-curtain .inv-curtain-r { animation: inv-curtain-r 0.75s cubic-bezier(0.7,0,0.3,1) forwards; }
-@keyframes inv-curtain-l { to { transform: translateX(-100%); } }
-@keyframes inv-curtain-r { to { transform: translateX(100%); } }
+/* ── Floating action buttons (RSVP / gift / map / music) ─────────────────────
+   Wrapper is locked to the 430px invite shell so buttons stay on the card on
+   desktop. Position / shape / size / hover come from design.page.floatButtons. */
+.inv-fab-wrap {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  height: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+.inv-fab-stack {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  pointer-events: auto;
+}
+.inv-fab-stack.pos-right { right: 1.25rem; bottom: 7rem; }
+.inv-fab-stack.pos-left  { left: 1.25rem;  bottom: 7rem; }
+.inv-fab-stack.pos-bar   { left: 50%; transform: translateX(-50%); bottom: 1.1rem; flex-direction: row; }
+
+.inv-fab {
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.22);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+.inv-fab.shape-circle  { border-radius: 50%; }
+.inv-fab.shape-rounded { border-radius: 14px; }
+.inv-fab.shape-square  { border-radius: 4px; }
+
+.inv-fab.hv-lift:hover  { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 22px rgba(0,0,0,0.32); }
+.inv-fab.hv-glow:hover  { box-shadow: 0 0 0 4px rgba(255,255,255,0.18), 0 0 20px rgba(255,255,255,0.35); filter: brightness(1.12); }
+.inv-fab.hv-pulse:hover { animation: inv-fab-pulse 0.9s ease-in-out infinite; }
+@keyframes inv-fab-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) {
+  .inv-fab, .inv-fab:hover { transition: none; animation: none; transform: none; }
+}
+
+/* ── Bilingual toggle — pinned to the top of the 430px invite card ── */
+.inv-lang-wrap {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  height: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+.inv-lang-toggle {
+  position: absolute;
+  top: 0.9rem;
+  right: 1rem;
+  display: inline-flex;
+  border-radius: 999px;
+  overflow: hidden;
+  pointer-events: auto;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.28);
+  backdrop-filter: blur(8px);
+}
+.inv-lang-btn {
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.32rem 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.inv-lang-btn.on { background: rgba(255,255,255,0.92); color: #26221c; }
+
+/* ── Opening gate — the COVER PAGE of the invitation ─────────────────────────
+   Not an overlay: a real in-flow page at the top of the invite, exactly one
+   portrait screen tall (capped to phone-portrait on desktop, like sections).
+   "Open" unlocks scrolling and glides down to the content pages below. */
+.inv-gate {
+  position: relative;
+  z-index: 2;
+  max-width: 430px;
+  margin: 0 auto;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  box-shadow: 0 0 40px rgba(0,0,0,0.18);
+}
+@media (min-width: 500px) {
+  .inv-gate { height: min(100svh, 812px); }
+}
 .inv-gate-guest { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.4rem; }
 .inv-gate-name { font-family: 'Great Vibes', cursive; font-size: 2rem; line-height: 1.1; }
 .inv-gate-open { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-top: 0.6rem; }
 .inv-gate-hand { width: 88px; height: auto; animation: inv-tap 1.6s ease-in-out infinite; }
+/* Emoji variants of the hand icon (admin-configurable) */
+span.inv-gate-hand  { width: auto; font-size: 3.2rem; line-height: 1; display: block; }
+span.inv-guide-hand { width: auto; font-size: 2.4rem; line-height: 1; display: block; }
 @keyframes inv-tap { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-7px) scale(1.07); } }
 .inv-gate-open-label { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; padding: 0.4rem 1rem; border: 1px solid; border-radius: 999px; }
 

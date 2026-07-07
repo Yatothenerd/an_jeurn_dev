@@ -138,7 +138,13 @@ export function DesignPicker({ eventId, slug, currentThemeId, overlayConfig, cli
                   <span style={{ textAlign: "left" }}>
                     <span style={s.themeName}>{t.name}</span>
                     <span style={s.themeKind}>
-                      {t.kind === "builder" ? "Drag-and-drop canvas" : t.kind === "standard" ? "Token / photo fallback" : "Coded design"}
+                      {t.kind === "builder"
+                        ? "Freeform builder — fully editable"
+                        : t.kind === "standard"
+                        ? "Standard — fully customizable"
+                        : t.locked
+                        ? "🔒 Preset — design locked, content editable"
+                        : "Coded design"}
                     </span>
                   </span>
                   {active && <span style={s.check}>✓ Current</span>}

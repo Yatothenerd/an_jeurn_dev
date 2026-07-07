@@ -15,6 +15,8 @@ import {
 export const royalKhmer: ThemeModule = {
   id: "theme-royal-khmer",
   name: "Red Royal Khmer",
+  preset: true, // design locked — only content is editable
+
   css: KHMER_CSS,
   fonts: ["Koulen", "Moulpali", "Kantumruy+Pro:wght@300;400;500;600"],
   layout: khmerLayout,

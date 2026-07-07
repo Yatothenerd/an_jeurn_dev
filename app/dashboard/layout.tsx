@@ -29,7 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <ClientThemeProvider>
       <div className="app-shell">
         <aside className="app-sidebar">
-          <div style={s.brand}>
+          <div style={s.brand} className="sidebar-brand-flourish">
             <img src="/logo/mark.svg" alt="Anjeurn" style={{ height: 36, display: "block" }} />
           </div>
 

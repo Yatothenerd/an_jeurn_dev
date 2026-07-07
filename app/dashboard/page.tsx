@@ -32,7 +32,7 @@ export default async function DashboardPage() {
       </div>
 
       {events.length === 0 ? (
-        <div style={s.empty}>
+        <div style={s.empty} className="ornate-frame">
           <div style={s.emptyIcon}>🎉</div>
           <div style={s.emptyTitle}>No events yet</div>
           <div style={s.emptyText}>
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
           {events.map((event) => {
             const inv = event.invitation;
             return (
-              <div key={event.id} style={s.card}>
+              <div key={event.id} style={s.card} className="ornate-frame">
                 {/* Invitation thumbnail/cover strip */}
                 {(inv?.thumbnailUrl || inv?.coverUrl) && (
                   <img src={inv.thumbnailUrl ?? inv.coverUrl!} alt={event.title} style={s.thumbnail} />

@@ -18,6 +18,9 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { HEADING_FONTS, BODY_FONTS } from "@/lib/themes/shared/standard-css";
+import { FontPicker, ColorField, SizeField } from "@/app/admin/_components/StyleControls";
+import { DEFAULT_FLOAT_BUTTONS, type DesignFloatButtons } from "@/lib/themes/design";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +34,8 @@ interface InvitationData {
   defaultSections: unknown;
   coverUrl: string | null;
   musicUrl: string | null;
+  backgroundUrl: string | null;
+  backgroundVideoUrl: string | null;
 }
 interface PhotoRow { id: string; url: string }
 
@@ -42,6 +47,11 @@ interface Props {
   invitation: InvitationData;
   /** Display name of the active theme (chosen in the Design step). */
   themeName: string;
+  /**
+   * Preset themes are design-locked: the Design tab (palette, typography,
+   * per-section styling) is disabled and only content can change.
+   */
+  designLocked?: boolean;
   sectionRows: Array<{ type: string; content: unknown }>;
   initialPhotos: PhotoRow[];
 }
@@ -57,7 +67,14 @@ const SECTION_META: Record<string, { label: string; icon: string }> = {
   gallery:   { label: "Gallery",        icon: "🖼" },
   khqr:      { label: "KHQR Gift",      icon: "💳" },
   wishing:   { label: "Wishing Wall",   icon: "✨" },
+  image:     { label: "Image",          icon: "🏞" },
 };
+
+/** Per-section text-box fine-tuning (rendered by DbThemeSections `styled()`). */
+interface SectionStyleOverride {
+  titleFont?: string; titleColor?: string; titleScale?: number;
+  bodyFont?: string;  bodyColor?: string;  bodyScale?: number;
+}
 
 const DEFAULT_SECTIONS: EditorSection[] = [
   { type: "cover",     included: true,  content: {} },
@@ -147,22 +164,173 @@ function ImgField({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
+// ── Per-section text-style fine-tuning (font / color / size per text box) ────
+
+function TextStylePanel({ value, onChange }: {
+  value: SectionStyleOverride;
+  onChange: (next: SectionStyleOverride) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const set = (patch: Partial<SectionStyleOverride>) => onChange({ ...value, ...patch });
+  const active = Object.values(value).some((v) => v !== undefined && v !== "" && v !== 1);
+
+  return (
+    <div style={{ border: "1px dashed var(--c-border)", borderRadius: 8, padding: "0.5rem 0.6rem" }}>
+      <button type="button" style={s.secToggleBtn} onClick={() => setOpen(!open)}>
+        <span>🖋</span>
+        <span style={{ fontWeight: 600 }}>Text style{active ? " · customized" : ""}</span>
+        <span style={{ marginLeft: "auto", color: "var(--c-muted)" }}>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginTop: "0.5rem" }}>
+          <Field label="Title font">
+            <FontPicker value={value.titleFont ?? ""} onChange={(v) => set({ titleFont: v || undefined })} options={HEADING_FONTS} />
+          </Field>
+          <Field label="Title color">
+            <ColorField value={value.titleColor ?? ""} onChange={(v) => set({ titleColor: v || undefined })} />
+          </Field>
+          <Field label="Title size">
+            <SizeField value={value.titleScale ?? 1} onChange={(v) => set({ titleScale: v === 1 ? undefined : v })} />
+          </Field>
+          <Field label="Body font">
+            <FontPicker value={value.bodyFont ?? ""} onChange={(v) => set({ bodyFont: v || undefined })} options={BODY_FONTS} />
+          </Field>
+          <Field label="Body color">
+            <ColorField value={value.bodyColor ?? ""} onChange={(v) => set({ bodyColor: v || undefined })} />
+          </Field>
+          <Field label="Body size">
+            <SizeField value={value.bodyScale ?? 1} onChange={(v) => set({ bodyScale: v === 1 ? undefined : v })} />
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Image / GIF / motion-video field for backgrounds → /api/admin/upload. */
+function MediaField({ value, onChange }: { value: string; onChange: (url: string, isVideo: boolean) => void }) {
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(value);
+
+  async function upload(file: File) {
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "backgrounds");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        const video = file.type.startsWith("video/") || /\.(mp4|webm|mov)(\?|$)/i.test(data.url);
+        onChange(data.url, video);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+      {value ? (
+        isVideo ? (
+          <video src={value} muted style={{ width: 42, height: 42, objectFit: "cover", borderRadius: 6, border: "1px solid var(--c-border)" }} />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt="" style={{ width: 42, height: 42, objectFit: "cover", borderRadius: 6, border: "1px solid var(--c-border)" }} />
+        )
+      ) : (
+        <div style={{ width: 42, height: 42, borderRadius: 6, border: "1px dashed var(--c-border)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--c-muted)", fontSize: "0.7rem" }}>—</div>
+      )}
+      <button type="button" style={s.smallBtn} disabled={busy} onClick={() => fileRef.current?.click()}>
+        {busy ? "Uploading…" : value ? "Replace" : "Upload"}
+      </button>
+      {value && <button type="button" style={s.smallGhost} onClick={() => onChange("", false)}>✕</button>}
+      <input ref={fileRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" hidden
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
+    </div>
+  );
+}
+
 // ── Per-section content forms ────────────────────────────────────────────────
 
-function SectionForm({ sec, onContent }: { sec: EditorSection; onContent: (patch: SectionContent) => void }) {
-  const c = sec.content;
+function SectionForm({ sec, onContent, locked, altLang }: {
+  sec: EditorSection;
+  onContent: (patch: SectionContent) => void;
+  locked?: boolean;
+  /** When true, text edits write to the secondary language (content.i18n). */
+  altLang?: boolean;
+}) {
+  // Bilingual editing: text fields read/write `content.i18n` for the secondary
+  // language (base values show through until translated); media, mode and
+  // style stay shared across languages.
+  const base = sec.content;
+  const i18n = (base.i18n ?? {}) as SectionContent;
+  const c = altLang ? { ...base, ...i18n } : base;
+  const onC = altLang
+    ? (patch: SectionContent) => onContent({ i18n: { ...i18n, ...patch } })
+    : onContent;
   const str = (k: string) => (typeof c[k] === "string" ? (c[k] as string) : "");
-  const set = (k: string) => (v: unknown) => onContent({ [k]: v });
+  const set = (k: string) => (v: unknown) => onC({ [k]: v });
+  /** Language-independent fields (uploads, URLs) always write to the base content. */
+  const setBase = (k: string) => (v: unknown) => onContent({ [k]: v });
+  const strBase = (k: string) => (typeof base[k] === "string" ? (base[k] as string) : "");
 
+  const isImageMode = c.mode === "image";
+  // Cover always shows its dedicated form; other sections can flip to image mode.
+  const modeToggle = sec.type !== "cover" && (
+    <div style={{ display: "flex", gap: "0.35rem" }}>
+      {(["text", "image"] as const).map((m) => (
+        <button key={m} type="button"
+          style={{ ...s.smallBtn, ...(m === (isImageMode ? "image" : "text") ? { background: "var(--c-accent)", color: "#fff", border: "1px solid var(--c-accent)" } : {}) }}
+          onClick={() => onContent({ mode: m === "image" ? "image" : undefined })}>
+          {m === "text" ? "✒ Text-based" : "🏞 Image-based"}
+        </button>
+      ))}
+    </div>
+  );
+
+  // Image mode — the admin uploads the section's event information as an image.
+  if (isImageMode && sec.type !== "cover") {
+    return (
+      <>
+        {modeToggle}
+        <Field label="Section image"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
+        <Field label="Title (optional)"><Txt value={str("title")} onChange={set("title")} /></Field>
+        <Field label="Caption (optional)"><Txt value={str("caption")} onChange={set("caption")} /></Field>
+        <p style={s.hint}>This section renders the uploaded image instead of text content.</p>
+      </>
+    );
+  }
+
+  const styleOverride = (c._style ?? {}) as SectionStyleOverride;
+  const stylePanel = !locked && (
+    <TextStylePanel value={styleOverride} onChange={(next) => onContent({ _style: next })} />
+  );
+
+  const body = (() => {
   switch (sec.type) {
     case "cover":
       return (
         <>
+          <Field label="Monogram / logo">
+            <ImgField value={strBase("logoUrl")} onChange={setBase("logoUrl")} />
+          </Field>
+          <p style={s.hint}>Shown prominently on the opening gate and the cover section.</p>
           <Field label="Names / heading"><Txt value={str("heading")} onChange={set("heading")} placeholder="Artem + Vika" /></Field>
           <Field label="Intro lines"><Area value={str("subheading")} onChange={set("subheading")} rows={2} placeholder={"We invite you\nto our"} /></Field>
           <Field label="Big word"><Txt value={str("bigWord")} onChange={set("bigWord")} placeholder="wedding" /></Field>
           <Field label="Guest greeting label"><Txt value={str("guestLabel")} onChange={set("guestLabel")} placeholder="Dear" /></Field>
-          <Field label="Cover photo"><ImgField value={str("imageUrl")} onChange={set("imageUrl")} /></Field>
+          <Field label="Cover photo"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
+          {stylePanel}
+        </>
+      );
+    case "image":
+      return (
+        <>
+          <Field label="Section image"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
+          <Field label="Title (optional)"><Txt value={str("title")} onChange={set("title")} /></Field>
+          <Field label="Caption (optional)"><Txt value={str("caption")} onChange={set("caption")} /></Field>
         </>
       );
     case "wording":
@@ -170,7 +338,7 @@ function SectionForm({ sec, onContent }: { sec: EditorSection; onContent: (patch
         <>
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="Guess who?" /></Field>
           <Field label="Text"><Area value={str("text")} onChange={set("text")} rows={4} /></Field>
-          <Field label="Photo (optional)"><ImgField value={str("imageUrl")} onChange={set("imageUrl")} /></Field>
+          <Field label="Photo (optional)"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
         </>
       );
     case "countdown":
@@ -184,7 +352,7 @@ function SectionForm({ sec, onContent }: { sec: EditorSection; onContent: (patch
       );
     case "agenda": {
       const items = (Array.isArray(c.items) ? c.items : []) as Array<{ time?: string; title?: string }>;
-      const setItems = (next: typeof items) => onContent({ items: next });
+      const setItems = (next: typeof items) => onC({ items: next });
       return (
         <>
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="What time?" /></Field>
@@ -211,14 +379,14 @@ function SectionForm({ sec, onContent }: { sec: EditorSection; onContent: (patch
           {items.map((it, i) => (
             <div key={i} style={s.rowGroup}>
               <input value={it.label ?? ""} placeholder="Address" style={{ ...s.input, width: 92, flexShrink: 0 }}
-                onChange={(e) => onContent({ items: items.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+                onChange={(e) => onC({ items: items.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
               <input value={it.value ?? ""} placeholder="Lesnoy Lane 4…" style={s.input}
-                onChange={(e) => onContent({ items: items.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })} />
-              <button type="button" style={s.smallGhost} onClick={() => onContent({ items: items.filter((_, j) => j !== i) })}>✕</button>
+                onChange={(e) => onC({ items: items.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })} />
+              <button type="button" style={s.smallGhost} onClick={() => onC({ items: items.filter((_, j) => j !== i) })}>✕</button>
             </div>
           ))}
-          <button type="button" style={s.smallBtn} onClick={() => onContent({ items: [...items, { icon: "📍", label: "", value: "" }] })}>+ Add row</button>
-          <Field label="Venue photo"><ImgField value={str("imageUrl")} onChange={set("imageUrl")} /></Field>
+          <button type="button" style={s.smallBtn} onClick={() => onC({ items: [...items, { icon: "📍", label: "", value: "" }] })}>+ Add row</button>
+          <Field label="Venue photo"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
           <Field label="Map button label"><Txt value={str("mapLabel")} onChange={set("mapLabel")} placeholder="open map" /></Field>
 
           <div style={s.subHead}>Dress code</div>
@@ -232,17 +400,18 @@ function SectionForm({ sec, onContent }: { sec: EditorSection; onContent: (patch
               </span>
             ))}
             <button type="button" style={s.smallBtn} onClick={() => onContent({ dresscode: [...dress, "#e75480"] })}>+ Color</button>
+            {/* dress-code colors are shared across both languages */}
           </div>
 
           <div style={s.subHead}>Notes</div>
           {notes.map((n, i) => (
             <div key={i} style={s.rowGroup}>
               <textarea value={n} rows={2} style={{ ...s.input, resize: "vertical" as const }}
-                onChange={(e) => onContent({ notes: notes.map((x, j) => (j === i ? e.target.value : x)) })} />
-              <button type="button" style={s.smallGhost} onClick={() => onContent({ notes: notes.filter((_, j) => j !== i) })}>✕</button>
+                onChange={(e) => onC({ notes: notes.map((x, j) => (j === i ? e.target.value : x)) })} />
+              <button type="button" style={s.smallGhost} onClick={() => onC({ notes: notes.filter((_, j) => j !== i) })}>✕</button>
             </div>
           ))}
-          <button type="button" style={s.smallBtn} onClick={() => onContent({ notes: [...notes, ""] })}>+ Add note</button>
+          <button type="button" style={s.smallBtn} onClick={() => onC({ notes: [...notes, ""] })}>+ Add note</button>
         </>
       );
     }
@@ -255,7 +424,7 @@ function SectionForm({ sec, onContent }: { sec: EditorSection; onContent: (patch
         <>
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="A gift from the heart" /></Field>
           <Field label="Recipient"><Txt value={str("recipientName")} onChange={set("recipientName")} /></Field>
-          <Field label="QR image"><ImgField value={str("qrImageUrl")} onChange={set("qrImageUrl")} /></Field>
+          <Field label="QR image"><ImgField value={strBase("qrImageUrl")} onChange={setBase("qrImageUrl")} /></Field>
         </>
       );
     case "wishing":
@@ -268,9 +437,26 @@ function SectionForm({ sec, onContent }: { sec: EditorSection; onContent: (patch
     default:
       return <p style={{ fontSize: "0.8rem", color: "var(--c-muted)", margin: 0 }}>No editor for “{sec.type}” yet.</p>;
   }
+  })();
+
+  return (
+    <>
+      {modeToggle}
+      {body}
+      {sec.type !== "cover" && sec.type !== "image" && stylePanel}
+    </>
+  );
 }
 
 // ── Color override keys ──────────────────────────────────────────────────────
+
+/** Set a palette key, or remove it entirely when cleared (theme default). */
+function setOrClear(c: Record<string, string>, key: string, v: string): Record<string, string> {
+  const next = { ...c };
+  if (v) next[key] = v;
+  else delete next[key];
+  return next;
+}
 
 const COLOR_KEYS: Array<{ key: string; label: string }> = [
   { key: "title",  label: "Titles" },
@@ -283,9 +469,12 @@ const COLOR_KEYS: Array<{ key: string; label: string }> = [
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export function ThemeEditor({ event, invitation, themeName, sectionRows, initialPhotos }: Props) {
+type EditorTab = "content" | "design" | "buttons" | "guide";
+
+export function ThemeEditor({ event, invitation, themeName, designLocked = false, sectionRows, initialPhotos }: Props) {
   const oc = invitation.overlayConfig ?? {};
 
+  const [tab, setTab] = useState<EditorTab>("content");
   const [colors, setColors]     = useState<Record<string, string>>((oc.colorScheme as Record<string, string>) ?? {});
   const [coverUrl, setCoverUrl] = useState(invitation.coverUrl ?? "");
   const [basics, setBasics] = useState({
@@ -294,9 +483,59 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
     venueName: event.venueName ?? "",
     venueMapUrl: event.venueMapUrl ?? "",
   });
+  // Theme font scheme — Title / Header / Body style + size (setup stage).
+  const ocFonts = (oc.fonts ?? {}) as { heading?: string; header?: string; body?: string; headingScale?: number; bodyScale?: number };
+  const [fonts, setFonts] = useState({
+    heading: ocFonts.heading ?? "",
+    header: ocFonts.header ?? "",
+    body: ocFonts.body ?? "",
+    headingScale: ocFonts.headingScale ?? 1,
+    bodyScale: ocFonts.bodyScale ?? 1,
+  });
+  // Floating action buttons config.
+  const ocFab = (oc.floatButtons ?? {}) as Partial<DesignFloatButtons>;
+  const [fab, setFab] = useState<DesignFloatButtons>({
+    ...DEFAULT_FLOAT_BUTTONS,
+    ...ocFab,
+    show: { ...DEFAULT_FLOAT_BUTTONS.show, ...(ocFab.show ?? {}) },
+  });
+  // Monogram placement + guidance overlay.
+  const ocMono = (oc.monogram ?? { gate: true, sections: false }) as { gate: boolean; sections: boolean };
+  const [monogram, setMonogram] = useState(ocMono);
+  const [guide, setGuide] = useState({
+    enabled: (oc.scrollGuide as boolean | undefined) ?? true,
+    text: (oc.guideText as string | undefined) ?? "Scroll to explore",
+  });
+  // Hand icon for the gate open button + guidance overlay.
+  const [guideHand, setGuideHand] = useState<{ kind: "default" | "emoji" | "image"; value: string }>(
+    (oc.guideHand as { kind: "default" | "emoji" | "image"; value: string } | undefined) ?? { kind: "default", value: "" }
+  );
+  // Backgrounds — media (image/GIF/video), plain colors, blur amounts.
+  const [bg, setBg] = useState({
+    image: invitation.backgroundUrl ?? "",
+    video: invitation.backgroundVideoUrl ?? "",
+    pageColor: (oc.pageBgColor as string | undefined) ?? "",
+    gateColor: (oc.gateBgColor as string | undefined) ?? "",
+    coverBlur: (oc.backgroundBlur as number | undefined) ?? 0,
+    sectionBlur: (oc.sectionBlur as number | undefined) ?? 0,
+  });
+  // Bilingual content.
+  const ocLangs = (oc.languages ?? {}) as { enabled?: boolean; primaryLabel?: string; secondaryLabel?: string };
+  const [languages, setLanguages] = useState({
+    enabled: ocLangs.enabled ?? false,
+    primaryLabel: ocLangs.primaryLabel ?? "ខ្មែរ",
+    secondaryLabel: ocLangs.secondaryLabel ?? "EN",
+  });
+  const [editLang, setEditLang] = useState<"primary" | "secondary">("primary");
   const [sections, setSections] = useState<EditorSection[]>(() => initSections(invitation.defaultSections, sectionRows));
   const [photos, setPhotos] = useState<PhotoRow[]>(initialPhotos);
-  const [open, setOpen] = useState<string | null>("cover");
+  const [open, setOpen] = useState<string | null>("cover0");
+  // The section type currently open — drives the live preview's focus.
+  const [openType, setOpenType] = useState<string | null>("cover");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const firstFocus = useRef(true);
+  const dragIdx = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
 
   const [status, setStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
   const [previewV, setPreviewV] = useState(0);
@@ -309,7 +548,27 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
   // The theme id passes through untouched — changing it is the Design step's job.
   const save = useCallback(async () => {
     setStatus("saving");
-    const overlayConfig: Record<string, unknown> = { ...oc, colorScheme: colors };
+    const overlayConfig: Record<string, unknown> = {
+      ...oc,
+      colorScheme: colors,
+      fonts: {
+        heading: fonts.heading || undefined,
+        header: fonts.header || undefined,
+        body: fonts.body || undefined,
+        headingScale: fonts.headingScale,
+        bodyScale: fonts.bodyScale,
+      },
+      floatButtons: fab,
+      monogram,
+      scrollGuide: guide.enabled,
+      guideText: guide.text,
+      guideHand,
+      gateBgColor: bg.gateColor || null,
+      pageBgColor: bg.pageColor || null,
+      backgroundBlur: bg.coverBlur,
+      sectionBlur: bg.sectionBlur,
+      languages,
+    };
     if (Object.keys(colors).length === 0) delete overlayConfig.colorScheme;
 
     const res = await fetch(`/api/admin/events/${event.id}`, {
@@ -323,6 +582,8 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
         defaultSections: sections,
         overlayConfig,
         coverUrl: coverUrl || null,
+        backgroundUrl: bg.image || null,
+        backgroundVideoUrl: bg.video || null,
       }),
     }).catch(() => null);
 
@@ -333,7 +594,7 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
       setStatus("error");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basics, sections, colors, coverUrl, event.id]);
+  }, [basics, sections, colors, coverUrl, fonts, fab, monogram, guide, guideHand, bg, languages, event.id]);
 
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
@@ -341,7 +602,20 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => void save(), 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [basics, sections, colors, coverUrl, save]);
+  }, [basics, sections, colors, coverUrl, fonts, fab, monogram, guide, guideHand, bg, languages, save]);
+
+  // ── Live preview follows the edited section ────────────────────────────────
+  // Cover → reload to the gate view (the gate IS the cover); any other section
+  // → tell the running preview to skip the gate and scroll there (no reload).
+  useEffect(() => {
+    if (firstFocus.current) { firstFocus.current = false; return; }
+    if (!openType) return;
+    if (openType === "cover") {
+      setPreviewV((v) => v + 1);
+      return;
+    }
+    iframeRef.current?.contentWindow?.postMessage({ type: "anjeurn:focus", section: openType }, "*");
+  }, [openType]);
 
   // ── Gallery photos: write-through (no debounce — separate API) ─────────────
   async function addGalleryPhoto(file: File) {
@@ -388,6 +662,26 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
       return next;
     });
 
+  // ── Drag-and-drop reordering ───────────────────────────────────────────────
+  const dropOn = (target: number) => {
+    const from = dragIdx.current;
+    dragIdx.current = null;
+    setDragOver(null);
+    if (from === null || from === target) return;
+    setSections((ss) => {
+      const next = [...ss];
+      const [moved] = next.splice(from, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  };
+
+  const addImageSection = () =>
+    setSections((ss) => [
+      ...ss,
+      { type: "image", included: true, content: { mode: "image", imageUrl: "" } },
+    ]);
+
   const statusLabel = {
     idle: "All changes saved", dirty: "Editing…", saving: "Saving…",
     saved: "Saved ✓ — preview updated", error: "Save failed — retrying on next edit",
@@ -403,10 +697,27 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
             <p style={s.statusLine} data-status={status}>{statusLabel}</p>
           </div>
           <span style={s.themeChip}>
-            {themeName} · <Link href={`/admin/events/${event.id}/design`} style={s.changeLink}>change</Link>
+            {themeName}{designLocked ? " 🔒" : ""} · <Link href={`/admin/events/${event.id}/design`} style={s.changeLink}>change</Link>
           </span>
         </div>
 
+        {/* ── Tab bar ── */}
+        <div style={s.tabBar}>
+          {([
+            { id: "content", label: "✒ Content" },
+            { id: "design",  label: designLocked ? "🔒 Design" : "🎨 Design" },
+            { id: "buttons", label: "◉ Buttons" },
+            { id: "guide",   label: "👆 Guide" },
+          ] as Array<{ id: EditorTab; label: string }>).map((t) => (
+            <button key={t.id} type="button" style={{ ...s.tabBtn, ...(tab === t.id ? s.tabBtnOn : {}) }}
+              onClick={() => setTab(t.id)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "content" && (
+        <>
         {/* Event basics */}
         <div style={s.card}>
           <div style={s.cardTitle}>Event</div>
@@ -414,54 +725,97 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
           <Field label="Date & time"><Txt type="datetime-local" value={basics.eventDate} onChange={(v) => setBasics((b) => ({ ...b, eventDate: v }))} /></Field>
           <Field label="Venue"><Txt value={basics.venueName} onChange={(v) => setBasics((b) => ({ ...b, venueName: v }))} /></Field>
           <Field label="Map URL"><Txt value={basics.venueMapUrl} onChange={(v) => setBasics((b) => ({ ...b, venueMapUrl: v }))} /></Field>
-          <Field label="Gate / cover image"><ImgField value={coverUrl} onChange={setCoverUrl} /></Field>
+          <Field label="Gate / cover background — image, GIF or motion video">
+            <MediaField value={coverUrl} onChange={(url) => setCoverUrl(url)} />
+          </Field>
+          <p style={s.hint}>This is the opening page guests see first (tap to open) — it also backs the cover section.</p>
         </div>
 
-        {/* Colors */}
+        {/* Languages — bilingual invitation */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Languages</div>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={languages.enabled}
+              onChange={(e) => setLanguages((l) => ({ ...l, enabled: e.target.checked }))} />
+            Bilingual invitation — guests switch the whole content with a toggle button
+          </label>
+          {languages.enabled && (
+            <>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <Field label="Language 1 label">
+                  <Txt value={languages.primaryLabel} onChange={(v) => setLanguages((l) => ({ ...l, primaryLabel: v }))} placeholder="ខ្មែរ" />
+                </Field>
+                <Field label="Language 2 label">
+                  <Txt value={languages.secondaryLabel} onChange={(v) => setLanguages((l) => ({ ...l, secondaryLabel: v }))} placeholder="EN" />
+                </Field>
+              </div>
+              <p style={s.hint}>
+                Write sections in language 1, then switch the editing language (in Sections below) and
+                enter the translation. Untranslated fields fall back to language 1.
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Sections — drag to reorder; text- or image-based */}
         <div style={s.card}>
           <div style={s.cardTitle}>
-            Colors
-            {Object.keys(colors).length > 0 && (
-              <button type="button" style={{ ...s.smallGhost, marginLeft: "auto" }} onClick={() => setColors({})}>
-                Reset to theme defaults
-              </button>
+            Sections
+            {languages.enabled && (
+              <span style={{ marginLeft: "auto", display: "inline-flex", gap: "0.25rem", textTransform: "none", letterSpacing: 0 }}>
+                {([["primary", languages.primaryLabel], ["secondary", languages.secondaryLabel]] as const).map(([k, l]) => (
+                  <button key={k} type="button"
+                    style={{ ...s.smallBtn, padding: "0.2rem 0.55rem", ...(editLang === k ? s.smallBtnOn : {}) }}
+                    onClick={() => setEditLang(k)}>
+                    ✎ {l}
+                  </button>
+                ))}
+              </span>
             )}
+            <span style={{ marginLeft: languages.enabled ? "0.6rem" : "auto", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>drag ⠿ to reorder</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem" }}>
-            {COLOR_KEYS.map(({ key, label }) => (
-              <label key={key} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "0.7rem", color: "var(--c-muted)" }}>
-                {label}
-                <input type="color" value={colors[key] ?? "#888888"} style={s.colorInput}
-                  onChange={(e) => setColors((c) => ({ ...c, [key]: e.target.value }))} />
-              </label>
-            ))}
-          </div>
-          <p style={s.hint}>Leave untouched to use the theme&rsquo;s own palette.</p>
-        </div>
-
-        {/* Sections */}
-        <div style={s.card}>
-          <div style={s.cardTitle}>Sections</div>
           {sections.map((sec, i) => {
             const meta = SECTION_META[sec.type] ?? { label: sec.type, icon: "▫" };
-            const isOpen = open === sec.type;
+            const key = sec.type + i;
+            const isOpen = open === key;
             return (
-              <div key={sec.type + i} style={s.secBox} data-off={!sec.included}>
+              <div
+                key={key}
+                style={{ ...s.secBox, ...(dragOver === i ? { outline: "2px dashed var(--c-accent)", outlineOffset: 1 } : {}) }}
+                data-off={!sec.included}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(i); }}
+                onDragLeave={() => setDragOver((d) => (d === i ? null : d))}
+                onDrop={(e) => { e.preventDefault(); dropOn(i); }}
+              >
                 <div style={s.secHead}>
-                  <button type="button" style={s.secToggleBtn} onClick={() => setOpen(isOpen ? null : sec.type)}>
+                  <span
+                    draggable
+                    onDragStart={(e) => { dragIdx.current = i; e.dataTransfer.effectAllowed = "move"; }}
+                    onDragEnd={() => { dragIdx.current = null; setDragOver(null); }}
+                    style={s.dragHandle}
+                    title="Drag to reorder"
+                  >⠿</span>
+                  <button type="button" style={s.secToggleBtn}
+                    onClick={() => { setOpen(isOpen ? null : key); setOpenType(isOpen ? null : sec.type); }}>
                     <span>{meta.icon}</span>
                     <span style={{ fontWeight: 600 }}>{meta.label}</span>
+                    {sec.content.mode === "image" && <span style={s.modeBadge}>image</span>}
                     <span style={{ marginLeft: "auto", color: "var(--c-muted)" }}>{isOpen ? "▾" : "▸"}</span>
                   </button>
                   <button type="button" style={s.tinyGhost} title="Move up"   onClick={() => move(i, -1)}>↑</button>
                   <button type="button" style={s.tinyGhost} title="Move down" onClick={() => move(i, 1)}>↓</button>
+                  {sec.type === "image" && (
+                    <button type="button" style={s.tinyGhost} title="Remove section"
+                      onClick={() => setSections((ss) => ss.filter((_, j) => j !== i))}>✕</button>
+                  )}
                   <label style={s.incRow} title="Show on invitation">
                     <input type="checkbox" checked={sec.included} onChange={(e) => patchSection(i, { included: e.target.checked })} />
                   </label>
                 </div>
                 {isOpen && (
                   <div style={s.secBody}>
-                    <SectionForm sec={sec} onContent={(patch) => patchContent(i, patch)} />
+                    <SectionForm sec={sec} onContent={(patch) => patchContent(i, patch)} locked={designLocked}
+                      altLang={languages.enabled && editLang === "secondary"} />
                     {sec.type === "gallery" && (
                       <>
                         <div style={s.subHead}>Photos</div>
@@ -487,7 +841,216 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
               </div>
             );
           })}
+          <button type="button" style={s.smallBtn} onClick={addImageSection}>
+            + Add image section
+          </button>
         </div>
+        </>
+        )}
+
+        {tab === "design" && (designLocked ? (
+          <div style={s.card}>
+            <div style={s.cardTitle}>🔒 Design locked</div>
+            <p style={s.hint}>
+              <strong>{themeName}</strong> is a preset theme — its design (colors, fonts, layout) is
+              fixed so the invitation always looks exactly as designed. You can still update all
+              content in the Content tab. To customize the design freely, switch to the Standard
+              theme or the Freeform builder in the{" "}
+              <Link href={`/admin/events/${event.id}/design`} style={s.changeLink}>Design step</Link>.
+            </p>
+          </div>
+        ) : (
+        <>
+        {/* Font scheme — Title / Header / Body (theme setup stage) */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Font scheme</div>
+          <p style={s.hint}>Sets the typography for the whole invitation. Individual sections can fine-tune on top via their “Text style” panel.</p>
+          <Field label="Title font — covers, big headings">
+            <FontPicker value={fonts.heading} onChange={(v) => setFonts((f) => ({ ...f, heading: v }))} options={HEADING_FONTS} />
+          </Field>
+          <Field label="Title color">
+            <ColorField value={colors.title ?? ""} onChange={(v) => setColors((c) => setOrClear(c, "title", v))} />
+          </Field>
+          <Field label="Title size">
+            <SizeField value={fonts.headingScale} onChange={(v) => setFonts((f) => ({ ...f, headingScale: v }))} />
+          </Field>
+          <Field label="Header font — section labels">
+            <FontPicker value={fonts.header} onChange={(v) => setFonts((f) => ({ ...f, header: v }))} options={HEADING_FONTS} />
+          </Field>
+          <Field label="Header color">
+            <ColorField value={colors.header ?? ""} onChange={(v) => setColors((c) => setOrClear(c, "header", v))} />
+          </Field>
+          <Field label="Body font — paragraphs & details">
+            <FontPicker value={fonts.body} onChange={(v) => setFonts((f) => ({ ...f, body: v }))} options={BODY_FONTS} />
+          </Field>
+          <Field label="Body color">
+            <ColorField value={colors.body ?? ""} onChange={(v) => setColors((c) => setOrClear(c, "body", v))} />
+          </Field>
+          <Field label="Body size">
+            <SizeField value={fonts.bodyScale} onChange={(v) => setFonts((f) => ({ ...f, bodyScale: v }))} />
+          </Field>
+        </div>
+
+        {/* Colors */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>
+            Colors
+            {Object.keys(colors).length > 0 && (
+              <button type="button" style={{ ...s.smallGhost, marginLeft: "auto" }} onClick={() => setColors({})}>
+                Reset to theme defaults
+              </button>
+            )}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+            {COLOR_KEYS.map(({ key, label }) => (
+              <label key={key} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "0.7rem", color: "var(--c-muted)" }}>
+                {label}
+                <ColorField value={colors[key] ?? ""} onChange={(v) => setColors((c) => setOrClear(c, key, v))} />
+              </label>
+            ))}
+          </div>
+          <p style={s.hint}>Leave untouched to use the theme&rsquo;s own palette.</p>
+        </div>
+
+        {/* Backgrounds — media (image / GIF / motion video), plain color, blur */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Backgrounds</div>
+
+          <div style={s.subHead}>Cover (opening page)</div>
+          <p style={s.hint}>The cover media is uploaded in Content → “Gate / cover background”. Without media, the color below is used.</p>
+          <Field label="Plain color (no media)">
+            <ColorField value={bg.gateColor} onChange={(v) => setBg((b) => ({ ...b, gateColor: v }))} />
+          </Field>
+          <Field label="Background blur">
+            <SizeField value={bg.coverBlur} onChange={(v) => setBg((b) => ({ ...b, coverBlur: Math.round(v) }))} min={0} max={20} step={1} unit="px" />
+          </Field>
+
+          <div style={s.subHead}>Sections</div>
+          <Field label="Background media — image, GIF or motion video">
+            <MediaField
+              value={bg.video || bg.image}
+              onChange={(url, isVideo) => setBg((b) => ({ ...b, image: isVideo ? "" : url, video: isVideo ? url : "" }))}
+            />
+          </Field>
+          <Field label="Plain color (no media)">
+            <ColorField value={bg.pageColor} onChange={(v) => setBg((b) => ({ ...b, pageColor: v }))} />
+          </Field>
+          <Field label="Background blur">
+            <SizeField value={bg.sectionBlur} onChange={(v) => setBg((b) => ({ ...b, sectionBlur: Math.round(v) }))} min={0} max={20} step={1} unit="px" />
+          </Field>
+        </div>
+
+        {/* Monogram placement */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Monogram</div>
+          <p style={s.hint}>Upload the monogram image in Content → Cover. Choose where it appears:</p>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={monogram.gate} onChange={(e) => setMonogram((m) => ({ ...m, gate: e.target.checked }))} />
+            On the opening gate (landing screen)
+          </label>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={monogram.sections} onChange={(e) => setMonogram((m) => ({ ...m, sections: e.target.checked }))} />
+            On the cover section (after opening)
+          </label>
+        </div>
+        </>
+        ))}
+
+        {tab === "buttons" && (
+        <div style={s.card}>
+          <div style={s.cardTitle}>Floating buttons</div>
+          <p style={s.hint}>The action buttons floating over the invitation (RSVP, gift, map, music).</p>
+
+          <Field label="Position">
+            <div style={{ display: "flex", gap: "0.35rem" }}>
+              {([["right", "Right stack"], ["left", "Left stack"], ["bar", "Bottom bar"]] as const).map(([v, l]) => (
+                <button key={v} type="button"
+                  style={{ ...s.smallBtn, ...(fab.position === v ? s.smallBtnOn : {}) }}
+                  onClick={() => setFab((f) => ({ ...f, position: v }))}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Style">
+            <div style={{ display: "flex", gap: "0.35rem" }}>
+              {([["circle", "● Circle"], ["rounded", "▢ Rounded"], ["square", "■ Square"]] as const).map(([v, l]) => (
+                <button key={v} type="button"
+                  style={{ ...s.smallBtn, ...(fab.shape === v ? s.smallBtnOn : {}) }}
+                  onClick={() => setFab((f) => ({ ...f, shape: v }))}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Size">
+            <SizeField value={fab.size} onChange={(v) => setFab((f) => ({ ...f, size: Math.round(v) }))} min={36} max={64} step={2} unit="px" />
+          </Field>
+
+          <Field label="Hover effect">
+            <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+              {([["none", "None"], ["lift", "Lift"], ["glow", "Glow"], ["pulse", "Pulse"]] as const).map(([v, l]) => (
+                <button key={v} type="button"
+                  style={{ ...s.smallBtn, ...(fab.hover === v ? s.smallBtnOn : {}) }}
+                  onClick={() => setFab((f) => ({ ...f, hover: v }))}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <div style={s.subHead}>Visibility</div>
+          {([["rsvp", "RSVP button"], ["khqr", "Gift / KHQR button"], ["map", "Map / directions button"], ["music", "Music button"]] as const).map(([k, l]) => (
+            <label key={k} style={s.checkRow}>
+              <input type="checkbox" checked={fab.show[k]}
+                onChange={(e) => setFab((f) => ({ ...f, show: { ...f.show, [k]: e.target.checked } }))} />
+              {l}
+            </label>
+          ))}
+          <p style={s.hint}>Buttons only appear when the matching feature is available (package, uploaded music, map URL…).</p>
+        </div>
+        )}
+
+        {tab === "guide" && (
+        <div style={s.card}>
+          <div style={s.cardTitle}>Guidance overlay</div>
+          <p style={s.hint}>A one-time hint shown after the guest opens the invitation, guiding them to scroll. It dismisses on tap or scroll.</p>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={guide.enabled} onChange={(e) => setGuide((g) => ({ ...g, enabled: e.target.checked }))} />
+            Show the guidance overlay
+          </label>
+          {guide.enabled && (
+            <Field label="Guidance text">
+              <Txt value={guide.text} onChange={(v) => setGuide((g) => ({ ...g, text: v }))} placeholder="Scroll to explore" />
+            </Field>
+          )}
+
+          <div style={s.subHead}>Hand icon</div>
+          <p style={s.hint}>Used on the “Open” button of the gate and on the guidance overlay.</p>
+          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+            <button type="button"
+              style={{ ...s.smallBtn, ...(guideHand.kind === "default" ? s.smallBtnOn : {}) }}
+              onClick={() => setGuideHand({ kind: "default", value: "" })}>
+              ✎ Drawn hand
+            </button>
+            {["👆", "☝️", "🫵", "🖐", "👇", "🤙"].map((e) => (
+              <button key={e} type="button" title="Use this emoji"
+                style={{ ...s.smallBtn, fontSize: "1rem", padding: "0.25rem 0.5rem", ...(guideHand.kind === "emoji" && guideHand.value === e ? s.smallBtnOn : {}) }}
+                onClick={() => setGuideHand({ kind: "emoji", value: e })}>
+                {e}
+              </button>
+            ))}
+          </div>
+          <Field label="Or upload a custom icon image">
+            <ImgField
+              value={guideHand.kind === "image" ? guideHand.value : ""}
+              onChange={(v) => setGuideHand(v ? { kind: "image", value: v } : { kind: "default", value: "" })}
+            />
+          </Field>
+        </div>
+        )}
 
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <Link href={`/admin/events/${event.id}/guests`} style={s.nextBtn}>Next: Guests →</Link>
@@ -506,7 +1069,8 @@ export function ThemeEditor({ event, invitation, themeName, sectionRows, initial
         <div style={s.phone}>
           <iframe
             key={previewV}
-            src={`/invite/${event.slug}?preview=1&v=${previewV}`}
+            ref={iframeRef}
+            src={`/invite/${event.slug}?preview=1&v=${previewV}${openType && openType !== "cover" ? `&focus=${openType}` : ""}`}
             style={s.phoneScreen}
             title="Live invitation preview"
           />
@@ -540,6 +1104,15 @@ const s = {
   rowGroup: { display: "flex", gap: "0.35rem", alignItems: "center" },
 
   smallBtn: { padding: "0.35rem 0.7rem", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-text)", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", textDecoration: "none" },
+  smallBtnOn: { background: "var(--c-accent)", color: "#fff", border: "1px solid var(--c-accent)" },
+
+  tabBar: { display: "flex", gap: "0.25rem", borderBottom: "1px solid var(--c-border)", paddingBottom: 0 },
+  tabBtn: { padding: "0.5rem 0.9rem", border: "none", background: "transparent", color: "var(--c-muted)", fontSize: "0.84rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
+  tabBtnOn: { color: "var(--c-accent)", boxShadow: "inset 0 -2px 0 var(--c-accent)" },
+
+  dragHandle: { cursor: "grab", color: "var(--c-muted)", fontSize: "0.9rem", padding: "0 0.25rem", userSelect: "none" as const, touchAction: "none" as const },
+  modeBadge: { fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--c-accent)", background: "var(--c-accent-soft)", borderRadius: 5, padding: "0.1rem 0.4rem" },
+  checkRow: { display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.84rem", color: "var(--c-text)", cursor: "pointer" },
   smallGhost: { padding: "0.25rem 0.45rem", borderRadius: 6, border: "1px solid var(--c-border)", background: "transparent", color: "var(--c-muted)", fontSize: "0.72rem", cursor: "pointer" },
   tinyGhost: { padding: "0.15rem 0.35rem", borderRadius: 5, border: "none", background: "transparent", color: "var(--c-muted)", fontSize: "0.75rem", cursor: "pointer" },
 

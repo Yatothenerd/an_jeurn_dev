@@ -18,6 +18,8 @@ import {
 export const sweetHearts: ThemeModule = {
   id: "theme-sweet-hearts",
   name: "Sweet Hearts",
+  preset: true, // design locked — only content is editable
+
   css: SWEET_CSS,
   fonts: ["Caveat:wght@400;500;600;700", "Kantumruy+Pro:wght@300;400;500;600"],
   layout: sweetLayout,

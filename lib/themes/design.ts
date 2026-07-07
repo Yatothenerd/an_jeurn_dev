@@ -29,11 +29,37 @@ export interface DesignPalette {
 }
 
 export interface DesignFonts {
+  /** Title font — cover / gate titles, big numerals. */
   heading?: string;
+  /** Section-header font — small uppercase labels. Falls back to `heading`. */
+  header?: string;
+  /** Body font — paragraphs, detail values, inputs. */
   body?: string;
   headingScale: number;
   bodyScale: number;
 }
+
+/** Floating action buttons (RSVP / gift / map / music) — admin-configurable chrome. */
+export interface DesignFloatButtons {
+  /** Where the stack sits over the invite. */
+  position: "right" | "left" | "bar";
+  /** Button silhouette. */
+  shape: "circle" | "rounded" | "square";
+  /** Button diameter in px. */
+  size: number;
+  /** Hover / press effect. */
+  hover: "none" | "lift" | "glow" | "pulse";
+  /** Per-button visibility (ANDed with feature availability). */
+  show: { rsvp: boolean; khqr: boolean; map: boolean; music: boolean };
+}
+
+export const DEFAULT_FLOAT_BUTTONS: DesignFloatButtons = {
+  position: "right",
+  shape: "circle",
+  size: 46,
+  hover: "lift",
+  show: { rsvp: true, khqr: true, map: true, music: true },
+};
 
 export interface DesignOverlay {
   enabled: boolean;
@@ -43,10 +69,23 @@ export interface DesignOverlay {
 
 export type GateElementKey = "monogram" | "pretitle" | "title" | "subtitle" | "guestName" | "openBtn";
 
+/** Hand icon used on the gate "open" button and the guidance overlay. */
+export interface DesignHand {
+  kind: "default" | "emoji" | "image";
+  /** Emoji character or image URL (unused for "default"). */
+  value: string;
+}
+
 export interface DesignGate {
   revealStyle: "fade" | "envelope" | "curtain" | "slideUp";
   keepCoverAfterOpen: boolean;
   scrollGuide: boolean;
+  /** Guidance-overlay caption shown once after opening (admin-customizable). */
+  guideText: string;
+  /** Hand icon for the open button + guidance overlay. */
+  hand: DesignHand;
+  /** Plain background color for the gate (used when no cover image is set). */
+  bgColor: string | null;
   position: "top" | "center" | "bottom";
   overlay: DesignOverlay;
   backgroundBlur: number;
@@ -56,12 +95,25 @@ export interface DesignGate {
   elementPositions?: Partial<Record<GateElementKey, { xPct: number; yPct: number }>>;
 }
 
+/** Bilingual content: guests toggle the whole invitation between two languages. */
+export interface DesignLanguages {
+  enabled: boolean;
+  /** Label for the base-content language (e.g. "ខ្មែរ"). */
+  primaryLabel: string;
+  /** Label for the alternate language stored in each section's `content.i18n` (e.g. "EN"). */
+  secondaryLabel: string;
+}
+
 export interface DesignPage {
   sectionBlur: number;
   sectionOverlay: DesignOverlay;
   /** null = follow the theme's music colors. */
   actionButton: { bg: string; color: string } | null;
   showRsvp: boolean;
+  floatButtons: DesignFloatButtons;
+  /** Plain background color for the sections (used when no background media is set). */
+  bgColor: string | null;
+  languages: DesignLanguages;
 }
 
 export interface DesignSection {
@@ -93,7 +145,13 @@ interface LegacyOverlay {
   builderDraft?: unknown;
   colorScheme?: DesignPalette;
   gateColorScheme?: DesignPalette;
-  fonts?: { heading?: string; body?: string; headingScale?: number; bodyScale?: number };
+  fonts?: { heading?: string; header?: string; body?: string; headingScale?: number; bodyScale?: number };
+  floatButtons?: Partial<DesignFloatButtons>;
+  guideText?: string;
+  guideHand?: DesignHand;
+  gateBgColor?: string | null;
+  pageBgColor?: string | null;
+  languages?: Partial<DesignLanguages>;
   backgroundBlur?: number;
   sectionBlur?: number;
   sectionOverlay?: DesignOverlay;
@@ -154,6 +212,7 @@ export function resolveDesign(input: {
     gatePalette: oc.gateColorScheme ?? oc.colorScheme ?? {},
     fonts: {
       heading: oc.fonts?.heading || undefined,
+      header: oc.fonts?.header || undefined,
       body: oc.fonts?.body || undefined,
       headingScale: oc.fonts?.headingScale ?? 1,
       bodyScale: oc.fonts?.bodyScale ?? 1,
@@ -162,6 +221,9 @@ export function resolveDesign(input: {
       revealStyle: oc.revealStyle ?? "fade",
       keepCoverAfterOpen: oc.keepCoverAfterOpen ?? true,
       scrollGuide: oc.scrollGuide ?? true,
+      guideText: oc.guideText || "Scroll to explore",
+      hand: oc.guideHand ?? { kind: "default", value: "" },
+      bgColor: oc.gateBgColor ?? null,
       position: oc.gatePosition ?? "center",
       overlay: oc.gateOverlay ?? { enabled: false, color: "#000000", opacity: 0.45 },
       backgroundBlur: oc.backgroundBlur ?? 0,
@@ -175,6 +237,17 @@ export function resolveDesign(input: {
       sectionOverlay: oc.sectionOverlay ?? { enabled: false, color: "#000000", opacity: 0.25 },
       actionButton: oc.actionButton ?? null,
       showRsvp: oc.showRsvp ?? true,
+      floatButtons: {
+        ...DEFAULT_FLOAT_BUTTONS,
+        ...(oc.floatButtons ?? {}),
+        show: { ...DEFAULT_FLOAT_BUTTONS.show, ...(oc.floatButtons?.show ?? {}) },
+      },
+      bgColor: oc.pageBgColor ?? null,
+      languages: {
+        enabled: oc.languages?.enabled ?? false,
+        primaryLabel: oc.languages?.primaryLabel || "ខ្មែរ",
+        secondaryLabel: oc.languages?.secondaryLabel || "EN",
+      },
     },
     sections,
     builderDraft,

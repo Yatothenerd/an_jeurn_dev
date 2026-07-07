@@ -24,6 +24,8 @@ import { RsvpModal } from "./_components/RsvpModal";
 import { InviteActions } from "./_components/InviteActions";
 import { Watermark } from "./_components/Watermark";
 import { InviteGate, type ElementPositions } from "./_components/InviteGate";
+import { InviteLangProvider } from "./_components/InviteLang";
+import { PreviewFocus } from "./_components/PreviewFocus";
 import { BuilderInvite } from "./_components/BuilderInvite";
 import type { BuilderState } from "@/lib/builder/canvas";
 import dynamic from "next/dynamic";
@@ -240,14 +242,14 @@ export default async function InvitePage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ g?: string; preview?: string }>;
+  searchParams: Promise<{ g?: string; preview?: string; focus?: string }>;
 }) {
   const { slug } = await params;
   const data = await loadInviteData(slug);
   const loadedAt = Date.now();
 
   // Admin preview — bypass isPublished gate so admin can preview before publish
-  const { g, preview } = await searchParams;
+  const { g, preview, focus } = await searchParams;
   let viewerIsAdmin = false;
   if (preview === "1") {
     const session = await getSession();
@@ -288,6 +290,7 @@ export default async function InvitePage({
   const isPhotoMode = inv.contentType === "photo";
 
   const headingFont  = design.fonts.heading || baseTokens.headingFont || (isStandard ? DEFAULT_FONTS.heading : baseTokens.font);
+  const headerFont   = design.fonts.header  || baseTokens.headerFont || headingFont;
   const bodyFont     = design.fonts.body    || baseTokens.font;
   const { headingScale, bodyScale } = design.fonts;
   // Action-button colors follow the active theme unless the design overrides them.
@@ -299,6 +302,7 @@ export default async function InvitePage({
     ...baseTokens,
     font:        bodyFont,
     headingFont,
+    headerFont,
     headingScale,
     bodyScale,
     text:     c.text     ?? baseTokens.text,
@@ -318,7 +322,11 @@ export default async function InvitePage({
   });
 
   const tokens     = { ...buildTokens(design.palette), showMonogramInSections: gate.monogram.sections };
-  const gateTokens = buildTokens(design.gatePalette);
+  const gateTokens = {
+    ...buildTokens(design.gatePalette),
+    // Admin-picked plain gate color wins over the theme gradient (no image case).
+    ...(gate.bgColor ? { coverGradient: gate.bgColor } : {}),
+  };
 
   const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS, ...(themeMod.sections ?? {}) };
   const layout: ThemeLayout = themeMod.layout ?? {};
@@ -381,7 +389,11 @@ export default async function InvitePage({
         if (!node) return null;
 
         if (sec.type === "cover") {
-          return <Fragment key={sec.id}>{layout.wrapCover ? layout.wrapCover(node, tokens) : node}</Fragment>;
+          return (
+            <div key={sec.id} id="inv-sec-cover">
+              {layout.wrapCover ? layout.wrapCover(node, tokens) : node}
+            </div>
+          );
         }
 
         const wrapped = layout.wrapSection
@@ -389,10 +401,9 @@ export default async function InvitePage({
           : node;
         altIndex++;
 
-        if (sec.type === "khqr") {
-          return <div key={sec.id} id="inv-khqr">{wrapped}</div>;
-        }
-        return <Fragment key={sec.id}>{wrapped}</Fragment>;
+        // Anchor per section — used by the editor's live preview (focus) and
+        // the floating gift button (khqr).
+        return <div key={sec.id} id={`inv-sec-${sec.type}`}>{wrapped}</div>;
       })}
 
       {layout.footer?.({ tokens, eventTitle: data.event.title })}
@@ -411,32 +422,60 @@ export default async function InvitePage({
         hasKhqr={hasKhqr}
         showRsvp={page.showRsvp}
         theme={{ btnBg: actionButton.bg, btnText: actionButton.color }}
+        config={page.floatButtons}
       />
 
       {showWatermark && <Watermark />}
     </div>
   );
 
+  // Bilingual toggle — wraps the shell so every DB section can read the active
+  // language from context; the floating toggle switches the whole content.
+  const langShell = (
+    <InviteLangProvider
+      enabled={page.languages.enabled}
+      primaryLabel={page.languages.primaryLabel}
+      secondaryLabel={page.languages.secondaryLabel}
+    >
+      {shell}
+    </InviteLangProvider>
+  );
+
   return (
     <>
       <ThemePoller slug={slug} loadedAt={loadedAt} />
+      {/* Editor live preview: skip the gate + scroll to the section being edited */}
+      {preview === "1" && <PreviewFocus initial={typeof focus === "string" ? focus : undefined} />}
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link rel="stylesheet" href={buildFontsHref(themeMod.fonts)} />
       <style dangerouslySetInnerHTML={{ __html: STANDARD_CSS + (themeMod.css ?? "") }} />
 
-      {/* Sections background — always rendered; gate renders its own bg on top */}
-      {bgUrl && (
+      {/* Sections background — media (image / GIF / motion video) or a plain
+          admin-picked color; the gate renders its own bg on top */}
+      {(bgUrl || page.bgColor) && (
         <div className="inv-fixed-bg">
-          {bgIsVideo ? (
-            <video className="inv-fixed-bg-media" src={bgUrl} autoPlay muted loop playsInline />
+          {bgUrl ? (
+            bgIsVideo ? (
+              <video
+                className="inv-fixed-bg-media"
+                src={bgUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                style={page.sectionBlur > 0 ? { filter: `blur(${page.sectionBlur}px)`, transform: "scale(1.06)" } : undefined}
+              />
+            ) : (
+              <div
+                className="inv-fixed-bg-media"
+                style={{
+                  backgroundImage: `url(${bgUrl})`,
+                  ...(page.sectionBlur > 0 ? { filter: `blur(${page.sectionBlur}px)`, transform: "scale(1.06)" } : {}),
+                }}
+              />
+            )
           ) : (
-            <div
-              className="inv-fixed-bg-media"
-              style={{
-                backgroundImage: `url(${bgUrl})`,
-                ...(page.sectionBlur > 0 ? { filter: `blur(${page.sectionBlur}px)`, transform: "scale(1.06)" } : {}),
-              }}
-            />
+            <div className="inv-fixed-bg-media" style={{ background: page.bgColor! }} />
           )}
           {showBgScrim && <div className="inv-fixed-bg-scrim" />}
           {page.sectionOverlay.enabled && (
@@ -456,6 +495,8 @@ export default async function InvitePage({
           gateOverlay={gate.overlay}
           revealStyle={gate.revealStyle}
           scrollGuide={gate.scrollGuide}
+          guideText={gate.guideText}
+          hand={gate.hand}
           scrollToContent={gate.keepCoverAfterOpen}
           position={gate.position}
           blur={gate.backgroundBlur}
@@ -464,10 +505,10 @@ export default async function InvitePage({
           showMonogram={gate.monogram.gate}
           elementPositions={gate.elementPositions as ElementPositions | undefined}
         >
-          {shell}
+          {langShell}
         </InviteGate>
       ) : (
-        shell
+        langShell
       )}
     </>
   );

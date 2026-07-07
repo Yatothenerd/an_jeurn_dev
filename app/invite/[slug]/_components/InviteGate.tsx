@@ -26,6 +26,10 @@ interface Props {
   gateOverlay?: { enabled: boolean; color: string; opacity: number };
   revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
   scrollGuide?: boolean;
+  /** Custom caption for the one-time guidance overlay. */
+  guideText?: string;
+  /** Hand icon for the open button + guidance overlay (default = drawn hand). */
+  hand?: { kind: "default" | "emoji" | "image"; value: string };
   scrollToContent?: boolean;
   position?: "top" | "center" | "bottom";
   blur?: number;
@@ -38,37 +42,66 @@ interface Props {
 
 export function InviteGate({
   eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, gateOverlay,
-  revealStyle = "fade", scrollGuide = true, scrollToContent = false,
+  scrollGuide = true, guideText, hand,
   position = "center", blur = 0,
   showGuestName = true, guestFrameUrl, showMonogram = true,
   elementPositions,
   children,
 }: Props) {
-  const [phase, setPhase] = useState<"closed" | "opening" | "open">("closed");
+  // The gate is the invitation's COVER PAGE — a real page at the top of the
+  // scroll flow (one screen tall), not an overlay. "closed" only means the
+  // page is scroll-locked to it; opening unlocks and glides to the content.
+  const [phase, setPhase] = useState<"closed" | "open">("closed");
   const [guide, setGuide] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
+  const gateRef = useRef<HTMLDivElement>(null);
 
+  // Admin preview: skip the gate instantly so the live preview can focus a section.
+  useEffect(() => {
+    const skip = () => {
+      setPhase("open");
+      shellRef.current?.classList.add("inv-animate");
+    };
+    window.addEventListener("anjeurn:gate-skip", skip);
+    return () => window.removeEventListener("anjeurn:gate-skip", skip);
+  }, []);
+
+  // Configurable hand icon (drawn hand / emoji / uploaded image).
+  const HandIcon = ({ className }: { className: string }) => {
+    if (hand?.kind === "emoji" && hand.value) {
+      return <span className={className} role="img" aria-hidden>{hand.value}</span>;
+    }
+    if (hand?.kind === "image" && hand.value) {
+      return <img src={hand.value} alt="" className={className} />;
+    }
+    return <HandPointer className={className} color={theme.accent} />;
+  };
+
+  // While closed, pin the viewport to the cover page (no peeking at content).
   useEffect(() => {
     if (phase === "open") return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    window.scrollTo(0, 0);
     return () => { document.body.style.overflow = prev; };
   }, [phase]);
 
   function open() {
-    if (phase !== "closed") return;
-    setPhase("opening");
-    setTimeout(() => {
+    if (phase === "closed") {
       setPhase("open");
       shellRef.current?.classList.add("inv-animate");
       if (scrollGuide && !sessionStorage.getItem("inv-guide-seen")) {
         setGuide(true);
         sessionStorage.setItem("inv-guide-seen", "1");
       }
-      if (scrollToContent) {
-        setTimeout(() => window.scrollTo({ top: window.innerHeight, behavior: "smooth" }), 150);
-      }
-    }, 850);
+    }
+    // Glide from the cover page down to the first content page (also works as
+    // a "scroll down" button when the guest returns to the cover later).
+    setTimeout(() => {
+      const gate = gateRef.current;
+      const top = gate ? gate.offsetTop + gate.offsetHeight : window.innerHeight;
+      window.scrollTo({ top, behavior: "smooth" });
+    }, 120);
   }
 
   const hasCustomPos = !!elementPositions && Object.keys(elementPositions).length > 0;
@@ -108,39 +141,33 @@ export function InviteGate({
 
   return (
     <>
-      {/* Shell ref — inv-animate class added after gate opens to trigger section animations */}
-      <div ref={shellRef}>
-        {children}
-      </div>
-
-      {phase !== "open" && (
-        <div
-          className={`inv-gate inv-animate reveal-${revealStyle}${phase === "opening" ? " is-opening" : ""}`}
-          style={{
-            fontFamily: theme.font,
-            color: theme.text,
-            ...(hasCustomPos ? {} : { justifyContent: gateJustify }),
-            ...(bgUrl ? {} : { background: theme.coverGradient }),
-          }}
-        >
-          {/* Background image layer — split into two parting halves for the curtain reveal */}
-          {revealStyle === "curtain" ? (
-            <>
-              <div className="inv-curtain inv-curtain-l" style={{
-                position: "absolute", inset: 0, clipPath: "inset(0 50% 0 0)",
-                ...(bgUrl
-                  ? { backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
-                  : { background: theme.coverGradient }),
-              }} />
-              <div className="inv-curtain inv-curtain-r" style={{
-                position: "absolute", inset: 0, clipPath: "inset(0 0 0 50%)",
-                ...(bgUrl
-                  ? { backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
-                  : { background: theme.coverGradient }),
-              }} />
-            </>
-          ) : (
-            bgUrl && (
+      {/* ── Cover page — a real in-flow page, exactly one screen tall ── */}
+      <div
+        ref={gateRef}
+        className="inv-gate inv-animate"
+        style={{
+          fontFamily: theme.font,
+          color: theme.text,
+          ...(hasCustomPos ? {} : { justifyContent: gateJustify }),
+          ...(bgUrl ? {} : { background: theme.coverGradient }),
+        }}
+      >
+          {/* Background layer — motion video, or image/GIF with optional blur */}
+          {bgUrl && (
+            /\.(mp4|webm|mov)(\?|$)/i.test(bgUrl) ? (
+              <video
+                src={bgUrl}
+                autoPlay
+                muted
+                loop
+                playsInline
+                style={{
+                  position: "absolute", inset: 0, width: "100%", height: "100%",
+                  objectFit: "cover",
+                  ...(blur > 0 ? { filter: `blur(${blur}px)`, transform: "scale(1.06)" } : {}),
+                }}
+              />
+            ) : (
               <div style={{
                 position: "absolute", inset: 0,
                 backgroundImage: `url(${bgUrl})`, backgroundSize: "cover", backgroundPosition: "center",
@@ -197,7 +224,7 @@ export function InviteGate({
               {/* Open Letter button */}
               <div style={ep("openBtn")}>
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
-                  <HandPointer className="inv-gate-hand" color={theme.accent} />
+                  <HandIcon className="inv-gate-hand" />
                   <span className="inv-gate-open-label" style={{ color: theme.accent, borderColor: theme.accent }}>Open Letter</span>
                 </button>
               </div>
@@ -234,19 +261,23 @@ export function InviteGate({
                   </div>
                 )}
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
-                  <HandPointer className="inv-gate-hand" color={theme.accent} />
+                  <HandIcon className="inv-gate-hand" />
                   <span className="inv-gate-open-label" style={{ color: theme.accent, borderColor: theme.accent }}>Open Letter</span>
                 </button>
               </div>
             </>
           )}
-        </div>
-      )}
+      </div>
+
+      {/* Shell ref — inv-animate class added after gate opens to trigger section animations */}
+      <div ref={shellRef}>
+        {children}
+      </div>
 
       {guide && (
         <div className="inv-guide" onClick={() => setGuide(false)} role="button" aria-label="Dismiss guide">
-          <HandPointer className="inv-guide-hand" color={theme.accent} />
-          <p className="inv-guide-text">Scroll to explore</p>
+          <HandIcon className="inv-guide-hand" />
+          <p className="inv-guide-text">{guideText || "Scroll to explore"}</p>
         </div>
       )}
     </>

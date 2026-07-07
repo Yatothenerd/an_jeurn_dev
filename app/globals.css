@@ -54,7 +54,8 @@ a {
   display: flex;
   min-height: 100vh;
   font-family: system-ui, -apple-system, sans-serif;
-  background: var(--c-bg);
+  background: var(--ornate-pattern), var(--c-bg-grad, var(--c-bg));
+  background-attachment: fixed;
   color: var(--c-text);
 }
 .app-sidebar {
@@ -88,7 +89,13 @@ a {
   min-width: 0;
   padding: 2rem 2.5rem;
   overflow-y: auto;
-  background: var(--c-bg);
+  background: transparent;
+}
+
+/* Floral vine divider under a sidebar brand block (client dashboard) */
+.sidebar-brand-flourish {
+  background: var(--ornate-divider) no-repeat bottom center / 120px 10px;
+  padding-bottom: 14px;
 }
 
 @media (max-width: 768px) {
@@ -138,10 +145,14 @@ a {
   --c-sidebar:     #faf7f1;
   --c-sidebar-text: #6e5540;
   --c-sidebar-active-bg: #6b4a2a;
-  /* Ornate detailing (frames, corner accents) + theme-driven logo fill */
+  /* Ornate detailing (frames, floral corners, vine dividers) + theme-driven logo fill */
   --ornate-line:   rgba(107,74,42,0.20);
   --ornate-dot:    rgba(107,74,42,0.38);
-  --ornate-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z' fill='none' stroke='%236b4a2a' stroke-opacity='0.045'/%3E%3Cpath d='M28 16 L40 28 L28 40 L16 28 Z' fill='none' stroke='%236b4a2a' stroke-opacity='0.035'/%3E%3Ccircle cx='28' cy='28' r='1.6' fill='%236b4a2a' fill-opacity='0.05'/%3E%3C/svg%3E");
+  --ornate-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z' fill='none' stroke='%236b4a2a' stroke-opacity='0.045'/%3E%3Cpath d='M28 16 L40 28 L28 40 L16 28 Z' fill='none' stroke='%236b4a2a' stroke-opacity='0.035'/%3E%3Cg fill='%236b4a2a' fill-opacity='0.04'%3E%3Ccircle cx='28' cy='24.4' r='1.5'/%3E%3Ccircle cx='31.6' cy='28' r='1.5'/%3E%3Ccircle cx='28' cy='31.6' r='1.5'/%3E%3Ccircle cx='24.4' cy='28' r='1.5'/%3E%3C/g%3E%3Ccircle cx='28' cy='28' r='1.6' fill='%236b4a2a' fill-opacity='0.06'/%3E%3C/svg%3E");
+  /* Floral corner flourish (all four corners in one image, used via border-image) */
+  --ornate-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg id='f'%3E%3Cg fill='none' stroke='%236b4a2a' stroke-width='1.1' stroke-linecap='round' stroke-opacity='0.5'%3E%3Cpath d='M5 5 C18 7 26 14 29 28'/%3E%3Cpath d='M5 5 C7 18 14 26 28 29'/%3E%3Cpath d='M15 7.6q5 -4 9.5 -1q-5 4 -9.5 1' fill='%236b4a2a' fill-opacity='0.12'/%3E%3Cpath d='M7.6 15q-4 5 -1 9.5q4 -5 1 -9.5' fill='%236b4a2a' fill-opacity='0.12'/%3E%3Cpath d='M22.5 12.5q5.5 -2.5 8.5 1q-5.5 2.5 -8.5 -1' fill='%236b4a2a' fill-opacity='0.12'/%3E%3Cpath d='M12.5 22.5q-2.5 5.5 1 8.5q2.5 -5.5 -1 -8.5' fill='%236b4a2a' fill-opacity='0.12'/%3E%3C/g%3E%3Cg fill='%236b4a2a' fill-opacity='0.32'%3E%3Ccircle cx='8' cy='3.4' r='1.9'/%3E%3Ccircle cx='12.4' cy='7' r='1.9'/%3E%3Ccircle cx='3.4' cy='8' r='1.9'/%3E%3Ccircle cx='7' cy='12.4' r='1.9'/%3E%3C/g%3E%3Ccircle cx='7.2' cy='7.2' r='1.8' fill='%239a7835' fill-opacity='0.85'/%3E%3Ccircle cx='29' cy='28' r='1.3' fill='%236b4a2a' fill-opacity='0.5'/%3E%3Ccircle cx='28' cy='29' r='1.3' fill='%236b4a2a' fill-opacity='0.5'/%3E%3C/g%3E%3Cuse href='%23f' transform='rotate(90 60 60)'/%3E%3Cuse href='%23f' transform='rotate(180 60 60)'/%3E%3Cuse href='%23f' transform='rotate(270 60 60)'/%3E%3C/svg%3E");
+  /* Vine-and-blossom horizontal divider */
+  --ornate-divider: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='12'%3E%3Cg fill='none' stroke='%236b4a2a' stroke-opacity='0.45' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M4 6 H52'/%3E%3Cpath d='M88 6 H136'/%3E%3Cpath d='M52 6q5 -5 10 -4q-4 5.5 -10 4' fill='%236b4a2a' fill-opacity='0.14'/%3E%3Cpath d='M88 6q-5 -5 -10 -4q4 5.5 10 4' fill='%236b4a2a' fill-opacity='0.14'/%3E%3Cpath d='M54 6q4 5 9 3.6q-4 -5 -9 -3.6' fill='%236b4a2a' fill-opacity='0.1'/%3E%3Cpath d='M86 6q-4 5 -9 3.6q4 -5 9 -3.6' fill='%236b4a2a' fill-opacity='0.1'/%3E%3C/g%3E%3Cg fill='%236b4a2a' fill-opacity='0.35'%3E%3Ccircle cx='70' cy='2.6' r='1.7'/%3E%3Ccircle cx='73.4' cy='6' r='1.7'/%3E%3Ccircle cx='70' cy='9.4' r='1.7'/%3E%3Ccircle cx='66.6' cy='6' r='1.7'/%3E%3C/g%3E%3Ccircle cx='70' cy='6' r='1.5' fill='%239a7835'/%3E%3Ccircle cx='4' cy='6' r='1.3' fill='%236b4a2a' fill-opacity='0.4'/%3E%3Ccircle cx='136' cy='6' r='1.3' fill='%236b4a2a' fill-opacity='0.4'/%3E%3C/svg%3E");
   --logo-grad:     linear-gradient(135deg, #6b4a2a 0%, #9a7835 55%, #6b1228 100%);
 }
 [data-theme="dark"] {
@@ -164,7 +175,9 @@ a {
   --c-sidebar-active-bg: #7a3216;
   --ornate-line:   rgba(224,168,60,0.22);
   --ornate-dot:    rgba(224,168,60,0.48);
-  --ornate-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z' fill='none' stroke='%23e0a83c' stroke-opacity='0.05'/%3E%3Cpath d='M28 16 L40 28 L28 40 L16 28 Z' fill='none' stroke='%23b91c1c' stroke-opacity='0.07'/%3E%3Ccircle cx='28' cy='28' r='1.6' fill='%23e0a83c' fill-opacity='0.06'/%3E%3C/svg%3E");
+  --ornate-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'%3E%3Cpath d='M28 6 L50 28 L28 50 L6 28 Z' fill='none' stroke='%23e0a83c' stroke-opacity='0.05'/%3E%3Cpath d='M28 16 L40 28 L28 40 L16 28 Z' fill='none' stroke='%23b91c1c' stroke-opacity='0.07'/%3E%3Cg fill='%23e0a83c' fill-opacity='0.05'%3E%3Ccircle cx='28' cy='24.4' r='1.5'/%3E%3Ccircle cx='31.6' cy='28' r='1.5'/%3E%3Ccircle cx='28' cy='31.6' r='1.5'/%3E%3Ccircle cx='24.4' cy='28' r='1.5'/%3E%3C/g%3E%3Ccircle cx='28' cy='28' r='1.6' fill='%23e0a83c' fill-opacity='0.07'/%3E%3C/svg%3E");
+  --ornate-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg id='f'%3E%3Cg fill='none' stroke='%23e0a83c' stroke-width='1.1' stroke-linecap='round' stroke-opacity='0.5'%3E%3Cpath d='M5 5 C18 7 26 14 29 28'/%3E%3Cpath d='M5 5 C7 18 14 26 28 29'/%3E%3Cpath d='M15 7.6q5 -4 9.5 -1q-5 4 -9.5 1' fill='%23e0a83c' fill-opacity='0.12'/%3E%3Cpath d='M7.6 15q-4 5 -1 9.5q4 -5 1 -9.5' fill='%23e0a83c' fill-opacity='0.12'/%3E%3Cpath d='M22.5 12.5q5.5 -2.5 8.5 1q-5.5 2.5 -8.5 -1' fill='%23e0a83c' fill-opacity='0.12'/%3E%3Cpath d='M12.5 22.5q-2.5 5.5 1 8.5q2.5 -5.5 -1 -8.5' fill='%23e0a83c' fill-opacity='0.12'/%3E%3C/g%3E%3Cg fill='%23e0a83c' fill-opacity='0.34'%3E%3Ccircle cx='8' cy='3.4' r='1.9'/%3E%3Ccircle cx='12.4' cy='7' r='1.9'/%3E%3Ccircle cx='3.4' cy='8' r='1.9'/%3E%3Ccircle cx='7' cy='12.4' r='1.9'/%3E%3C/g%3E%3Ccircle cx='7.2' cy='7.2' r='1.8' fill='%23f0be4e' fill-opacity='0.9'/%3E%3Ccircle cx='29' cy='28' r='1.3' fill='%23e0a83c' fill-opacity='0.5'/%3E%3Ccircle cx='28' cy='29' r='1.3' fill='%23e0a83c' fill-opacity='0.5'/%3E%3C/g%3E%3Cuse href='%23f' transform='rotate(90 60 60)'/%3E%3Cuse href='%23f' transform='rotate(180 60 60)'/%3E%3Cuse href='%23f' transform='rotate(270 60 60)'/%3E%3C/svg%3E");
+  --ornate-divider: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='12'%3E%3Cg fill='none' stroke='%23e0a83c' stroke-opacity='0.45' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M4 6 H52'/%3E%3Cpath d='M88 6 H136'/%3E%3Cpath d='M52 6q5 -5 10 -4q-4 5.5 -10 4' fill='%23e0a83c' fill-opacity='0.14'/%3E%3Cpath d='M88 6q-5 -5 -10 -4q4 5.5 10 4' fill='%23e0a83c' fill-opacity='0.14'/%3E%3Cpath d='M54 6q4 5 9 3.6q-4 -5 -9 -3.6' fill='%23e0a83c' fill-opacity='0.1'/%3E%3Cpath d='M86 6q-4 5 -9 3.6q4 -5 9 -3.6' fill='%23e0a83c' fill-opacity='0.1'/%3E%3C/g%3E%3Cg fill='%23e0a83c' fill-opacity='0.4'%3E%3Ccircle cx='70' cy='2.6' r='1.7'/%3E%3Ccircle cx='73.4' cy='6' r='1.7'/%3E%3Ccircle cx='70' cy='9.4' r='1.7'/%3E%3Ccircle cx='66.6' cy='6' r='1.7'/%3E%3C/g%3E%3Ccircle cx='70' cy='6' r='1.5' fill='%23f0be4e'/%3E%3Ccircle cx='4' cy='6' r='1.3' fill='%23e0a83c' fill-opacity='0.45'/%3E%3Ccircle cx='136' cy='6' r='1.3' fill='%23e0a83c' fill-opacity='0.45'/%3E%3C/svg%3E");
   --logo-grad:     linear-gradient(135deg, #f0be4e 0%, #d99a2b 40%, #c22a2a 100%);
 }
 
@@ -177,20 +190,18 @@ a {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* ── Ornate detailing — inner hairline frame + corner accents on surfaces ──── */
-.admin-card, .brand-panel, .eb-card, .data-table-wrap { position: relative; }
-.admin-card::after, .brand-panel::after, .eb-card::after {
+/* ── Ornate detailing — inner hairline frame + floral corner flourishes ─────
+   `.ornate-frame` is the standalone utility for any card-like surface. */
+.admin-card, .brand-panel, .eb-card, .data-table-wrap, .ornate-frame { position: relative; }
+.admin-card::after, .brand-panel::after, .eb-card::after, .ornate-frame::after {
   content: ""; position: absolute; inset: 5px;
   border: 1px solid var(--ornate-line); border-radius: 8px;
   pointer-events: none;
 }
-.admin-card::before, .brand-panel::before, .eb-card::before {
-  content: ""; position: absolute; inset: 5px; pointer-events: none; z-index: 1;
-  background:
-    radial-gradient(circle 2px at 0 0,       var(--ornate-dot) 98%, transparent) no-repeat 0 0 / 6px 6px,
-    radial-gradient(circle 2px at 100% 0,    var(--ornate-dot) 98%, transparent) no-repeat 100% 0 / 6px 6px,
-    radial-gradient(circle 2px at 0 100%,    var(--ornate-dot) 98%, transparent) no-repeat 0 100% / 6px 6px,
-    radial-gradient(circle 2px at 100% 100%, var(--ornate-dot) 98%, transparent) no-repeat 100% 100% / 6px 6px;
+.admin-card::before, .brand-panel::before, .eb-card::before, .ornate-frame::before {
+  content: ""; position: absolute; inset: 4px; pointer-events: none; z-index: 1;
+  border: 26px solid transparent;
+  border-image: var(--ornate-corner) 40;
 }
 
 /* Primary actions & active nav pick up the theme accent gradient */
@@ -226,7 +237,11 @@ a {
   border-right: 1px solid var(--c-border);
   box-shadow: 2px 0 8px rgba(9,30,66,0.04);
 }
-.admin-brand { display: flex; align-items: center; justify-content: space-between; padding: 0.25rem 0.5rem 0.75rem; border-bottom: 1px solid var(--c-border); margin-bottom: 0.25rem; }
+.admin-brand {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.25rem 0.5rem 1.2rem; border-bottom: 1px solid var(--c-border); margin-bottom: 0.25rem;
+  background: var(--ornate-divider) no-repeat bottom 0.2rem center / 110px 9px;
+}
 .admin-brand-name { font-weight: 800; font-size: 0.8rem; color: var(--c-text); letter-spacing: 0.08em; text-transform: uppercase; }
 .admin-main { flex: 1; min-width: 0; padding: 1.75rem 2rem; overflow-y: auto; }
 
