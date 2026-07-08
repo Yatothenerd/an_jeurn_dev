@@ -12,9 +12,11 @@ interface Guest {
 }
 
 /**
- * Step 4 — Guests. Add guests (each gets a personal invite link), copy links,
- * watch RSVPs come in. The global /admin/guests page remains for cross-event
- * search; this step is the per-event home.
+ * Guest management — a standalone task, deliberately NOT part of the invitation
+ * build wizard (Details → Design → Content → Publish). Reached from the event
+ * header "Guests" button. Add guests (each gets a personal invite link), copy
+ * links, watch RSVPs come in. The global /admin/guests page remains for
+ * cross-event search.
  */
 export function GuestManager({ eventId, slug, initialGuests }: { eventId: string; slug: string; initialGuests: Guest[] }) {
   const [guests, setGuests] = useState<Guest[]>(initialGuests);
@@ -62,7 +64,16 @@ export function GuestManager({ eventId, slug, initialGuests }: { eventId: string
   }
 
   return (
-    <div style={s.wrap}>
+    <div>
+      <div style={s.pageHead}>
+        <div>
+          <h1 style={s.pageTitle}>Guests</h1>
+          <p style={s.pageSub}>Invite people, share their personal links, and track RSVPs. Separate from the invitation editor.</p>
+        </div>
+        <Link href={`/admin/events/${eventId}/content`} style={s.backEditor}>← Back to editor</Link>
+      </div>
+
+      <div style={s.wrap}>
       <div style={s.main}>
         {/* Add guest */}
         <form onSubmit={addGuest} style={s.card}>
@@ -102,9 +113,8 @@ export function GuestManager({ eventId, slug, initialGuests }: { eventId: string
           )}
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "center" }}>
           <Link href={`/admin/guests?eventId=${eventId}`} style={s.ghostLink}>Open in global guest search →</Link>
-          <Link href={`/admin/events/${eventId}/publish`} style={s.nextBtn}>Next: Publish →</Link>
         </div>
       </div>
 
@@ -119,11 +129,16 @@ export function GuestManager({ eventId, slug, initialGuests }: { eventId: string
           <p style={s.hint}>RSVPs arrive from the invitation&rsquo;s RSVP button once the event is published.</p>
         </div>
       </div>
+      </div>
     </div>
   );
 }
 
 const s = {
+  pageHead: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" as const, marginBottom: "1rem" },
+  pageTitle: { margin: "0 0 0.2rem", fontSize: "1.3rem", fontWeight: 700, color: "var(--c-text)" },
+  pageSub: { margin: 0, fontSize: "0.85rem", color: "var(--c-muted)", maxWidth: 520, lineHeight: 1.45 },
+  backEditor: { padding: "0.45rem 0.9rem", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 8, textDecoration: "none", color: "var(--c-text)", fontSize: "0.85rem", fontWeight: 600, whiteSpace: "nowrap" as const, flexShrink: 0 },
   wrap: { display: "flex", gap: "1.25rem", alignItems: "flex-start", flexWrap: "wrap" as const },
   main: { flex: 1, minWidth: 380, display: "flex", flexDirection: "column" as const, gap: "1rem" },
   side: { width: 260, flexShrink: 0 },
@@ -150,5 +165,4 @@ const s = {
   statLbl: { fontSize: "0.8rem", color: "var(--c-muted)" },
 
   ghostLink: { fontSize: "0.82rem", color: "var(--c-muted)", textDecoration: "none" },
-  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 },
 } as const;

@@ -67,29 +67,30 @@ export const STANDARD_CSS = `
 html, body { margin: 0; padding: 0; background: #e7e3dc; }
 img { max-width: 100%; }
 
+/* Content column — fills mobile & tablet edge-to-edge; on desktop it settles
+   into a centered card while the background stays full-bleed behind it. */
 .invite-shell {
   min-height: 100vh;
-  max-width: 430px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
   position: relative;
   z-index: 1;
-  box-shadow: 0 0 40px rgba(0,0,0,0.18);
   overflow: hidden;
   padding-bottom: 6.5rem;
 }
+@media (min-width: 1000px) {
+  .invite-shell { max-width: 560px; box-shadow: 0 0 60px rgba(0,0,0,0.28); }
+}
 
-/* ── Single fixed background (Spotlight-style themes) ── */
-/* Background is constrained to the same 430px as the invite shell so it
-   stays locked to mobile dimensions on desktop rather than filling the
-   full viewport and distorting the image. */
+/* ── Single fixed background — always fills the whole device viewport ──
+   background-size:cover scales the image to fill the screen with no distortion
+   (it crops, never stretches), fitting mobile, tablet and desktop alike. */
 .inv-fixed-bg {
   position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  inset: 0;
   width: 100%;
-  max-width: 430px;
+  height: 100%;
   z-index: 0;
   overflow: hidden;
 }
@@ -237,11 +238,12 @@ img { max-width: 100%; }
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
-  max-width: 430px;
+  max-width: 100%;
   height: 0;
   z-index: 100;
   pointer-events: none;
 }
+@media (min-width: 1000px) { .inv-fab-wrap { max-width: 560px; } }
 .inv-fab-stack {
   position: absolute;
   display: flex;
@@ -281,11 +283,12 @@ img { max-width: 100%; }
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
-  max-width: 430px;
+  max-width: 100%;
   height: 0;
   z-index: 120;
   pointer-events: none;
 }
+@media (min-width: 1000px) { .inv-lang-wrap { max-width: 560px; } }
 .inv-lang-toggle {
   position: absolute;
   top: 0.9rem;
@@ -313,12 +316,14 @@ img { max-width: 100%; }
 
 /* ── Opening gate — the COVER PAGE of the invitation ─────────────────────────
    Not an overlay: a real in-flow page at the top of the invite, exactly one
-   portrait screen tall (capped to phone-portrait on desktop, like sections).
-   "Open" unlocks scrolling and glides down to the content pages below. */
+   device screen tall. The background fills the whole viewport (full-bleed);
+   the content stays a centered column. "Open" unlocks scrolling and glides
+   down to the content pages below. */
 .inv-gate {
   position: relative;
   z-index: 2;
-  max-width: 430px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
   height: 100vh;
   height: 100svh;
@@ -329,10 +334,6 @@ img { max-width: 100%; }
   justify-content: space-between;
   text-align: center;
   padding: 3.5rem 1.5rem;
-  box-shadow: 0 0 40px rgba(0,0,0,0.18);
-}
-@media (min-width: 500px) {
-  .inv-gate { height: min(100svh, 812px); }
 }
 .inv-gate-guest { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.4rem; }
 .inv-gate-name { font-family: 'Great Vibes', cursive; font-size: 2rem; line-height: 1.1; }

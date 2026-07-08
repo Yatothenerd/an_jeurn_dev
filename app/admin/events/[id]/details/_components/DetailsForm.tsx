@@ -100,7 +100,7 @@ export function DetailsForm({ event, client }: { event: EventData; client: Clien
         <div style={s.card}>
           <h2 style={s.h2}>Link</h2>
           <p style={s.meta}>/invite/{event.slug}</p>
-          <p style={s.metaMuted}>The public address once published. Guest-personalized links are created in the Guests step.</p>
+          <p style={s.metaMuted}>The public address once published. Guest-personalized links are created on the Guests page (header button).</p>
         </div>
       </div>
     </div>

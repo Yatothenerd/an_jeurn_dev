@@ -53,11 +53,11 @@ export default async function EventWorkflowLayout({
   const guestCount = event._count.guests;
   const isPublished = inv?.isPublished ?? false;
 
+  // The build wizard — guest management is a separate task (header button below).
   const steps: StepState[] = [
     { key: "details", label: "Details", done: true, hint: event.eventType },
     { key: "design",  label: "Design",  done: designChosen, hint: designChosen ? themeName : "Choose a theme" },
     { key: "content", label: "Content", done: contentDone, hint: design.themeId === FREEFORM_THEME_ID ? "In builder" : `${design.sections.filter((s) => s.included).length} sections` },
-    { key: "guests",  label: "Guests",  done: guestCount > 0, hint: guestCount > 0 ? `${guestCount} guest${guestCount === 1 ? "" : "s"}` : "Add guests" },
     { key: "publish", label: "Publish", done: isPublished, hint: isPublished ? "Live" : "Draft" },
   ];
 
@@ -76,6 +76,9 @@ export default async function EventWorkflowLayout({
           <span style={{ ...s.badge, ...(isPublished ? s.badgeLive : s.badgeDraft) }}>
             {isPublished ? "● Live" : "○ Draft"}
           </span>
+          <Link href={`/admin/events/${event.id}/guests`} style={s.guestsBtn}>
+            👥 Guests{guestCount > 0 ? ` · ${guestCount}` : ""}
+          </Link>
           <a href={`/invite/${event.slug}?preview=1`} target="_blank" rel="noreferrer" style={s.viewBtn}>
             Preview invitation ↗
           </a>
@@ -98,4 +101,5 @@ const s = {
   badgeLive: { background: "#dcfce7", color: "#15803d" },
   badgeDraft: { background: "var(--c-surface-2)", color: "var(--c-muted)", border: "1px solid var(--c-border)" },
   viewBtn: { padding: "0.5rem 1rem", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 8, textDecoration: "none", color: "var(--c-text)", fontSize: "0.875rem", fontWeight: 600 },
+  guestsBtn: { padding: "0.5rem 1rem", background: "var(--c-accent-soft)", border: "1px solid var(--c-accent)", borderRadius: 8, textDecoration: "none", color: "var(--c-accent)", fontSize: "0.875rem", fontWeight: 600, whiteSpace: "nowrap" as const },
 } as const;

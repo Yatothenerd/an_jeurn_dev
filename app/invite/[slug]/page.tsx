@@ -322,11 +322,16 @@ export default async function InvitePage({
   });
 
   const tokens     = { ...buildTokens(design.palette), showMonogramInSections: gate.monogram.sections };
-  const gateTokens = {
-    ...buildTokens(design.gatePalette),
-    // Admin-picked plain gate color wins over the theme gradient (no image case).
-    ...(gate.bgColor ? { coverGradient: gate.bgColor } : {}),
-  };
+  const gateBase   = buildTokens(design.gatePalette);
+  // The gate is the cover PAGE and must be opaque so the sections wallpaper
+  // (backgroundUrl) never bleeds through it — the gate shows only its own cover
+  // image or, without one, an opaque backdrop. Admin's plain gate color wins.
+  const gateBackdrop =
+    gate.bgColor ||
+    (gateBase.coverGradient && gateBase.coverGradient !== "transparent"
+      ? gateBase.coverGradient
+      : (gateBase.bg && gateBase.bg !== "transparent" ? gateBase.bg : "#0c0c14"));
+  const gateTokens = { ...gateBase, coverGradient: gateBackdrop };
 
   const components: SectionComponents = { ...STANDARD_SECTIONS, ...DB_SECTIONS, ...(themeMod.sections ?? {}) };
   const layout: ThemeLayout = themeMod.layout ?? {};
@@ -366,8 +371,9 @@ export default async function InvitePage({
     activeSections.some((sec) => sec.type === "khqr" && khqrItems(sec.content as Parameters<typeof khqrItems>[0]).length > 0);
 
   const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string; logoUrl?: string } | undefined;
-  // Gate monogram = the uploaded logo if present, otherwise fall back to the cover image.
-  const gateMonogramUrl = coverContent?.logoUrl ?? inv.coverUrl;
+  // Gate monogram = the uploaded logo only. Removing the logo removes the
+  // monogram (no silent fallback to the cover image).
+  const gateMonogramUrl = coverContent?.logoUrl || null;
 
   // When "show cover after opening" is off, the cover lives only on the gate —
   // drop it from the scrolling sections so guests land straight on the content.
@@ -490,7 +496,7 @@ export default async function InvitePage({
           guestName={guestName}
           guestLabel={coverContent?.guestLabel}
           theme={gateTokens}
-          bgUrl={inv.coverUrl || inv.backgroundUrl}
+          bgUrl={inv.coverUrl}
           coverUrl={gateMonogramUrl}
           gateOverlay={gate.overlay}
           revealStyle={gate.revealStyle}

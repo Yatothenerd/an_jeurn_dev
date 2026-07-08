@@ -4,21 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export interface StepState {
-  key: "details" | "design" | "content" | "guests" | "publish";
+  key: "details" | "design" | "content" | "publish";
   label: string;
   /** Step has meaningful data saved. */
   done: boolean;
-  /** Short status shown under the label (e.g. "Sweet Hearts", "12 guests"). */
+  /** Short status shown under the label (e.g. "Sweet Hearts", "3 sections"). */
   hint?: string;
 }
 
 /**
- * The event workflow stepper: Details → Design → Content → Guests → Publish.
- * Always visible on every event sub-page so the admin knows where they are,
- * what's done, and what's next. The Freeform builder lives under Design.
+ * The invitation-build wizard: Details → Design → Content → Publish.
+ * Guest management is intentionally NOT a step — it's a separate operational
+ * task reached from the header "Guests" button — so the stepper hides itself on
+ * the guests page. The Freeform builder lives under Design.
  */
 export function EventStepper({ eventId, steps }: { eventId: string; steps: StepState[] }) {
   const pathname = usePathname();
+
+  // Guest management is not part of the build wizard.
+  if (pathname.startsWith(`/admin/events/${eventId}/guests`)) return null;
 
   const activeKey =
     steps.find((s) => pathname.startsWith(`/admin/events/${eventId}/${s.key}`))?.key ??

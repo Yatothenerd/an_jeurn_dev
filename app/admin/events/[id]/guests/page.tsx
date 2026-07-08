@@ -4,7 +4,8 @@ import { GuestManager } from "./_components/GuestManager";
 
 export const metadata = { title: "Event — Guests" };
 
-// Step 4 — Guests: who's invited, their personalized links, and RSVP status.
+// Guests: who's invited, their personalized links, and RSVP status. A standalone
+// task (not a build-wizard step) — reached from the event header "Guests" button.
 export default async function EventGuestsPage({
   params,
 }: {

@@ -19,7 +19,9 @@ interface Props {
 }
 
 export function CoverSection({ content, eventTitle, eventDate, venueName, guestName, theme, assets }: Props) {
-  const monogramUrl = content.logoUrl || (theme.showMonogramInSections ? assets?.cover : null);
+  // Monogram = the uploaded logo only (no fallback to the cover image), gated
+  // by the "show monogram on sections" toggle.
+  const monogramUrl = theme.showMonogramInSections && content.logoUrl ? content.logoUrl : null;
   const date = new Date(eventDate);
   const formatted = date.toLocaleDateString("en-US", {
     weekday: "long",

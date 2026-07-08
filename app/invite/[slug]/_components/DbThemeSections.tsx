@@ -126,9 +126,9 @@ export function DbCoverSection({ content: baseContent, eventTitle, eventDate, ve
   // as a mirror of the landing gate: the same cover image becomes the section's
   // full-bleed background (with a scrim for readability).
   const heroUrl = content.imageUrl ?? assets?.cover ?? null;
-  // The uploaded monogram/logo always shows; the cover photo doubles as a
-  // fallback monogram only when the design enables section monograms.
-  const monogramUrl = content.logoUrl || (theme.showMonogramInSections ? assets?.cover : null);
+  // Monogram = the uploaded logo, shown only when section monograms are enabled.
+  // No fallback to the cover image — removing the logo removes the monogram.
+  const monogramUrl = theme.showMonogramInSections && content.logoUrl ? content.logoUrl : null;
 
   return (
     <section

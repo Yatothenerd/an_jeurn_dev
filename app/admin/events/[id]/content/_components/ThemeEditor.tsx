@@ -683,9 +683,23 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     ]);
 
   const statusLabel = {
-    idle: "All changes saved", dirty: "Editing…", saving: "Saving…",
+    idle: "All changes saved", dirty: "Unsaved changes…", saving: "Saving…",
     saved: "Saved ✓ — preview updated", error: "Save failed — retrying on next edit",
   }[status];
+
+  // Manual save — clears the pending debounce and writes immediately. Autosave
+  // still runs; this is the explicit, always-visible affordance.
+  const saveNow = () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    void save();
+  };
+  const saveLabel = {
+    idle: "Saved ✓", dirty: "Save now", saving: "Saving…", saved: "Saved ✓", error: "Retry save",
+  }[status];
+  const saveVariant =
+    status === "error" ? s.saveBtnError :
+    status === "dirty" || status === "saving" ? s.saveBtnDirty :
+    s.saveBtnIdle;
 
   return (
     <div style={s.wrap}>
@@ -696,9 +710,14 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
             <h1 style={s.h1}>Content</h1>
             <p style={s.statusLine} data-status={status}>{statusLabel}</p>
           </div>
-          <span style={s.themeChip}>
-            {themeName}{designLocked ? " 🔒" : ""} · <Link href={`/admin/events/${event.id}/design`} style={s.changeLink}>change</Link>
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <span style={s.themeChip}>
+              {themeName}{designLocked ? " 🔒" : ""} · <Link href={`/admin/events/${event.id}/design`} style={s.changeLink}>change</Link>
+            </span>
+            <button type="button" style={{ ...s.saveBtn, ...saveVariant }} disabled={status === "saving"} onClick={saveNow}>
+              {saveLabel}
+            </button>
+          </div>
         </div>
 
         {/* ── Tab bar ── */}
@@ -1052,8 +1071,16 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Link href={`/admin/events/${event.id}/guests`} style={s.nextBtn}>Next: Guests →</Link>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{ fontSize: "0.75rem", color: "var(--c-muted)" }}>
+            Changes save automatically — or use <strong style={{ color: "var(--c-text)" }}>Save now</strong>.
+          </span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button type="button" style={{ ...s.saveBtn, ...saveVariant }} disabled={status === "saving"} onClick={saveNow}>
+              {saveLabel}
+            </button>
+            <Link href={`/admin/events/${event.id}/publish`} style={s.nextBtn}>Next: Publish →</Link>
+          </div>
         </div>
       </div>
 
@@ -1085,12 +1112,16 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
 const s = {
   wrap: { display: "flex", gap: "1.5rem", alignItems: "flex-start", maxWidth: 1280, margin: "0 auto" },
   panel: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column" as const, gap: "1rem", maxHeight: "calc(100vh - 4rem)", overflowY: "auto" as const, paddingRight: 4 },
-  panelHead: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" },
+  panelHead: { position: "sticky" as const, top: 0, zIndex: 5, background: "var(--c-bg)", paddingBottom: "0.6rem", borderBottom: "1px solid var(--c-border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" },
   h1: { margin: 0, fontSize: "1.35rem", fontWeight: 700, color: "var(--c-text)" },
   statusLine: { margin: "0.25rem 0 0", fontSize: "0.8rem", color: "var(--c-muted)" },
   themeChip: { fontSize: "0.8rem", fontWeight: 600, color: "var(--c-text)", background: "var(--c-surface-2)", border: "1px solid var(--c-border)", borderRadius: 999, padding: "0.3rem 0.8rem", whiteSpace: "nowrap" as const },
   changeLink: { color: "var(--c-accent)", textDecoration: "none" },
-  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 },
+  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600, whiteSpace: "nowrap" as const },
+  saveBtn: { padding: "0.5rem 1.1rem", borderRadius: 8, border: "none", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const },
+  saveBtnDirty: { background: "var(--c-accent)", color: "#fff" },
+  saveBtnIdle: { background: "var(--c-surface-2)", color: "var(--c-muted)", border: "1px solid var(--c-border)" },
+  saveBtnError: { background: "#dc2626", color: "#fff" },
 
   card: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column" as const, gap: "0.6rem" },
   cardTitle: { fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--c-muted)", display: "flex", alignItems: "center" },
