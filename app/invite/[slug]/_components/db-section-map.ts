@@ -13,6 +13,7 @@ import {
   DbWordingSection,
   DbCountdownSection,
   DbDetailsSection,
+  DbAgendaSection,
   DbGallerySection,
   DbVideoSection,
   DbWishingSection,
@@ -26,9 +27,10 @@ export const DB_SECTIONS: SectionComponents = {
   wording: DbWordingSection as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   countdown: DbCountdownSection as any,
-  // "agenda" (legacy InvitationSection type) and "details" (wizard type) share the same renderer
+  // Agenda = event schedule (time → moment). Details = venue/address rows.
+  // They are DIFFERENT content shapes and must use different renderers.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  agenda: DbDetailsSection as any,
+  agenda: DbAgendaSection as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   details: DbDetailsSection as any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

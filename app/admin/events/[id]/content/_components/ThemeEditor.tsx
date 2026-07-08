@@ -18,9 +18,10 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { HEADING_FONTS, BODY_FONTS } from "@/lib/themes/shared/standard-css";
+import { HEADING_FONTS, BODY_FONTS, buildFontsHref } from "@/lib/themes/shared/standard-css";
 import { FontPicker, ColorField, SizeField } from "@/app/admin/_components/StyleControls";
-import { DEFAULT_FLOAT_BUTTONS, type DesignFloatButtons } from "@/lib/themes/design";
+import { DEFAULT_FLOAT_BUTTONS, type DesignFloatButtons, type GateElementKey } from "@/lib/themes/design";
+import { GATE_DEFAULT_POSITIONS } from "@/app/invite/[slug]/_components/InviteGate";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,9 +167,12 @@ function ImgField({ value, onChange }: { value: string; onChange: (v: string) =>
 
 // ── Per-section text-style fine-tuning (font / color / size per text box) ────
 
-function TextStylePanel({ value, onChange }: {
+function TextStylePanel({ value, onChange, titleSample, bodySample }: {
   value: SectionStyleOverride;
   onChange: (next: SectionStyleOverride) => void;
+  /** Real content shown in the font previews so they match the live text. */
+  titleSample?: string;
+  bodySample?: string;
 }) {
   const [open, setOpen] = useState(false);
   const set = (patch: Partial<SectionStyleOverride>) => onChange({ ...value, ...patch });
@@ -184,7 +188,7 @@ function TextStylePanel({ value, onChange }: {
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginTop: "0.5rem" }}>
           <Field label="Title font">
-            <FontPicker value={value.titleFont ?? ""} onChange={(v) => set({ titleFont: v || undefined })} options={HEADING_FONTS} />
+            <FontPicker value={value.titleFont ?? ""} onChange={(v) => set({ titleFont: v || undefined })} options={HEADING_FONTS} previewText={titleSample || undefined} />
           </Field>
           <Field label="Title color">
             <ColorField value={value.titleColor ?? ""} onChange={(v) => set({ titleColor: v || undefined })} />
@@ -193,7 +197,7 @@ function TextStylePanel({ value, onChange }: {
             <SizeField value={value.titleScale ?? 1} onChange={(v) => set({ titleScale: v === 1 ? undefined : v })} />
           </Field>
           <Field label="Body font">
-            <FontPicker value={value.bodyFont ?? ""} onChange={(v) => set({ bodyFont: v || undefined })} options={BODY_FONTS} />
+            <FontPicker value={value.bodyFont ?? ""} onChange={(v) => set({ bodyFont: v || undefined })} options={BODY_FONTS} previewText={bodySample || undefined} />
           </Field>
           <Field label="Body color">
             <ColorField value={value.bodyColor ?? ""} onChange={(v) => set({ bodyColor: v || undefined })} />
@@ -252,6 +256,170 @@ function MediaField({ value, onChange }: { value: string; onChange: (url: string
   );
 }
 
+// ── Opening-gate free-drag layout editor ─────────────────────────────────────
+
+const GATE_ELEMENTS: Array<{ key: GateElementKey; label: string }> = [
+  { key: "monogram",  label: "Monogram" },
+  { key: "pretitle",  label: "Greeting" },
+  { key: "title",     label: "Names" },
+  { key: "subtitle",  label: "Intro lines" },
+  { key: "guestName", label: "Guest name" },
+  { key: "openBtn",   label: "Open button" },
+];
+
+type GatePlace = { xPct: number; yPct: number; scale?: number };
+
+interface GateWysiwygData {
+  title: string; greeting: string; subheading: string; guestLabel: string;
+  bgUrl: string; monogramUrl: string; showMonogram: boolean; showGuestName: boolean;
+  accent: string; primary: string; muted: string; headingFont: string;
+  gateBg: string;
+}
+
+/** WYSIWYG opening-gate editor — drag & resize the REAL cover elements on a
+ *  true-to-life portrait preview (real background, fonts, colors and text). */
+function GateWysiwygEditor({ positions, onChange, data }: {
+  positions: Partial<Record<GateElementKey, GatePlace>>;
+  onChange: (next: Partial<Record<GateElementKey, GatePlace>>) => void;
+  data: GateWysiwygData;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ key: GateElementKey; mode: "move" | "resize"; startScale: number; cx: number; cy: number; startDist: number; moved: boolean } | null>(null);
+  const [active, setActive] = useState<GateElementKey | null>(null);
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const place = (key: GateElementKey): GatePlace => positions[key] ?? GATE_DEFAULT_POSITIONS[key];
+
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current;
+    if (!d || !boxRef.current) return;
+    d.moved = true;
+    const r = boxRef.current.getBoundingClientRect();
+    if (d.mode === "move") {
+      const xPct = clamp(((e.clientX - r.left) / r.width) * 100, 2, 98);
+      const yPct = clamp(((e.clientY - r.top) / r.height) * 100, 2, 98);
+      onChange({ ...positions, [d.key]: { ...place(d.key), xPct: Math.round(xPct), yPct: Math.round(yPct) } });
+    } else {
+      const dist = Math.hypot(e.clientX - d.cx, e.clientY - d.cy);
+      const scale = clamp(+(d.startScale * (dist / (d.startDist || 1))).toFixed(2), 0.4, 3);
+      onChange({ ...positions, [d.key]: { ...place(d.key), scale } });
+    }
+  };
+  const startMove = (key: GateElementKey) => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    setActive(key);
+    drag.current = { key, mode: "move", startScale: place(key).scale ?? 1, cx: 0, cy: 0, startDist: 0, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const startResize = (key: GateElementKey) => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    if (!boxRef.current) return;
+    const r = boxRef.current.getBoundingClientRect();
+    const p = place(key);
+    const cx = r.left + r.width * (p.xPct / 100);
+    const cy = r.top + r.height * (p.yPct / 100);
+    const startDist = Math.max(Math.hypot(e.clientX - cx, e.clientY - cy), 8);
+    drag.current = { key, mode: "resize", startScale: p.scale ?? 1, cx, cy, startDist, moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const end = () => { drag.current = null; };
+
+  // Real content for each gate element, styled with the live theme colors/fonts.
+  const content = (key: GateElementKey): React.ReactNode => {
+    switch (key) {
+      case "monogram":
+        return data.showMonogram && data.monogramUrl
+          ? <img src={data.monogramUrl} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", boxShadow: "0 2px 12px rgba(0,0,0,0.5)" }} />
+          : null;
+      case "pretitle":
+        return <span style={{ color: data.accent, fontSize: "0.42rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 600 }}>{data.greeting || "You are invited to"}</span>;
+      case "title":
+        return (
+          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <span style={{ color: data.primary, fontFamily: data.headingFont, fontSize: "0.95rem", lineHeight: 1.1, textAlign: "center", maxWidth: 150 }}>{data.title || "Event title"}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4, color: data.accent }}>
+              <span style={{ width: 16, height: 1, background: "currentColor", opacity: 0.6 }} />
+              <span style={{ fontSize: "0.4rem" }}>◆</span>
+              <span style={{ width: 16, height: 1, background: "currentColor", opacity: 0.6 }} />
+            </span>
+          </span>
+        );
+      case "subtitle":
+        return data.subheading
+          ? <span style={{ color: data.muted, fontSize: "0.4rem", fontStyle: "italic", letterSpacing: "0.04em", textAlign: "center", whiteSpace: "nowrap" }}>{data.subheading}</span>
+          : null;
+      case "guestName":
+        return data.showGuestName ? (
+          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <span style={{ color: data.accent, border: `1px solid ${data.accent}`, borderRadius: 999, padding: "1px 7px", fontSize: "0.34rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>♥ Dear</span>
+            <span style={{ color: data.primary, fontFamily: data.headingFont, fontSize: "0.62rem" }}>{data.guestLabel || "Dear Guest"}</span>
+          </span>
+        ) : null;
+      case "openBtn":
+        return <span style={{ color: data.accent, border: `1px solid ${data.accent}`, borderRadius: 999, padding: "3px 12px", fontSize: "0.4rem", letterSpacing: "0.14em", textTransform: "uppercase", background: "rgba(0,0,0,0.25)" }}>Open Letter</span>;
+    }
+  };
+
+  return (
+    <>
+      <div
+        ref={boxRef}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerDown={() => setActive(null)}
+        style={{
+          position: "relative", width: 220, aspectRatio: "9 / 17.5", maxHeight: 440, margin: "0.4rem auto 0",
+          borderRadius: 18, border: "1px solid var(--c-border)",
+          background: data.bgUrl ? `#14161c url(${data.bgUrl}) center / cover no-repeat` : (data.gateBg || "linear-gradient(160deg, #2b2f3a, #14161c)"),
+          overflow: "hidden", touchAction: "none", userSelect: "none",
+        }}
+      >
+        {/* readability scrim, mirroring the live gate */}
+        {data.bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)" }} />}
+
+        {GATE_ELEMENTS.map(({ key }) => {
+          const node = content(key);
+          if (!node) return null;
+          const p = place(key);
+          const scale = p.scale && p.scale > 0 ? p.scale : 1;
+          const isActive = active === key;
+          return (
+            <div
+              key={key}
+              onPointerDown={startMove(key)}
+              style={{
+                position: "absolute", left: `${p.xPct}%`, top: `${p.yPct}%`,
+                transform: `translate(-50%, -50%) scale(${scale})`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "grab", padding: 2, borderRadius: 4,
+                outline: isActive ? "1.5px solid var(--c-accent)" : "1px dashed rgba(255,255,255,0.25)",
+                outlineOffset: 2, zIndex: isActive ? 10 : 1,
+              }}
+            >
+              {node}
+              {isActive && (
+                <span
+                  onPointerDown={startResize(key)}
+                  title="Drag to resize"
+                  style={{
+                    position: "absolute", right: -6, bottom: -6, width: 12, height: 12, borderRadius: "50%",
+                    background: "var(--c-accent)", border: "2px solid #fff", cursor: "nwse-resize", boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {active && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem", marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--c-muted)" }}>
+          <span>Size: {Math.round((place(active).scale ?? 1) * 100)}%</span>
+          <button type="button" style={s.smallGhost} onClick={() => onChange({ ...positions, [active]: { ...place(active), scale: 1 } })}>Reset size</button>
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Per-section content forms ────────────────────────────────────────────────
 
 function SectionForm({ sec, onContent, locked, altLang }: {
@@ -304,8 +472,15 @@ function SectionForm({ sec, onContent, locked, altLang }: {
   }
 
   const styleOverride = (c._style ?? {}) as SectionStyleOverride;
+  const firstItem = (Array.isArray(c.items) && c.items[0] ? c.items[0] : {}) as { value?: string; title?: string };
+  const titleSample = (typeof c.title === "string" && c.title) || (typeof c.heading === "string" && c.heading) || "";
+  const bodySample =
+    (typeof c.text === "string" && c.text) ||
+    (typeof c.subheading === "string" && c.subheading) ||
+    firstItem.value || firstItem.title || "";
   const stylePanel = !locked && (
-    <TextStylePanel value={styleOverride} onChange={(next) => onContent({ _style: next })} />
+    <TextStylePanel value={styleOverride} onChange={(next) => onContent({ _style: next })}
+      titleSample={titleSample} bodySample={bodySample} />
   );
 
   const body = (() => {
@@ -317,6 +492,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
             <ImgField value={strBase("logoUrl")} onChange={setBase("logoUrl")} />
           </Field>
           <p style={s.hint}>Shown prominently on the opening gate and the cover section.</p>
+          <Field label="Greeting line (above names)"><Txt value={str("greeting")} onChange={set("greeting")} placeholder="You are invited to" /></Field>
           <Field label="Names / heading"><Txt value={str("heading")} onChange={set("heading")} placeholder="Artem + Vika" /></Field>
           <Field label="Intro lines"><Area value={str("subheading")} onChange={set("subheading")} rows={2} placeholder={"We invite you\nto our"} /></Field>
           <Field label="Big word"><Txt value={str("bigWord")} onChange={set("bigWord")} placeholder="wedding" /></Field>
@@ -351,21 +527,38 @@ function SectionForm({ sec, onContent, locked, altLang }: {
         </>
       );
     case "agenda": {
-      const items = (Array.isArray(c.items) ? c.items : []) as Array<{ time?: string; title?: string }>;
+      const items = (Array.isArray(c.items) ? c.items : []) as Array<{ time?: string; title?: string; icon?: number }>;
       const setItems = (next: typeof items) => onC({ items: next });
+      const patchItem = (i: number, p: Partial<typeof items[number]>) => setItems(items.map((x, j) => (j === i ? { ...x, ...p } : x)));
       return (
         <>
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="What time?" /></Field>
           {items.map((it, i) => (
-            <div key={i} style={s.rowGroup}>
-              <input value={it.time ?? ""} placeholder="15:30" style={{ ...s.input, width: 82, flexShrink: 0 }}
-                onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, time: e.target.value } : x)))} />
-              <input value={it.title ?? ""} placeholder="Ceremony" style={s.input}
-                onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} />
-              <button type="button" style={s.smallGhost} onClick={() => setItems(items.filter((_, j) => j !== i))}>✕</button>
+            <div key={i} style={{ display: "flex", flexDirection: "column", gap: "0.4rem", border: "1px solid var(--c-border)", borderRadius: 8, padding: "0.5rem" }}>
+              <div style={s.rowGroup}>
+                <input type="time" value={it.time ?? ""} style={{ ...s.input, width: 116, flexShrink: 0 }}
+                  onChange={(e) => patchItem(i, { time: e.target.value })} />
+                <input value={it.title ?? ""} placeholder="Ceremony" style={s.input}
+                  onChange={(e) => patchItem(i, { title: e.target.value })} />
+                <button type="button" style={s.smallGhost} onClick={() => setItems(items.filter((_, j) => j !== i))}>✕</button>
+              </div>
+              <div>
+                <div style={{ ...s.fieldLabel, marginBottom: 3 }}>Activity icon</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                  <button type="button" title="No icon" onClick={() => patchItem(i, { icon: undefined })}
+                    style={{ ...s.iconChoice, ...(it.icon ? {} : s.iconChoiceOn), fontSize: "0.65rem" }}>none</button>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                    <button key={n} type="button" title={`Icon ${n}`} onClick={() => patchItem(i, { icon: n })}
+                      style={{ ...s.iconChoice, ...(it.icon === n ? s.iconChoiceOn : {}) }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/themes/agenda/${n}.png`} alt="" style={{ width: 22, height: 22, objectFit: "contain" }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           ))}
-          <button type="button" style={s.smallBtn} onClick={() => setItems([...items, { time: "", title: "" }])}>+ Add moment</button>
+          <button type="button" style={s.smallBtn} onClick={() => setItems([...items, { time: "", title: "", icon: undefined }])}>+ Add moment</button>
         </>
       );
     }
@@ -469,12 +662,12 @@ const COLOR_KEYS: Array<{ key: string; label: string }> = [
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-type EditorTab = "content" | "design" | "buttons" | "guide";
+type Step = "basics" | "cover" | "sections" | "buttons" | "guide";
 
 export function ThemeEditor({ event, invitation, themeName, designLocked = false, sectionRows, initialPhotos }: Props) {
   const oc = invitation.overlayConfig ?? {};
 
-  const [tab, setTab] = useState<EditorTab>("content");
+  const [step, setStep] = useState<Step>("basics");
   const [colors, setColors]     = useState<Record<string, string>>((oc.colorScheme as Record<string, string>) ?? {});
   const [coverUrl, setCoverUrl] = useState(invitation.coverUrl ?? "");
   const [basics, setBasics] = useState({
@@ -499,6 +692,10 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     ...ocFab,
     show: { ...DEFAULT_FLOAT_BUTTONS.show, ...(ocFab.show ?? {}) },
   });
+  // Floating-button colors — null follows the theme's own action-button colors.
+  const [actionButton, setActionButton] = useState<{ bg: string; color: string } | null>(
+    (oc.actionButton as { bg: string; color: string } | undefined) ?? null
+  );
   // Monogram placement + guidance overlay.
   const ocMono = (oc.monogram ?? { gate: true, sections: false }) as { gate: boolean; sections: boolean };
   const [monogram, setMonogram] = useState(ocMono);
@@ -519,6 +716,28 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     coverBlur: (oc.backgroundBlur as number | undefined) ?? 0,
     sectionBlur: (oc.sectionBlur as number | undefined) ?? 0,
   });
+  // Desktop-only backdrop shown around the portrait invite on wide screens —
+  // distinct from the Sections background above, which is scoped to the portrait.
+  const [outerBg, setOuterBg] = useState({
+    url: (oc.outerBgUrl as string | undefined) ?? "",
+    color: (oc.outerBgColor as string | undefined) ?? "",
+  });
+  // Adjustable dim over the sections background (the tint over the wallpaper).
+  const ocOverlay = (oc.sectionOverlay ?? { enabled: true, color: "#000000", opacity: 0.28 }) as { enabled: boolean; color: string; opacity: number };
+  const [sectionOverlay, setSectionOverlay] = useState(ocOverlay);
+  // Guest-name decorative frame + free-drag gate layout (monogram/heading/etc.).
+  const [showGuestName, setShowGuestName] = useState((oc.showGuestName as boolean | undefined) ?? true);
+  const [guestFrameUrl, setGuestFrameUrl] = useState((oc.guestFrameUrl as string | undefined) ?? "");
+  const [elementPositions, setElementPositions] = useState<Partial<Record<GateElementKey, GatePlace>>>(
+    (oc.elementPositions as Partial<Record<GateElementKey, GatePlace>> | undefined) ?? {}
+  );
+  // Opening behaviour — entrance animation on/off, keep cover after opening,
+  // and the "Open" button color.
+  const [coverOpts, setCoverOpts] = useState({
+    animateOpen: (oc.animateOpen as boolean | undefined) ?? true,
+    keepCoverAfterOpen: (oc.keepCoverAfterOpen as boolean | undefined) ?? true,
+    openButtonColor: (oc.openButtonColor as string | undefined) ?? "",
+  });
   // Bilingual content.
   const ocLangs = (oc.languages ?? {}) as { enabled?: boolean; primaryLabel?: string; secondaryLabel?: string };
   const [languages, setLanguages] = useState({
@@ -528,17 +747,59 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
   });
   const [editLang, setEditLang] = useState<"primary" | "secondary">("primary");
   const [sections, setSections] = useState<EditorSection[]>(() => initSections(invitation.defaultSections, sectionRows));
+  const hasLogo = !!((sections.find((x) => x.type === "cover")?.content as { logoUrl?: string } | undefined)?.logoUrl);
   const [photos, setPhotos] = useState<PhotoRow[]>(initialPhotos);
   const [open, setOpen] = useState<string | null>("cover0");
   // The section type currently open — drives the live preview's focus.
   const [openType, setOpenType] = useState<string | null>("cover");
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const firstFocus = useRef(true);
   const dragIdx = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
   const [status, setStatus] = useState<"idle" | "dirty" | "saving" | "saved" | "error">("idle");
-  const [previewV, setPreviewV] = useState(0);
+
+  // ── Double-buffered live preview ───────────────────────────────────────────
+  // Two iframes; only the "front" one is visible. A reload loads the new URL
+  // into the hidden "back" iframe and swaps once it has painted, so the preview
+  // never blanks to black while the fresh content loads.
+  const [srcs, setSrcs] = useState<[string, string]>(() => [
+    `/invite/${event.slug}?preview=1&v=0`,
+    "about:blank",
+  ]);
+  const [front, setFront] = useState(0);
+  const frontRef = useRef(0);
+  const openTypeRef = useRef(openType);
+  const reloadN = useRef(0);
+  const pendingBack = useRef<number | null>(null);
+  const frameRefs = useRef<Array<HTMLIFrameElement | null>>([null, null]);
+  frontRef.current = front;
+  openTypeRef.current = openType;
+
+  const buildPreviewSrc = (n: number) => {
+    const ot = openTypeRef.current;
+    const focus = ot && ot !== "cover" ? `&focus=${ot}` : "";
+    return `/invite/${event.slug}?preview=1&v=${n}${focus}`;
+  };
+  // Stable across renders (assigned every render so it always sees fresh refs).
+  const reloadRef = useRef<() => void>(() => {});
+  reloadRef.current = () => {
+    const back = 1 - frontRef.current;
+    reloadN.current += 1;
+    pendingBack.current = back;
+    setSrcs((arr) => {
+      const next = [...arr] as [string, string];
+      next[back] = buildPreviewSrc(reloadN.current);
+      return next;
+    });
+  };
+  const onFrameLoad = (i: number) => {
+    if (pendingBack.current === i) {
+      pendingBack.current = null;
+      frontRef.current = i;
+      setFront(i);
+    }
+  };
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstRun = useRef(true);
   const galleryFileRef = useRef<HTMLInputElement>(null);
@@ -559,6 +820,10 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         bodyScale: fonts.bodyScale,
       },
       floatButtons: fab,
+      actionButton: actionButton ?? undefined,
+      animateOpen: coverOpts.animateOpen,
+      keepCoverAfterOpen: coverOpts.keepCoverAfterOpen,
+      openButtonColor: coverOpts.openButtonColor || null,
       monogram,
       scrollGuide: guide.enabled,
       guideText: guide.text,
@@ -567,9 +832,17 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       pageBgColor: bg.pageColor || null,
       backgroundBlur: bg.coverBlur,
       sectionBlur: bg.sectionBlur,
+      outerBgUrl: outerBg.url || null,
+      outerBgColor: outerBg.color || null,
+      sectionOverlay,
+      showGuestName,
+      guestFrameUrl: guestFrameUrl || null,
+      elementPositions: Object.keys(elementPositions).length > 0 ? elementPositions : undefined,
       languages,
     };
     if (Object.keys(colors).length === 0) delete overlayConfig.colorScheme;
+    if (!actionButton) delete overlayConfig.actionButton;
+    if (!overlayConfig.elementPositions) delete overlayConfig.elementPositions;
 
     const res = await fetch(`/api/admin/events/${event.id}`, {
       method: "PATCH",
@@ -589,12 +862,12 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
 
     if (res?.ok) {
       setStatus("saved");
-      setPreviewV((v) => v + 1); // reload the live preview iframe
+      reloadRef.current(); // reload the live preview (double-buffered, no blackout)
     } else {
       setStatus("error");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basics, sections, colors, coverUrl, fonts, fab, monogram, guide, guideHand, bg, languages, event.id]);
+  }, [basics, sections, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, sectionOverlay, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts, event.id]);
 
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
@@ -602,7 +875,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => void save(), 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [basics, sections, colors, coverUrl, fonts, fab, monogram, guide, guideHand, bg, languages, save]);
+  }, [basics, sections, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts, save]);
 
   // ── Live preview follows the edited section ────────────────────────────────
   // Cover → reload to the gate view (the gate IS the cover); any other section
@@ -611,11 +884,22 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     if (firstFocus.current) { firstFocus.current = false; return; }
     if (!openType) return;
     if (openType === "cover") {
-      setPreviewV((v) => v + 1);
+      reloadRef.current();
       return;
     }
-    iframeRef.current?.contentWindow?.postMessage({ type: "anjeurn:focus", section: openType }, "*");
+    frameRefs.current[frontRef.current]?.contentWindow?.postMessage({ type: "anjeurn:focus", section: openType }, "*");
   }, [openType]);
+
+  // Load the invitation web fonts into the editor so every font preview renders
+  // in its real typeface (matching exactly what guests will see).
+  useEffect(() => {
+    if (document.querySelector("link[data-anjeurn-fonts]")) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = buildFontsHref();
+    link.setAttribute("data-anjeurn-fonts", "");
+    document.head.appendChild(link);
+  }, []);
 
   // ── Gallery photos: write-through (no debounce — separate API) ─────────────
   async function addGalleryPhoto(file: File) {
@@ -635,7 +919,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       const { photo } = await res.json();
       if (res.ok && photo) {
         setPhotos((p) => [...p, { id: photo.id, url: photo.url }]);
-        setPreviewV((v) => v + 1);
+        reloadRef.current();
       }
     } finally {
       setGalleryBusy(false);
@@ -645,7 +929,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
   async function removeGalleryPhoto(photoId: string) {
     await fetch(`/api/admin/events/${event.id}/photos?photoId=${photoId}`, { method: "DELETE" });
     setPhotos((p) => p.filter((x) => x.id !== photoId));
-    setPreviewV((v) => v + 1);
+    reloadRef.current();
   }
 
   // ── Section list helpers ───────────────────────────────────────────────────
@@ -701,6 +985,28 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     status === "dirty" || status === "saving" ? s.saveBtnDirty :
     s.saveBtnIdle;
 
+  // Guided-step flow. Each step reveals a focused slice of the editor.
+  const STEPS: Array<{ id: Step; label: string }> = [
+    { id: "basics",   label: "Basics" },
+    { id: "cover",    label: "Cover" },
+    { id: "sections", label: "Sections" },
+    { id: "buttons",  label: "Buttons" },
+    { id: "guide",    label: "Guide" },
+  ];
+  const stepIdx = Math.max(0, STEPS.findIndex((x) => x.id === step));
+  const goStep = (i: number) => setStep(STEPS[Math.max(0, Math.min(STEPS.length - 1, i))].id);
+
+  // Real-content samples for the font-scheme previews, so each font renders with
+  // exactly the text guests will read.
+  const headingPreview = basics.title || undefined;
+  const sectionTitlePreview =
+    ((sections.find((x) => x.included && typeof (x.content as { title?: string }).title === "string" && (x.content as { title?: string }).title)?.content as { title?: string } | undefined)?.title) ||
+    headingPreview;
+  const bodyPreview =
+    ((sections.find((x) => x.type === "wording")?.content as { text?: string } | undefined)?.text) ||
+    ((sections.find((x) => x.type === "cover")?.content as { subheading?: string } | undefined)?.subheading) ||
+    undefined;
+
   return (
     <div style={s.wrap}>
       {/* ── Left: editor panel ──────────────────────────────────────────── */}
@@ -720,22 +1026,21 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           </div>
         </div>
 
-        {/* ── Tab bar ── */}
-        <div style={s.tabBar}>
-          {([
-            { id: "content", label: "✒ Content" },
-            { id: "design",  label: designLocked ? "🔒 Design" : "🎨 Design" },
-            { id: "buttons", label: "◉ Buttons" },
-            { id: "guide",   label: "👆 Guide" },
-          ] as Array<{ id: EditorTab; label: string }>).map((t) => (
-            <button key={t.id} type="button" style={{ ...s.tabBtn, ...(tab === t.id ? s.tabBtnOn : {}) }}
-              onClick={() => setTab(t.id)}>
-              {t.label}
-            </button>
-          ))}
+        {/* ── Step progress ── */}
+        <div style={s.stepper}>
+          {STEPS.map((stp, i) => {
+            const active = step === stp.id;
+            const done = i < stepIdx;
+            return (
+              <button key={stp.id} type="button" style={{ ...s.stepChip, ...(active ? s.stepChipOn : {}) }} onClick={() => setStep(stp.id)}>
+                <span style={{ ...s.stepNum, ...(active ? s.stepNumOn : {}), ...(done ? s.stepNumDone : {}) }}>{done ? "✓" : i + 1}</span>
+                <span style={s.stepLabel}>{stp.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {tab === "content" && (
+        {step === "basics" && (
         <>
         {/* Event basics */}
         <div style={s.card}>
@@ -749,7 +1054,90 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           </Field>
           <p style={s.hint}>This is the opening page guests see first (tap to open) — it also backs the cover section.</p>
         </div>
+        </>
+        )}
 
+        {step === "cover" && (
+        <>
+        {/* Guest name — shown on the opening gate, personalized per guest link */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>
+            Guest name
+            <label style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "0.4rem", textTransform: "none", letterSpacing: 0, fontWeight: 600, fontSize: "0.8rem", color: "var(--c-text)" }}>
+              <input type="checkbox" checked={showGuestName} onChange={(e) => setShowGuestName(e.target.checked)} />
+              Show
+            </label>
+          </div>
+          {showGuestName && (
+            <>
+              <p style={s.hint}>The guest&apos;s name from their personal invite link, shown on the opening gate.</p>
+              <Field label="Decorative frame (optional)">
+                <ImgField value={guestFrameUrl} onChange={setGuestFrameUrl} />
+              </Field>
+            </>
+          )}
+        </div>
+
+        {/* Opening gate layout — drag each element to arrange the gate freely */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>
+            Opening gate layout
+            {Object.keys(elementPositions).length > 0 && (
+              <button type="button" style={{ ...s.smallGhost, marginLeft: "auto" }} onClick={() => setElementPositions({})}>
+                ↺ Reset to default layout
+              </button>
+            )}
+          </div>
+          <p style={s.hint}>Drag any element to move it; select one and drag the round handle to resize. This is the real cover — background, fonts, colors and text all match the live invite.</p>
+          <GateWysiwygEditor
+            positions={elementPositions}
+            onChange={setElementPositions}
+            data={{
+              title: basics.title,
+              greeting: ((sections.find((x) => x.type === "cover")?.content as { greeting?: string } | undefined)?.greeting) ?? "",
+              subheading: ((sections.find((x) => x.type === "cover")?.content as { subheading?: string } | undefined)?.subheading) ?? "",
+              guestLabel: ((sections.find((x) => x.type === "cover")?.content as { guestLabel?: string } | undefined)?.guestLabel) ?? "Dear Guest",
+              bgUrl: coverUrl,
+              monogramUrl: ((sections.find((x) => x.type === "cover")?.content as { logoUrl?: string } | undefined)?.logoUrl) ?? "",
+              showMonogram: monogram.gate,
+              showGuestName,
+              accent: colors.accent || "#c9a24b",
+              primary: colors.title || colors.text || "#f5f0e6",
+              muted: colors.muted || "#b9b3a7",
+              headingFont: fonts.heading || "'Playfair Display', Georgia, serif",
+              gateBg: bg.gateColor || "",
+            }}
+          />
+        </div>
+
+        {/* Opening behaviour — animation, keep cover, open-button color */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Opening behaviour</div>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={coverOpts.animateOpen}
+              onChange={(e) => setCoverOpts((o) => ({ ...o, animateOpen: e.target.checked }))} />
+            Animate when the cover opens into the pages
+          </label>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={coverOpts.keepCoverAfterOpen}
+              onChange={(e) => setCoverOpts((o) => ({ ...o, keepCoverAfterOpen: e.target.checked }))} />
+            Keep the cover as the first page after opening
+          </label>
+          <p style={s.hint}>Turn off &ldquo;keep cover&rdquo; to land guests straight on the content — the cover then lives only as the opening gate.</p>
+          <Field label="“Open” button color">
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <ColorField value={coverOpts.openButtonColor} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonColor: v }))} />
+              {coverOpts.openButtonColor && (
+                <button type="button" style={s.smallGhost} onClick={() => setCoverOpts((o) => ({ ...o, openButtonColor: "" }))}>Use theme color</button>
+              )}
+            </div>
+          </Field>
+        </div>
+        </>
+        )}
+
+        {step === "sections" && (
+        <>
         {/* Languages — bilingual invitation */}
         <div style={s.card}>
           <div style={s.cardTitle}>Languages</div>
@@ -867,7 +1255,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         </>
         )}
 
-        {tab === "design" && (designLocked ? (
+        {step === "basics" && (designLocked ? (
           <div style={s.card}>
             <div style={s.cardTitle}>🔒 Design locked</div>
             <p style={s.hint}>
@@ -881,11 +1269,11 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         ) : (
         <>
         {/* Font scheme — Title / Header / Body (theme setup stage) */}
-        <div style={s.card}>
-          <div style={s.cardTitle}>Font scheme</div>
+        <details style={s.card}>
+          <summary style={s.collapsibleTitle}>▸ Fonts</summary>
           <p style={s.hint}>Sets the typography for the whole invitation. Individual sections can fine-tune on top via their “Text style” panel.</p>
           <Field label="Title font — covers, big headings">
-            <FontPicker value={fonts.heading} onChange={(v) => setFonts((f) => ({ ...f, heading: v }))} options={HEADING_FONTS} />
+            <FontPicker value={fonts.heading} onChange={(v) => setFonts((f) => ({ ...f, heading: v }))} options={HEADING_FONTS} previewText={headingPreview} />
           </Field>
           <Field label="Title color">
             <ColorField value={colors.title ?? ""} onChange={(v) => setColors((c) => setOrClear(c, "title", v))} />
@@ -894,13 +1282,13 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
             <SizeField value={fonts.headingScale} onChange={(v) => setFonts((f) => ({ ...f, headingScale: v }))} />
           </Field>
           <Field label="Header font — section labels">
-            <FontPicker value={fonts.header} onChange={(v) => setFonts((f) => ({ ...f, header: v }))} options={HEADING_FONTS} />
+            <FontPicker value={fonts.header} onChange={(v) => setFonts((f) => ({ ...f, header: v }))} options={HEADING_FONTS} previewText={sectionTitlePreview} />
           </Field>
           <Field label="Header color">
             <ColorField value={colors.header ?? ""} onChange={(v) => setColors((c) => setOrClear(c, "header", v))} />
           </Field>
           <Field label="Body font — paragraphs & details">
-            <FontPicker value={fonts.body} onChange={(v) => setFonts((f) => ({ ...f, body: v }))} options={BODY_FONTS} />
+            <FontPicker value={fonts.body} onChange={(v) => setFonts((f) => ({ ...f, body: v }))} options={BODY_FONTS} previewText={bodyPreview} />
           </Field>
           <Field label="Body color">
             <ColorField value={colors.body ?? ""} onChange={(v) => setColors((c) => setOrClear(c, "body", v))} />
@@ -908,7 +1296,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           <Field label="Body size">
             <SizeField value={fonts.bodyScale} onChange={(v) => setFonts((f) => ({ ...f, bodyScale: v }))} />
           </Field>
-        </div>
+        </details>
 
         {/* Colors */}
         <div style={s.card}>
@@ -932,8 +1320,8 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         </div>
 
         {/* Backgrounds — media (image / GIF / motion video), plain color, blur */}
-        <div style={s.card}>
-          <div style={s.cardTitle}>Backgrounds</div>
+        <details style={s.card}>
+          <summary style={s.collapsibleTitle}>▸ Backgrounds (cover, sections &amp; desktop)</summary>
 
           <div style={s.subHead}>Cover (opening page)</div>
           <p style={s.hint}>The cover media is uploaded in Content → “Gate / cover background”. Without media, the color below is used.</p>
@@ -957,32 +1345,66 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           <Field label="Background blur">
             <SizeField value={bg.sectionBlur} onChange={(v) => setBg((b) => ({ ...b, sectionBlur: Math.round(v) }))} min={0} max={20} step={1} unit="px" />
           </Field>
-        </div>
+          <Field label="Background dim">
+            <label style={s.checkRow}>
+              <input type="checkbox" checked={sectionOverlay.enabled}
+                onChange={(e) => setSectionOverlay((o) => ({ ...o, enabled: e.target.checked }))} />
+              Darken the background media for readability
+            </label>
+          </Field>
+          {sectionOverlay.enabled && (
+            <>
+              <Field label="Dim color">
+                <ColorField value={sectionOverlay.color} onChange={(v) => setSectionOverlay((o) => ({ ...o, color: v }))} />
+              </Field>
+              <Field label="Dim strength">
+                <SizeField
+                  value={Math.round(sectionOverlay.opacity * 100)}
+                  onChange={(v) => setSectionOverlay((o) => ({ ...o, opacity: Math.max(0, Math.min(100, Math.round(v))) / 100 }))}
+                  min={0} max={100} step={5} unit="%"
+                />
+              </Field>
+            </>
+          )}
+          <p style={s.hint}>Fits inside the portrait invite only — it never bleeds into the wide desktop backdrop below. The dim only applies when a background image/video is set.</p>
+
+          <div style={s.subHead}>Desktop backdrop (around the portrait invite)</div>
+          <p style={s.hint}>A separate image or color filling the area around the invite on wide screens. Not shown on mobile — the invite already fills the screen there.</p>
+          <Field label="Background image">
+            <ImgField value={outerBg.url} onChange={(url) => setOuterBg((b) => ({ ...b, url }))} />
+          </Field>
+          <Field label="Plain color (no image)">
+            <ColorField value={outerBg.color} onChange={(v) => setOuterBg((b) => ({ ...b, color: v }))} />
+          </Field>
+        </details>
 
         {/* Monogram placement */}
         <div style={s.card}>
           <div style={s.cardTitle}>Monogram</div>
           <p style={s.hint}>Upload the monogram image in Content → Cover. Choose where it appears:</p>
-          <label style={s.checkRow}>
-            <input type="checkbox" checked={monogram.gate} onChange={(e) => setMonogram((m) => ({ ...m, gate: e.target.checked }))} />
+          {!hasLogo && <p style={s.hint}><strong>No monogram uploaded yet</strong> — upload one in Content → Cover to enable these.</p>}
+          <label style={{ ...s.checkRow, opacity: hasLogo ? 1 : 0.5, cursor: hasLogo ? "pointer" : "default" }}>
+            <input type="checkbox" checked={hasLogo && monogram.gate} disabled={!hasLogo}
+              onChange={(e) => setMonogram((m) => ({ ...m, gate: e.target.checked }))} />
             On the opening gate (landing screen)
           </label>
-          <label style={s.checkRow}>
-            <input type="checkbox" checked={monogram.sections} onChange={(e) => setMonogram((m) => ({ ...m, sections: e.target.checked }))} />
+          <label style={{ ...s.checkRow, opacity: hasLogo ? 1 : 0.5, cursor: hasLogo ? "pointer" : "default" }}>
+            <input type="checkbox" checked={hasLogo && monogram.sections} disabled={!hasLogo}
+              onChange={(e) => setMonogram((m) => ({ ...m, sections: e.target.checked }))} />
             On the cover section (after opening)
           </label>
         </div>
         </>
         ))}
 
-        {tab === "buttons" && (
+        {step === "buttons" && (
         <div style={s.card}>
           <div style={s.cardTitle}>Floating buttons</div>
           <p style={s.hint}>The action buttons floating over the invitation (RSVP, gift, map, music).</p>
 
           <Field label="Position">
             <div style={{ display: "flex", gap: "0.35rem" }}>
-              {([["right", "Right stack"], ["left", "Left stack"], ["bar", "Bottom bar"]] as const).map(([v, l]) => (
+              {([["right", "Right stack"], ["left", "Left stack"], ["bar", "Bottom tab bar"]] as const).map(([v, l]) => (
                 <button key={v} type="button"
                   style={{ ...s.smallBtn, ...(fab.position === v ? s.smallBtnOn : {}) }}
                   onClick={() => setFab((f) => ({ ...f, position: v }))}>
@@ -991,6 +1413,29 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
               ))}
             </div>
           </Field>
+          {fab.position === "bar" && (
+            <p style={s.hint}>Bottom tab bar renders as one connected bar docked to the edge, like a regular app&apos;s tab bar.</p>
+          )}
+
+          <div style={s.subHead}>Colors</div>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={!actionButton} onChange={(e) => setActionButton(e.target.checked ? null : { bg: "#1a1a1a", color: "#ffffff" })} />
+            Use theme&apos;s own colors
+          </label>
+          {actionButton ? (
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "0.7rem", color: "var(--c-muted)" }}>
+                Button color
+                <ColorField value={actionButton.bg} onChange={(v) => setActionButton((a) => ({ bg: v, color: a?.color ?? "#ffffff" }))} />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "0.7rem", color: "var(--c-muted)" }}>
+                Icon color
+                <ColorField value={actionButton.color} onChange={(v) => setActionButton((a) => ({ bg: a?.bg ?? "#1a1a1a", color: v }))} />
+              </label>
+            </div>
+          ) : (
+            <p style={s.hint}>Uncheck to pick a custom button color and icon color.</p>
+          )}
 
           <Field label="Style">
             <div style={{ display: "flex", gap: "0.35rem" }}>
@@ -1032,7 +1477,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         </div>
         )}
 
-        {tab === "guide" && (
+        {step === "guide" && (
         <div style={s.card}>
           <div style={s.cardTitle}>Guidance overlay</div>
           <p style={s.hint}>A one-time hint shown after the guest opens the invitation, guiding them to scroll. It dismisses on tap or scroll.</p>
@@ -1072,14 +1517,19 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         )}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
-          <span style={{ fontSize: "0.75rem", color: "var(--c-muted)" }}>
-            Changes save automatically — or use <strong style={{ color: "var(--c-text)" }}>Save now</strong>.
-          </span>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button type="button" style={{ ...s.smallBtn, visibility: stepIdx === 0 ? "hidden" : "visible" }}
+            onClick={() => goStep(stepIdx - 1)}>← Back</button>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <button type="button" style={{ ...s.saveBtn, ...saveVariant }} disabled={status === "saving"} onClick={saveNow}>
               {saveLabel}
             </button>
-            <Link href={`/admin/events/${event.id}/publish`} style={s.nextBtn}>Next: Publish →</Link>
+            {stepIdx < STEPS.length - 1 ? (
+              <button type="button" style={s.nextBtn} onClick={() => goStep(stepIdx + 1)}>
+                Next: {STEPS[stepIdx + 1].label} →
+              </button>
+            ) : (
+              <Link href={`/admin/events/${event.id}/publish`} style={s.nextBtn}>Next: Publish →</Link>
+            )}
           </div>
         </div>
       </div>
@@ -1089,18 +1539,28 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         <div style={s.previewBar}>
           <span style={{ fontSize: "0.8rem", color: "var(--c-muted)" }}>Live preview — real guest experience</span>
           <div style={{ display: "flex", gap: "0.4rem" }}>
-            <button type="button" style={s.smallBtn} onClick={() => setPreviewV((v) => v + 1)}>↻ Reload</button>
+            <button type="button" style={s.smallBtn} onClick={() => reloadRef.current()}>↻ Reload</button>
             <a href={`/invite/${event.slug}?preview=1`} target="_blank" rel="noreferrer" style={s.smallBtn}>Open ↗</a>
           </div>
         </div>
         <div style={s.phone}>
-          <iframe
-            key={previewV}
-            ref={iframeRef}
-            src={`/invite/${event.slug}?preview=1&v=${previewV}${openType && openType !== "cover" ? `&focus=${openType}` : ""}`}
-            style={s.phoneScreen}
-            title="Live invitation preview"
-          />
+          {[0, 1].map((i) => (
+            <iframe
+              key={i}
+              ref={(el) => { frameRefs.current[i] = el; }}
+              src={srcs[i]}
+              onLoad={() => onFrameLoad(i)}
+              style={{
+                ...s.phoneScreen,
+                position: "absolute",
+                inset: 0,
+                opacity: front === i ? 1 : 0,
+                transition: "opacity 200ms ease",
+                pointerEvents: front === i ? "auto" : "none",
+              }}
+              title="Live invitation preview"
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -1125,6 +1585,7 @@ const s = {
 
   card: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "1rem", display: "flex", flexDirection: "column" as const, gap: "0.6rem" },
   cardTitle: { fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--c-muted)", display: "flex", alignItems: "center" },
+  collapsibleTitle: { fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--c-text)", cursor: "pointer", listStyle: "none" as const, userSelect: "none" as const },
   hint: { margin: 0, fontSize: "0.72rem", color: "var(--c-muted)" },
   subHead: { fontSize: "0.7rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--c-muted)", marginTop: "0.5rem" },
 
@@ -1136,10 +1597,20 @@ const s = {
 
   smallBtn: { padding: "0.35rem 0.7rem", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-text)", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", textDecoration: "none" },
   smallBtnOn: { background: "var(--c-accent)", color: "#fff", border: "1px solid var(--c-accent)" },
+  iconChoice: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, padding: 2, borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-muted)", cursor: "pointer" },
+  iconChoiceOn: { border: "2px solid var(--c-accent)", background: "var(--c-accent-soft)", color: "var(--c-text)" },
 
   tabBar: { display: "flex", gap: "0.25rem", borderBottom: "1px solid var(--c-border)", paddingBottom: 0 },
   tabBtn: { padding: "0.5rem 0.9rem", border: "none", background: "transparent", color: "var(--c-muted)", fontSize: "0.84rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
   tabBtnOn: { color: "var(--c-accent)", boxShadow: "inset 0 -2px 0 var(--c-accent)" },
+
+  stepper: { display: "flex", gap: "0.3rem", flexWrap: "wrap" as const, padding: "0.3rem 0.1rem", borderBottom: "1px solid var(--c-border)", paddingBottom: "0.6rem" },
+  stepChip: { display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.3rem 0.6rem", borderRadius: 999, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-muted)", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" },
+  stepChipOn: { border: "1px solid var(--c-accent)", color: "var(--c-text)", background: "var(--c-accent-soft)" },
+  stepLabel: { whiteSpace: "nowrap" as const },
+  stepNum: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: "var(--c-surface)", border: "1px solid var(--c-border)", fontSize: "0.65rem", fontWeight: 700, flexShrink: 0 },
+  stepNumOn: { background: "var(--c-accent)", color: "#fff", border: "1px solid var(--c-accent)" },
+  stepNumDone: { background: "#22c55e", color: "#fff", border: "1px solid #22c55e" },
 
   dragHandle: { cursor: "grab", color: "var(--c-muted)", fontSize: "0.9rem", padding: "0 0.25rem", userSelect: "none" as const, touchAction: "none" as const },
   modeBadge: { fontSize: "0.6rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", color: "var(--c-accent)", background: "var(--c-accent-soft)", borderRadius: 5, padding: "0.1rem 0.4rem" },
@@ -1157,6 +1628,6 @@ const s = {
 
   previewCol: { width: 420, flexShrink: 0, position: "sticky" as const, top: "1rem" },
   previewBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" },
-  phone: { width: 395, height: 780, margin: "0 auto", borderRadius: 34, border: "10px solid #16181d", boxShadow: "0 20px 60px rgba(0,0,0,0.35)", overflow: "hidden", background: "#000" },
+  phone: { position: "relative" as const, width: 395, height: 780, margin: "0 auto", borderRadius: 34, border: "10px solid #16181d", boxShadow: "0 20px 60px rgba(0,0,0,0.35)", overflow: "hidden", background: "#11151c" },
   phoneScreen: { width: 375, height: 760, border: "none", display: "block" },
 } as const;

@@ -370,7 +370,7 @@ export default async function InvitePage({
     (pkg?.hasKhqr ?? false) &&
     activeSections.some((sec) => sec.type === "khqr" && khqrItems(sec.content as Parameters<typeof khqrItems>[0]).length > 0);
 
-  const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string; logoUrl?: string } | undefined;
+  const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string; logoUrl?: string; subheading?: string; greeting?: string } | undefined;
   // Gate monogram = the uploaded logo only. Removing the logo removes the
   // monogram (no silent fallback to the cover image).
   const gateMonogramUrl = coverContent?.logoUrl || null;
@@ -382,6 +382,15 @@ export default async function InvitePage({
     : activeSections.filter((s) => s.type !== "cover");
 
   let altIndex = 0;
+  // Anchor ids must be unique: the first section of each type keeps the plain
+  // `inv-sec-<type>` id (what PreviewFocus / the gift button look up); repeats
+  // of the same type get a numbered suffix so the DOM has no duplicate ids.
+  const typeSeen = new Map<string, number>();
+  const anchorId = (type: string) => {
+    const n = typeSeen.get(type) ?? 0;
+    typeSeen.set(type, n + 1);
+    return n === 0 ? `inv-sec-${type}` : `inv-sec-${type}-${n}`;
+  };
 
   const shell = (
     <div
@@ -396,7 +405,7 @@ export default async function InvitePage({
 
         if (sec.type === "cover") {
           return (
-            <div key={sec.id} id="inv-sec-cover">
+            <div key={sec.id} id={anchorId("cover")}>
               {layout.wrapCover ? layout.wrapCover(node, tokens) : node}
             </div>
           );
@@ -409,7 +418,7 @@ export default async function InvitePage({
 
         // Anchor per section — used by the editor's live preview (focus) and
         // the floating gift button (khqr).
-        return <div key={sec.id} id={`inv-sec-${sec.type}`}>{wrapped}</div>;
+        return <div key={sec.id} id={anchorId(sec.type)}>{wrapped}</div>;
       })}
 
       {layout.footer?.({ tokens, eventTitle: data.event.title })}
@@ -456,6 +465,18 @@ export default async function InvitePage({
       <link rel="stylesheet" href={buildFontsHref(themeMod.fonts)} />
       <style dangerouslySetInnerHTML={{ __html: STANDARD_CSS + (themeMod.css ?? "") }} />
 
+      {/* Desktop-only backdrop around the portrait invite — a distinct image/color
+          from the Sections background below, which is scoped to the portrait column. */}
+      {(page.outerBg.url || page.outerBg.color) && (
+        <div className="inv-outer-bg">
+          {page.outerBg.url ? (
+            <div className="inv-outer-bg-media" style={{ backgroundImage: `url(${page.outerBg.url})` }} />
+          ) : (
+            <div className="inv-outer-bg-media" style={{ background: page.outerBg.color! }} />
+          )}
+        </div>
+      )}
+
       {/* Sections background — media (image / GIF / motion video) or a plain
           admin-picked color; the gate renders its own bg on top */}
       {(bgUrl || page.bgColor) && (
@@ -483,9 +504,11 @@ export default async function InvitePage({
           ) : (
             <div className="inv-fixed-bg-media" style={{ background: page.bgColor! }} />
           )}
-          {showBgScrim && <div className="inv-fixed-bg-scrim" />}
-          {page.sectionOverlay.enabled && (
-            <div style={{ position: "absolute", inset: 0, background: page.sectionOverlay.color, opacity: page.sectionOverlay.opacity }} />
+          {showBgScrim && page.sectionOverlay.enabled && (
+            <div
+              className="inv-fixed-bg-scrim"
+              style={{ background: page.sectionOverlay.color, opacity: page.sectionOverlay.opacity }}
+            />
           )}
         </div>
       )}
@@ -493,6 +516,8 @@ export default async function InvitePage({
       {showOpeningCover ? (
         <InviteGate
           eventTitle={data.event.title}
+          pretitle={coverContent?.greeting}
+          subheading={coverContent?.subheading}
           guestName={guestName}
           guestLabel={coverContent?.guestLabel}
           theme={gateTokens}
@@ -500,6 +525,8 @@ export default async function InvitePage({
           coverUrl={gateMonogramUrl}
           gateOverlay={gate.overlay}
           revealStyle={gate.revealStyle}
+          animateOpen={gate.animateOpen}
+          openButtonColor={gate.openButtonColor}
           scrollGuide={gate.scrollGuide}
           guideText={gate.guideText}
           hand={gate.hand}

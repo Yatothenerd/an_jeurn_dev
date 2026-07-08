@@ -19,7 +19,7 @@ import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib
 import {
   type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
   type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type IdleAnim, type SectionBg, type HandAnim, type Interaction,
-  type Background, type BgKind, type CoverMoveKind, type OverlayButtons, type OverlayLayout, type OverlayShape,
+  type Background, type BgKind, type CoverMoveKind, type OverlayButtons, type OverlayLayout, type OverlayShape, type GuestNamePreset,
   PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles,
 } from "@/lib/builder/canvas";
 
@@ -88,13 +88,15 @@ function mkSection(kind: SectionKind, name: string, extra: Partial<Section> = {}
     blocks: [{ id: uid(), text: "", font: DEFAULT_FONTS.body, color: "#ffffff" }],
     columns: 1, imageUrl: "", imageScalePct: 100, agenda: [],
     gallery: [], aba: { qrUrl: "", name: "", note: "" }, map: { url: "", imageUrl: "" },
-    wishing: { placeholder: "Leave us a sweet message…" }, anim: "fade", ...extra,
+    wishing: { placeholder: "Leave us a sweet message…" },
+    countdown: { showDays: true, showHours: true, showMinutes: true },
+    anim: "fade", ...extra,
   };
 }
 
 const SECTION_LABELS: Record<SectionKind, string> = {
   wording: "Formal Wording", agenda: "Agenda", memory: "Memory", aba: "ABA / KHQR",
-  map: "Map", wishing: "Wishing", rsvp: "RSVP", custom: "Custom",
+  map: "Map", wishing: "Wishing", rsvp: "RSVP", countdown: "Countdown", custom: "Custom",
 };
 
 function mkGuide(label: string): GuideState {
@@ -637,7 +639,11 @@ function CoverTab({ st, patch, setSt, onOpenTicket, onReplay, editLang = "kh", s
               <ColorDot value={st.guestName.color} onChange={(v) => patch({ guestName: { ...st.guestName, color: v } })} />
             </div>
             <Slider label="Size" min={11} max={40} suffix="px" value={st.guestName.size} onChange={(v) => patch({ guestName: { ...st.guestName, size: v } })} />
-            <p className="eb-muted eb-sm" style={{ margin: 0 }}>The guest&apos;s real name replaces this on the live invite. Drag on the preview to position.</p>
+            <UploadBox label="Decorative frame (optional)" accept="image/png,image/webp,image/svg+xml,image/jpeg" value={st.guestName.frameUrl ?? ""} onChange={(url) => patch({ guestName: { ...st.guestName, frameUrl: url } })} />
+            {st.guestName.frameUrl && (
+              <Slider label="Frame size" min={20} max={100} suffix="%" value={st.guestName.frameScalePct ?? 60} onChange={(v) => patch({ guestName: { ...st.guestName, frameScalePct: v } })} />
+            )}
+            <p className="eb-muted eb-sm" style={{ margin: 0 }}>The guest&apos;s real name replaces this on the live invite. Drag on the preview to position, click it to edit font/size/color.</p>
           </div>
         )}
       </div>
@@ -756,7 +762,7 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
     <div className="eb-stack">
       {/* Content background — separate from the cover background */}
       {!hideBg && <div className="eb-card">
-        <div className="eb-cardhead">Content Background</div>
+        <div className="eb-cardhead">Sections Background</div>
         <BackgroundEditor value={st.contentBg} onChange={(b) => patch({ contentBg: b })} />
       </div>}
 
@@ -841,7 +847,7 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
         })}
         <select className="eb-input eb-addsection" value="" onChange={(e) => { if (e.target.value) addSection(e.target.value as SectionKind); }}>
           <option value="">+ Add section…</option>
-          {(["wording", "agenda", "memory", "aba", "map", "wishing", "rsvp", "custom"] as SectionKind[]).map((k) => (
+          {(["wording", "agenda", "memory", "aba", "map", "wishing", "rsvp", "countdown", "custom"] as SectionKind[]).map((k) => (
             <option key={k} value={k}>{SECTION_LABELS[k]}</option>
           ))}
         </select>
@@ -871,6 +877,28 @@ function SectionBgEditor({ sec, setSection }: { sec: Section; setSection: (id: s
   );
 }
 
+function AgendaIconUpload({ value, onChange, onClear }: { value: string; onChange: (url: string) => void; onClear: () => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  async function handle(file: File) {
+    setBusy(true);
+    try {
+      const fd = new FormData(); fd.append("file", file); fd.append("folder", "builder");
+      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const j = (await res.json()) as { url?: string };
+      if (j.url) onChange(j.url);
+    } catch { /* ignore */ } finally { setBusy(false); }
+  }
+  return (
+    <>
+      <button type="button" className="eb-iconbtn" title={value ? "Replace icon image" : "Use an image icon instead"} disabled={busy} onClick={() => ref.current?.click()}>🖼</button>
+      {value && <button type="button" className="eb-iconbtn" title="Remove image, use emoji" onClick={onClear}>↺</button>}
+      <input ref={ref} type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" hidden
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void handle(f); e.target.value = ""; }} />
+    </>
+  );
+}
+
 function AgendaEditor({ sec, setSection }: { sec: Section; setSection: (id: string, p: Partial<Section>) => void }) {
   const set = (iid: string, p: Partial<AgendaItem>) =>
     setSection(sec.id, { agenda: sec.agenda.map((a) => (a.id === iid ? { ...a, ...p } : a)) });
@@ -881,10 +909,11 @@ function AgendaEditor({ sec, setSection }: { sec: Section; setSection: (id: stri
       {sec.agenda.map((a) => (
         <div key={a.id} className="eb-agenda">
           <div className="eb-agendatop">
-            <label className="eb-iconup" title="Upload / set icon" data-off={!a.showIcon}>
-              <span>{a.icon || "＋"}</span>
-              <input value={a.icon} onChange={(e) => set(a.id, { icon: e.target.value.slice(0, 2) })} />
+            <label className="eb-iconup" title="Emoji icon" data-off={!a.showIcon}>
+              {a.iconUrl ? <img src={a.iconUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 7 }} /> : <span>{a.icon || "＋"}</span>}
+              {!a.iconUrl && <input value={a.icon} onChange={(e) => set(a.id, { icon: e.target.value.slice(0, 2) })} />}
             </label>
+            <AgendaIconUpload value={a.iconUrl ?? ""} onChange={(url) => set(a.id, { iconUrl: url })} onClear={() => set(a.id, { iconUrl: "" })} />
             <input className="eb-input" style={{ width: 100 }} placeholder="Time" value={a.time} onChange={(e) => set(a.id, { time: e.target.value })} />
             <input className="eb-input" placeholder="Event name" value={a.name} onChange={(e) => set(a.id, { name: e.target.value })} />
             <button type="button" className="eb-iconbtn eb-danger" onClick={() => rm(a.id)}>✕</button>
@@ -960,6 +989,17 @@ function SectionKindEditor({ sec, setSection, setBlock, addBlock, removeBlock, h
       <Field label="Input placeholder"><input className="eb-input" value={sec.wishing.placeholder} onChange={(e) => setSection(sec.id, { wishing: { ...sec.wishing, placeholder: e.target.value } })} /></Field>
     );
     case "rsvp": return <p className="eb-muted eb-sm" style={{ margin: 0 }}>Shows an RSVP button on the invitation. Responses appear under the event&apos;s guest list.</p>;
+    case "countdown": {
+      const cd = sec.countdown ?? { showDays: true, showHours: true, showMinutes: true };
+      return (
+        <div className="eb-stack">
+          <p className="eb-muted eb-sm" style={{ margin: 0 }}>Counts down to the event date &amp; time set in the Setup step. Choose which units to show:</p>
+          <div className="eb-rowbetween"><span className="eb-flbl">Days</span><Toggle on={cd.showDays} onChange={(v) => setSection(sec.id, { countdown: { ...cd, showDays: v } })} /></div>
+          <div className="eb-rowbetween"><span className="eb-flbl">Hours</span><Toggle on={cd.showHours} onChange={(v) => setSection(sec.id, { countdown: { ...cd, showHours: v } })} /></div>
+          <div className="eb-rowbetween"><span className="eb-flbl">Minutes</span><Toggle on={cd.showMinutes} onChange={(v) => setSection(sec.id, { countdown: { ...cd, showMinutes: v } })} /></div>
+        </div>
+      );
+    }
     default: {
       const setEnBlockText = (idx: number, text: string) => {
         const base = sec.blocksEn?.length ? [...sec.blocksEn] : sec.blocks.map((b) => ({ ...b, id: uid(), text: "" }));
@@ -1186,7 +1226,11 @@ function IdentityStep({ st, patch }: { st: BuilderState; patch: (p: Partial<Buil
               <ColorDot value={st.guestName.color} onChange={(v) => patch({ guestName: { ...st.guestName, color: v } })} />
             </div>
             <Slider label="Size" min={11} max={40} suffix="px" value={st.guestName.size} onChange={(v) => patch({ guestName: { ...st.guestName, size: v } })} />
-            <p className="eb-muted eb-sm" style={{ margin: 0 }}>The guest&apos;s real name replaces this on the live invite. Drag on the preview to position.</p>
+            <UploadBox label="Decorative frame (optional)" accept="image/png,image/webp,image/svg+xml,image/jpeg" value={st.guestName.frameUrl ?? ""} onChange={(url) => patch({ guestName: { ...st.guestName, frameUrl: url } })} />
+            {st.guestName.frameUrl && (
+              <Slider label="Frame size" min={20} max={100} suffix="%" value={st.guestName.frameScalePct ?? 60} onChange={(v) => patch({ guestName: { ...st.guestName, frameScalePct: v } })} />
+            )}
+            <p className="eb-muted eb-sm" style={{ margin: 0 }}>The guest&apos;s real name replaces this on the live invite. Drag on the preview to position, click it to edit font/size/color.</p>
           </div>
         )}
       </div>
@@ -1237,6 +1281,16 @@ function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, 
               <div><div className="eb-flbl">Open button</div><div className="eb-muted eb-sm">Guests tap the button to open the invitation</div></div>
               <Toggle on={st.showOpenBtn ?? true} onChange={(v) => patch({ showOpenBtn: v })} />
             </div>
+            {(st.showOpenBtn ?? true) && (
+              <div className="eb-rowbetween">
+                <div><div className="eb-flbl">Open button color</div><div className="eb-muted eb-sm">Label &amp; border color (default white)</div></div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <input type="color" style={{ width: 34, height: 26, padding: 0, border: "1px solid var(--c-border)", borderRadius: 6, background: "none", cursor: "pointer" }}
+                    value={st.openBtnColor || "#ffffff"} onChange={(e) => patch({ openBtnColor: e.target.value })} />
+                  {st.openBtnColor && <button type="button" className="eb-resetpos" onClick={() => patch({ openBtnColor: undefined })}>reset</button>}
+                </div>
+              </div>
+            )}
             <div className="eb-rowbetween">
               <div><div className="eb-flbl">Scroll to open</div><div className="eb-muted eb-sm">Swiping / scrolling up on the cover opens it</div></div>
               <Toggle on={st.openOnScroll ?? false} onChange={(v) => patch({ openOnScroll: v })} />
@@ -1248,6 +1302,27 @@ function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, 
               <div><div className="eb-flbl">Show monogram on cover</div><div className="eb-muted eb-sm">The logo uploaded in the Identity step</div></div>
               <Toggle on={st.monogram.showCover} onChange={(v) => patch({ monogram: { ...st.monogram, showCover: v } })} />
             </div>
+          </div>
+
+          <div className="eb-card">
+            <div className="eb-cardhead eb-rowbetween">Guest name <Toggle on={st.guestName.enabled} onChange={(v) => patch({ guestName: { ...st.guestName, enabled: v } })} /></div>
+            {st.guestName.enabled && (
+              <div className="eb-stack">
+                <Field label="Placeholder text"><input className="eb-input" value={st.guestName.text} onChange={(e) => patch({ guestName: { ...st.guestName, text: e.target.value } })} /></Field>
+                <div className="eb-blockctl">
+                  <select className="eb-input eb-fontsel" style={{ fontFamily: st.guestName.font }} value={st.guestName.font} onChange={(e) => patch({ guestName: { ...st.guestName, font: e.target.value } })}>
+                    {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
+                  </select>
+                  <ColorDot value={st.guestName.color} onChange={(v) => patch({ guestName: { ...st.guestName, color: v } })} />
+                </div>
+                <Slider label="Size" min={11} max={40} suffix="px" value={st.guestName.size} onChange={(v) => patch({ guestName: { ...st.guestName, size: v } })} />
+                <UploadBox label="Decorative frame (optional)" accept="image/png,image/webp,image/svg+xml,image/jpeg" value={st.guestName.frameUrl ?? ""} onChange={(url) => patch({ guestName: { ...st.guestName, frameUrl: url } })} />
+                {st.guestName.frameUrl && (
+                  <Slider label="Frame size" min={20} max={100} suffix="%" value={st.guestName.frameScalePct ?? 60} onChange={(v) => patch({ guestName: { ...st.guestName, frameScalePct: v } })} />
+                )}
+                <p className="eb-muted eb-sm" style={{ margin: 0 }}>The guest&apos;s real name replaces this on the live invite. Drag on the preview to position, click it to edit font/size/color.</p>
+              </div>
+            )}
           </div>
 
           <div className="eb-card">
@@ -1291,8 +1366,9 @@ function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, 
       {subTab === "sections" && (
         <div className="eb-stack">
           <div className="eb-card">
-            <div className="eb-cardhead">Content Background</div>
+            <div className="eb-cardhead">Sections Background</div>
             <BackgroundEditor value={st.contentBg} onChange={(b) => patch({ contentBg: b })} />
+            <p className="eb-muted eb-sm" style={{ margin: 0 }}>One shared photo/video behind every section, sized to the portrait invite. For the area around the invite on wide desktop screens, see &quot;Desktop Background&quot; in the Assets step.</p>
           </div>
           <ContentTab
             st={st} patch={patch} setSection={setSection} addSection={addSection}
@@ -1733,6 +1809,8 @@ function DeviceFrame({ st, step, animKey, coverOpen, setCoverOpen, editOnScreen,
     setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.map((b) => b.id === id ? { ...b, ...p } : b) }));
   const resizeMono = (scalePct: number) =>
     setSt((s) => ({ ...s, monogram: { ...s.monogram, scalePct } }));
+  const editGuestName = (p: Partial<GuestNamePreset>) =>
+    setSt((s) => ({ ...s, guestName: { ...s.guestName, ...p } }));
   const editContentBlock = (secId: string, blockId: string, text: string) =>
     setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.map((b) => b.id === blockId ? { ...b, text } : b) } : x) }));
   // Canva-style on-screen editing — style/position patches from the preview.
@@ -1774,6 +1852,7 @@ function DeviceFrame({ st, step, animKey, coverOpen, setCoverOpen, editOnScreen,
               onEditCoverBlock={editOnScreen ? editCoverBlock : undefined}
               fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
               onResizeMono={editOnScreen ? resizeMono : undefined}
+              onEditGuestName={editOnScreen ? editGuestName : undefined}
               onOpen={() => setCoverOpen(true)} animKey={animKey}
               locked={coverLocked} onVideoEnded={() => setVideoEnded(true)}
               lang={previewLang} />
@@ -1785,6 +1864,7 @@ function DeviceFrame({ st, step, animKey, coverOpen, setCoverOpen, editOnScreen,
               onEditCoverBlock={editOnScreen ? editCoverBlock : undefined}
               fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
               onResizeMono={editOnScreen ? resizeMono : undefined}
+              onEditGuestName={editOnScreen ? editGuestName : undefined}
               onOpen={() => setCoverOpen(true)} animKey={animKey}
               locked={coverLocked} onVideoEnded={() => setVideoEnded(true)}
               lang={previewLang} />
@@ -1817,6 +1897,7 @@ function DeviceFrame({ st, step, animKey, coverOpen, setCoverOpen, editOnScreen,
                 onEditCoverBlock={editOnScreen ? editCoverBlock : undefined}
                 fontOptions={editOnScreen ? FONT_OPTIONS : undefined}
                 onResizeMono={editOnScreen ? resizeMono : undefined}
+                onEditGuestName={editOnScreen ? editGuestName : undefined}
                 onOpen={() => setCoverOpen(true)} animKey={animKey}
                 locked={coverLocked} onVideoEnded={() => setVideoEnded(true)}
                 lang={previewLang} />

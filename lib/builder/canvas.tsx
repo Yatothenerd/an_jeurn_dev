@@ -7,6 +7,7 @@
  */
 
 import { useRef, useState, useEffect } from "react";
+import { useCountdown } from "@/lib/themes/shared/use-countdown";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -38,15 +39,20 @@ export interface SectionBlock { id: string; text: string; font: string; color: s
 /** Monogram / logo image shown on cover and/or content. */
 export interface Monogram { url: string; scalePct: number; pos: Pos; showCover: boolean; showContent: boolean }
 /** Guest-name placeholder shown on the cover (real name injected on the live invite). */
-export interface GuestNamePreset { enabled: boolean; text: string; font: string; color: string; size: number; pos: Pos }
-export interface AgendaItem { id: string; icon: string; showIcon: boolean; time: string; name: string }
+export interface GuestNamePreset {
+  enabled: boolean; text: string; font: string; color: string; size: number; pos: Pos;
+  /** Optional decorative frame image shown behind the guest name (e.g. a ribbon/card graphic). */
+  frameUrl?: string; frameScalePct?: number;
+}
+/** `iconUrl`, when set, is shown instead of the emoji `icon`. */
+export interface AgendaItem { id: string; icon: string; showIcon: boolean; time: string; name: string; iconUrl?: string }
 export interface GuideBlock { id: string; text: string; font: string; color: string; xPct: number; yPct: number }
 export interface GuideState {
   enabled: boolean; interaction: Interaction; blocks: GuideBlock[];
   hand: { value: string; isImage: boolean; xPct: number; yPct: number; anim: HandAnim };
 }
 
-export type SectionKind = "wording" | "agenda" | "memory" | "aba" | "map" | "wishing" | "rsvp" | "custom";
+export type SectionKind = "wording" | "agenda" | "memory" | "aba" | "map" | "wishing" | "rsvp" | "countdown" | "custom";
 
 /** Optional per-section background image layered over the shared content bg. */
 export interface SectionBg { imageUrl: string; blur: number; opacity: number; overlayColor: string }
@@ -64,6 +70,8 @@ export interface Section {
   aba: { qrUrl: string; name: string; note: string };
   map: { url: string; imageUrl: string };
   wishing: { placeholder: string };
+  /** Countdown unit toggles — the target date/time is always the event's own dateTime. */
+  countdown?: { showDays: boolean; showHours: boolean; showMinutes: boolean };
   anim: SectionAnim;             // entrance animation when scrolled into view
   idle?: IdleAnim;               // continuous ambient motion (default "none")
   /** Show the cover monogram at the top of this section. Undefined falls back
@@ -105,6 +113,8 @@ export interface BuilderState {
   coverBlocks: CoverBlock[]; openBtnPos: Pos; anim: AnimId; keepCover: boolean;
   /** Show the "Open" button on the cover (default true). */
   showOpenBtn?: boolean;
+  /** Color of the cover "Open" button label + border (default white). */
+  openBtnColor?: string;
   /** Opening the invite by scrolling / swiping up on the cover (default false). */
   openOnScroll?: boolean;
   coverBg: Background; contentBg: Background;
@@ -179,6 +189,17 @@ export function PvSetup({ st }: { st: BuilderState }) {
 // ── Cover — freely drag-positioned elements over a background ─────────────────────
 
 export type CoverMoveKind = "block" | "open" | "mono" | "guest";
+
+/** Snap a percent-based coordinate to the nearest 5% grid line when close enough. */
+function snapPct(v: number, grid = 5, tol = 1.2): number {
+  const n = Math.round(v / grid) * grid;
+  return Math.abs(v - n) <= tol ? n : v;
+}
+/** Snap a pixel nudge (content section drag) to the nearest 8px grid line when close enough. */
+function snapPx(v: number, grid = 8, tol = 3): number {
+  const n = Math.round(v / grid) * grid;
+  return Math.round(Math.abs(v - n) <= tol ? n : v);
+}
 
 function pvHex(c: string): string {
   if (!c) return "#ffffff";
@@ -274,23 +295,25 @@ function TransformHandles({
   );
 }
 
-export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, fontOptions, onResizeMono, onOpen, animKey, locked, onVideoEnded, guestNameValue, lang = "kh" }: {
+export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, fontOptions, onResizeMono, onEditGuestName, onOpen, animKey, locked, onVideoEnded, guestNameValue, lang = "kh" }: {
   st: BuilderState; editable?: boolean;
   onMoveCover?: (kind: CoverMoveKind, id: string | undefined, xPct: number, yPct: number) => void;
   onEditCoverBlock?: (id: string, p: Partial<CoverBlock>) => void;
   fontOptions?: { label: string; stack: string }[];
   onResizeMono?: (scalePct: number) => void;
+  onEditGuestName?: (p: Partial<GuestNamePreset>) => void;
   onOpen?: () => void; animKey?: number; locked?: boolean; onVideoEnded?: () => void; guestNameValue?: string;
   lang?: "kh" | "en";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const blockEls = useRef<Map<string, HTMLDivElement>>(new Map());
   // Extended internal drag state — includes resize kinds not exported on CoverMoveKind
-  type DragState = { kind: CoverMoveKind | "block-resize" | "mono-resize"; id?: string; startSize?: number; startDist?: number; startCx?: number; startCy?: number };
+  type DragState = { kind: CoverMoveKind | "block-resize" | "mono-resize" | "guest-resize"; id?: string; startSize?: number; startDist?: number; startCx?: number; startCy?: number };
   const drag = useRef<DragState | null>(null);
   const moved = useRef(false);
   const startPos = useRef<{ x: number; y: number } | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null); // block id or "mono"
+  const [activeId, setActiveId] = useState<string | null>(null); // block id, "mono" or "guest"
+  const [snapLines, setSnapLines] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const mono = st.monogram;
   const gn = st.guestName;
 
@@ -298,16 +321,19 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
     if (!drag.current || !ref.current) return;
     const d = drag.current;
 
-    if (d.kind === "block-resize" || d.kind === "mono-resize") {
+    if (d.kind === "block-resize" || d.kind === "mono-resize" || d.kind === "guest-resize") {
       if ((d.startDist ?? 0) < 2) { moved.current = true; return; }
       const dist = Math.sqrt((e.clientX - (d.startCx ?? 0)) ** 2 + (e.clientY - (d.startCy ?? 0)) ** 2);
       const ratio = dist / d.startDist!;
       if (d.kind === "block-resize") {
         const sz = Math.max(10, Math.min(100, Math.round((d.startSize ?? 16) * ratio)));
         onEditCoverBlock?.(d.id!, { size: sz });
-      } else {
+      } else if (d.kind === "mono-resize") {
         const sc = Math.max(5, Math.min(90, Math.round((d.startSize ?? 22) * ratio)));
         onResizeMono?.(sc);
+      } else {
+        const sz = Math.max(8, Math.min(80, Math.round((d.startSize ?? 18) * ratio)));
+        onEditGuestName?.({ size: sz });
       }
       moved.current = true;
       return;
@@ -320,8 +346,10 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
     }
     if (!moved.current) return;
     const r = ref.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
+    const rawX = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
+    const rawY = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
+    const x = snapPct(rawX), y = snapPct(rawY);
+    setSnapLines({ x: x !== rawX ? x : null, y: y !== rawY ? y : null });
     onMoveCover(d.kind as CoverMoveKind, d.id, x, y);
   };
   const start = (kind: CoverMoveKind, id?: string) => (e: React.PointerEvent) => {
@@ -335,26 +363,29 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
     const d = drag.current;
     const wasDrag = moved.current;
     drag.current = null;
+    setSnapLines({ x: null, y: null });
     if (!editable) return;
-    if (d?.kind === "block-resize" || d?.kind === "mono-resize") return; // stay active after resize
+    if (d?.kind === "block-resize" || d?.kind === "mono-resize" || d?.kind === "guest-resize") return; // stay active after resize
     if (!wasDrag && d?.kind === "block" && d.id) {
       setActiveId((prev) => (prev === d.id ? null : d.id!));
     } else if (!wasDrag && d?.kind === "mono") {
       setActiveId((prev) => (prev === "mono" ? null : "mono"));
+    } else if (!wasDrag && d?.kind === "guest") {
+      setActiveId((prev) => (prev === "guest" ? null : "guest"));
     } else {
       setActiveId(null);
     }
   };
 
   // Called by TransformHandles corner onPointerDown — center coords are injected
-  const startResize = (id: string | "mono", currentSize: number) => (e: React.PointerEvent) => {
+  const startResize = (id: string, currentSize: number) => (e: React.PointerEvent) => {
     const ex = (e as unknown as { _cx?: number })._cx;
     const ey = (e as unknown as { _cy?: number })._cy;
     const cx = ex ?? e.clientX;
     const cy = ey ?? e.clientY;
     const dist = Math.sqrt((e.clientX - cx) ** 2 + (e.clientY - cy) ** 2);
     drag.current = {
-      kind: id === "mono" ? "mono-resize" : "block-resize",
+      kind: id === "mono" ? "mono-resize" : id === "guest" ? "guest-resize" : "block-resize",
       id,
       startSize: currentSize,
       startDist: Math.max(dist, 10), // minimum threshold
@@ -448,22 +479,55 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
             />
           );
         })()}
-        {gn.enabled && (
-          <div className="pv-guestname" data-edit={editable}
-            style={{ left: `${gn.pos.xPct}%`, top: `${gn.pos.yPct}%`, fontFamily: gn.font, color: gn.color, fontSize: gn.size }}
-            onPointerDown={start("guest")}>
-            {guestNameValue || gn.text}
-          </div>
+        {gn.enabled && gn.frameUrl && (
+          <img className="pv-guestname-frame" src={gn.frameUrl} alt="" draggable={false}
+            style={{ left: `${gn.pos.xPct}%`, top: `${gn.pos.yPct}%`, width: `${gn.frameScalePct ?? 60}%` }} />
+        )}
+        {gn.enabled && (() => {
+          const isActive = editable && activeId === "guest";
+          return (
+            <div ref={(el) => { if (el) blockEls.current.set("guest", el); else blockEls.current.delete("guest"); }}
+              className={`pv-guestname${isActive ? " pv-guestname-active" : ""}`} data-edit={editable}
+              style={{ left: `${gn.pos.xPct}%`, top: `${gn.pos.yPct}%`, fontFamily: gn.font, color: gn.color, fontSize: gn.size }}
+              onPointerDown={start("guest")}>
+              {guestNameValue || gn.text}
+              {isActive && onEditGuestName && (
+                <div className="pv-blocktoolbar" onPointerDown={(e) => e.stopPropagation()}
+                  style={{ [gn.pos.yPct < 55 ? "top" : "bottom"]: "calc(100% + 8px)" }}>
+                  {fontOptions && fontOptions.length > 0 && (
+                    <select className="pv-tsel" value={gn.font}
+                      onChange={(e) => onEditGuestName({ font: e.target.value })}>
+                      {fontOptions.map((f) => <option key={f.label} value={f.stack}>{f.label}</option>)}
+                    </select>
+                  )}
+                  <input type="number" className="pv-tnum" min={8} max={80} value={gn.size}
+                    onChange={(e) => onEditGuestName({ size: +e.target.value })} />
+                  <span className="pv-tclrdot" style={{ background: gn.color }}>
+                    <input type="color" value={pvHex(gn.color)}
+                      onChange={(e) => onEditGuestName({ color: e.target.value })} />
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+        {editable && activeId === "guest" && !!onEditGuestName && (
+          <TransformHandles coverRef={ref} blockEl={blockEls.current.get("guest") ?? null}
+            centerXPct={gn.pos.xPct} centerYPct={gn.pos.yPct}
+            onHandleDown={startResize("guest", gn.size)} />
         )}
         {onOpen && (showBtn || editable) && (
           <button type="button" className="pv-openbtn" data-edit={editable} data-hidden={!showBtn}
             disabled={!editable && locked}
-            style={{ left: `${st.openBtnPos.xPct}%`, top: `${st.openBtnPos.yPct}%`, opacity: !editable && locked ? 0.5 : !showBtn ? 0.35 : 1 }}
+            style={{ left: `${st.openBtnPos.xPct}%`, top: `${st.openBtnPos.yPct}%`, opacity: !editable && locked ? 0.5 : !showBtn ? 0.35 : 1,
+              ...(st.openBtnColor ? { color: st.openBtnColor, borderColor: st.openBtnColor } : {}) }}
             onPointerDown={start("open")}
             onClick={() => { if (!editable && !locked) onOpen?.(); }}>
             {!editable && locked ? "Please wait…" : !showBtn ? "Open (hidden)" : "Open Ticket"}
           </button>
         )}
+        {editable && snapLines.x != null && <div className="pv-snapline pv-snapline-v" style={{ left: `${snapLines.x}%` }} />}
+        {editable && snapLines.y != null && <div className="pv-snapline pv-snapline-h" style={{ top: `${snapLines.y}%` }} />}
       </div>
     </div>
   );
@@ -532,7 +596,7 @@ export function PvContent({ st, editable = false, onEditBlock, onBlockPatch, onS
               <img className="pv-mono-content" src={mono.url} alt="" style={{ width: `${mono.scalePct}%` }} />
             )}
             {s.showTitle && <div className="pv-secname">{s.name}</div>}
-            <SectionBody s={s} editable={editable} onEditBlock={onEditBlock} lang={lang} edit={edit} />
+            <SectionBody s={s} editable={editable} onEditBlock={onEditBlock} lang={lang} edit={edit} eventDate={st.dateTime} />
           </div>
           </Reveal>
           );
@@ -542,9 +606,30 @@ export function PvContent({ st, editable = false, onEditBlock, onBlockPatch, onS
   );
 }
 
-function SectionBody({ s, editable, onEditBlock, lang = "kh", edit }: {
+/** Live Days/Hours/Minutes countdown to the event's own date/time (set in Setup). */
+function CountdownBlock({ target, cfg }: { target: string; cfg: { showDays: boolean; showHours: boolean; showMinutes: boolean } }) {
+  const t = useCountdown(target, target);
+  if (t.expired) return <div className="pv-countdown-expired">The day has arrived!</div>;
+  const units = [
+    cfg.showDays && { v: t.days, l: "Days" },
+    cfg.showHours && { v: t.hours, l: "Hours" },
+    cfg.showMinutes && { v: t.minutes, l: "Mins" },
+  ].filter(Boolean) as { v: number; l: string }[];
+  return (
+    <div className="pv-countdown" style={{ gridTemplateColumns: `repeat(${units.length || 1}, 1fr)` }}>
+      {units.map(({ v, l }) => (
+        <div key={l} className="pv-countdown-cell">
+          <div className="pv-countdown-num">{String(v).padStart(2, "0")}</div>
+          <div className="pv-countdown-lbl">{l}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SectionBody({ s, editable, onEditBlock, lang = "kh", edit, eventDate }: {
   s: Section; editable: boolean; onEditBlock?: (secId: string, blockId: string, text: string) => void; lang?: "kh" | "en";
-  edit?: ContentEditCtx;
+  edit?: ContentEditCtx; eventDate?: string;
 }) {
   const scalePct = Number.isFinite(s.imageScalePct) ? Math.min(100, Math.max(10, s.imageScalePct)) : 100;
   const scaled = (url: string) => <img src={url} alt="" className="pv-secimg" style={{ width: `${scalePct}%`, maxWidth: "100%", margin: "0 auto" }} />;
@@ -585,8 +670,8 @@ function SectionBody({ s, editable, onEditBlock, lang = "kh", edit }: {
     const dy = (e.clientY - d.sy) / d.scale;
     if (!d.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
     d.moved = true;
-    if (d.kind === "block") edit.patchBlock(d.secId, d.blockId!, { dx: Math.round(d.dx0 + dx), dy: Math.round(d.dy0 + dy) });
-    else if (d.kind === "img") edit.patchSection(d.secId, { imgDx: Math.round(d.dx0 + dx), imgDy: Math.round(d.dy0 + dy) });
+    if (d.kind === "block") edit.patchBlock(d.secId, d.blockId!, { dx: snapPx(d.dx0 + dx), dy: snapPx(d.dy0 + dy) });
+    else if (d.kind === "img") edit.patchSection(d.secId, { imgDx: snapPx(d.dx0 + dx), imgDy: snapPx(d.dy0 + dy) });
     else edit.patchSection(d.secId, { imageScalePct: Math.max(10, Math.min(100, Math.round((d.scale0 ?? 100) + (dx / (d.colW ?? 320)) * 100))) });
   };
   const onDragEnd = () => {
@@ -628,13 +713,17 @@ function SectionBody({ s, editable, onEditBlock, lang = "kh", edit }: {
         <div className="pv-agenda">
           {s.agenda.map((a) => (
             <div key={a.id} className="pv-agendarow">
-              {a.showIcon && <span className="pv-agendaicon">{a.icon}</span>}
+              {a.showIcon && (a.iconUrl
+                ? <img src={a.iconUrl} alt="" className="pv-agendaicon-img" />
+                : <span className="pv-agendaicon">{a.icon}</span>)}
               <span className="pv-agendatime">{a.time}</span>
               <span className="pv-agendaname">{a.name}</span>
             </div>
           ))}
         </div>
       );
+    case "countdown":
+      return <CountdownBlock target={eventDate ?? ""} cfg={s.countdown ?? { showDays: true, showHours: true, showMinutes: true }} />;
     case "memory":
       return s.gallery.length ? (
         <div className="pv-gallery" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${scalePct}%, 1fr))` }}>
@@ -886,6 +975,14 @@ export const canvasStyles = `
 .pv-coverblock[data-edit="true"] { pointer-events: auto; cursor: grab; outline: 1px dashed rgba(255,255,255,0.5); outline-offset: 3px; border-radius: 4px; }
 .pv-openbtn { position: absolute; transform: translate(-50%, -50%); padding: 0.6rem 1.5rem; border-radius: 999px; border: 1px solid rgba(255,255,255,0.6); background: rgba(255,255,255,0.12); color: #fff; font-size: 0.85rem; font-weight: 600; cursor: pointer; backdrop-filter: blur(4px); white-space: nowrap; }
 .pv-openbtn[data-edit="true"] { cursor: grab; }
+/* Live cover: the Open button breathes to signal the tap action (replaces the
+   overlaid hand guide on the cover). Only the real, visible, enabled button. */
+.pv-openbtn:not([data-edit="true"]):not([data-hidden="true"]):not(:disabled) { animation: ebOpenBtnPulse 1.9s ease-in-out infinite; }
+@keyframes ebOpenBtnPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.45); }
+  50%      { transform: translate(-50%, -50%) scale(1.06); box-shadow: 0 0 0 12px rgba(255,255,255,0); }
+}
+@media (prefers-reduced-motion: reduce) { .pv-openbtn { animation: none !important; } }
 
 /* Content */
 /* Grid overlay so the single shared background stretches over ALL sections
@@ -903,6 +1000,12 @@ export const canvasStyles = `
 .pv-agenda { display: flex; flex-direction: column; gap: 0.75rem; }
 .pv-agendarow { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.85rem; background: rgba(255,255,255,0.08); border-radius: 10px; }
 .pv-agendaicon { font-size: 1.2rem; }
+.pv-agendaicon-img { width: 1.4rem; height: 1.4rem; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.pv-countdown { display: grid; gap: 0.6rem; }
+.pv-countdown-cell { text-align: center; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 0.7rem 0.25rem; border: 1px solid rgba(255,255,255,0.15); }
+.pv-countdown-num { font-size: 1.6rem; font-weight: 300; font-family: Georgia, serif; }
+.pv-countdown-lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.75; margin-top: 0.2rem; }
+.pv-countdown-expired { text-align: center; font-style: italic; font-size: 1.1rem; opacity: 0.9; }
 .pv-agendatime { font-weight: 700; font-size: 0.85rem; min-width: 70px; }
 .pv-agendaname { font-size: 0.9rem; opacity: 0.9; }
 .pv-gallery { display: grid; gap: 0.5rem; }
@@ -939,8 +1042,15 @@ export const canvasStyles = `
 .pv-mono { position: absolute; transform: translate(-50%, -50%); object-fit: contain; pointer-events: none; }
 .pv-mono[data-edit="true"] { pointer-events: auto; cursor: grab; outline: 1px dashed rgba(255,255,255,0.5); outline-offset: 3px; border-radius: 6px; }
 .pv-mono-content { display: block; margin: 0 auto 1.25rem; object-fit: contain; }
-.pv-guestname { position: absolute; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; pointer-events: none; }
+.pv-guestname-frame { position: absolute; transform: translate(-50%, -50%); object-fit: contain; pointer-events: none; z-index: 1; }
+.pv-guestname { position: absolute; transform: translate(-50%, -50%); text-align: center; white-space: nowrap; pointer-events: none; z-index: 2; }
 .pv-guestname[data-edit="true"] { pointer-events: auto; cursor: grab; outline: 1px dashed rgba(255,255,255,0.5); outline-offset: 3px; border-radius: 4px; }
+.pv-guestname-active { outline: 1.5px solid rgba(255,255,255,0.9) !important; border-radius: 4px; }
+
+/* Smart guide (grid-snap) lines shown while dragging cover elements */
+.pv-snapline { position: absolute; z-index: 25; pointer-events: none; background: rgba(56,189,248,0.9); box-shadow: 0 0 4px rgba(56,189,248,0.7); }
+.pv-snapline-v { top: 0; bottom: 0; width: 1px; }
+.pv-snapline-h { left: 0; right: 0; height: 1px; }
 .pv-openbtn:disabled { cursor: default; }
 
 /* Per-section background image (layered over the shared content background) */

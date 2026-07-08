@@ -21,13 +21,14 @@ function outerBgCss(bg: Background | undefined): React.CSSProperties {
   if (!bg) return { background: "#05070b" };
   if (bg.kind === "color") return { background: bg.color };
   if ((bg.kind === "photo" || bg.kind === "gif") && bg.imageUrl)
-    return { backgroundImage: `url(${bg.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center", background: bg.color || "#05070b" };
+    // Use longhand backgroundColor — the `background` shorthand would reset
+    // (erase) backgroundImage, so the uploaded image never rendered.
+    return { backgroundColor: bg.color || "#05070b", backgroundImage: `url(${bg.imageUrl})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" };
   return { background: "#05070b" };
 }
 
 export function BuilderInvite({ state, guestName }: { state: BuilderState; guestName?: string }) {
   const [opened, setOpened] = useState(false);
-  const [coverGuideOff, setCoverGuideOff] = useState(false);
   const [contentGuideOff, setContentGuideOff] = useState(false);
   const [locked, setLocked] = useState(state.coverBg.kind === "video" && state.coverBg.lockUntilEnd);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -109,12 +110,9 @@ export function BuilderInvite({ state, guestName }: { state: BuilderState; guest
       )}
       <div className="bi-frame">
         {!opened ? (
-          <>
-            <PvCover st={state} onOpen={handleOpen} locked={locked} onVideoEnded={handleVideoEnded} guestNameValue={guestName} lang={lang} />
-            {state.coverGuide.enabled && !coverGuideOff && !locked && (
-              <GuideOverlay guide={state.coverGuide} onDismiss={() => setCoverGuideOff(true)} />
-            )}
-          </>
+          // The cover shows NO overlaid guide — the animated Open button (below)
+          // is the affordance. Any gesture guide appears only after opening.
+          <PvCover st={state} onOpen={handleOpen} locked={locked} onVideoEnded={handleVideoEnded} guestNameValue={guestName} lang={lang} />
         ) : (
           <>
             {state.keepCover && <PvCover st={state} guestNameValue={guestName} lang={lang} />}

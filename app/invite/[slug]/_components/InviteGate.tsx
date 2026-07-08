@@ -5,9 +5,9 @@ import type { ThemeTokens } from "@/lib/themes/types";
 import { HandPointer } from "./HandPointer";
 
 type ElemKey = "monogram" | "pretitle" | "title" | "subtitle" | "guestName" | "openBtn";
-export type ElementPositions = Partial<Record<ElemKey, { xPct: number; yPct: number }>>;
+export type ElementPositions = Partial<Record<ElemKey, { xPct: number; yPct: number; scale?: number }>>;
 
-const DEFAULT_POSITIONS: Record<ElemKey, { xPct: number; yPct: number }> = {
+export const GATE_DEFAULT_POSITIONS: Record<ElemKey, { xPct: number; yPct: number; scale?: number }> = {
   monogram:  { xPct: 50, yPct: 11 },
   pretitle:  { xPct: 50, yPct: 22 },
   title:     { xPct: 50, yPct: 36 },
@@ -18,6 +18,10 @@ const DEFAULT_POSITIONS: Record<ElemKey, { xPct: number; yPct: number }> = {
 
 interface Props {
   eventTitle: string;
+  /** Greeting line shown above the names (the "You are invited to" slot). */
+  pretitle?: string;
+  /** Cover subheading / intro lines — shown in the gate's subtitle slot when the admin has arranged elements freely. */
+  subheading?: string;
   guestName: string | null;
   guestLabel?: string;
   theme: ThemeTokens;
@@ -25,6 +29,10 @@ interface Props {
   coverUrl?: string | null;
   gateOverlay?: { enabled: boolean; color: string; opacity: number };
   revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
+  /** Play the entrance animation when opening the cover (default true). */
+  animateOpen?: boolean;
+  /** Color for the "Open" button label/border. Falls back to theme accent. */
+  openButtonColor?: string | null;
   scrollGuide?: boolean;
   /** Custom caption for the one-time guidance overlay. */
   guideText?: string;
@@ -41,13 +49,19 @@ interface Props {
 }
 
 export function InviteGate({
-  eventTitle, guestName, guestLabel, theme, bgUrl, coverUrl, gateOverlay,
+  eventTitle, pretitle, subheading, guestName, guestLabel, theme, bgUrl, coverUrl, gateOverlay,
+  animateOpen = true, openButtonColor,
   scrollGuide = true, guideText, hand,
+  scrollToContent = true,
   position = "center", blur = 0,
   showGuestName = true, guestFrameUrl, showMonogram = true,
   elementPositions,
   children,
 }: Props) {
+  const openColor = openButtonColor || theme.accent;
+  // `scrollToContent` mirrors keepCoverAfterOpen. When OFF, the cover exists only
+  // to open the invite — once opened we collapse it so guests land on content.
+  const keepCover = scrollToContent;
   // The gate is the invitation's COVER PAGE — a real page at the top of the
   // scroll flow (one screen tall), not an overlay. "closed" only means the
   // page is scroll-locked to it; opening unlocks and glides to the content.
@@ -60,11 +74,11 @@ export function InviteGate({
   useEffect(() => {
     const skip = () => {
       setPhase("open");
-      shellRef.current?.classList.add("inv-animate");
+      if (animateOpen) shellRef.current?.classList.add("inv-animate");
     };
     window.addEventListener("anjeurn:gate-skip", skip);
     return () => window.removeEventListener("anjeurn:gate-skip", skip);
-  }, []);
+  }, [animateOpen]);
 
   // Configurable hand icon (drawn hand / emoji / uploaded image).
   const HandIcon = ({ className }: { className: string }) => {
@@ -89,7 +103,7 @@ export function InviteGate({
   function open() {
     if (phase === "closed") {
       setPhase("open");
-      shellRef.current?.classList.add("inv-animate");
+      if (animateOpen) shellRef.current?.classList.add("inv-animate");
       if (scrollGuide && !sessionStorage.getItem("inv-guide-seen")) {
         setGuide(true);
         sessionStorage.setItem("inv-guide-seen", "1");
@@ -97,7 +111,10 @@ export function InviteGate({
     }
     // Glide from the cover page down to the first content page (also works as
     // a "scroll down" button when the guest returns to the cover later).
+    // When the cover isn't kept, it collapses (below) so content is already at
+    // the top — just glide to 0.
     setTimeout(() => {
+      if (!keepCover) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
       const gate = gateRef.current;
       const top = gate ? gate.offsetTop + gate.offsetHeight : window.innerHeight;
       window.scrollTo({ top, behavior: "smooth" });
@@ -107,12 +124,13 @@ export function InviteGate({
   const hasCustomPos = !!elementPositions && Object.keys(elementPositions).length > 0;
 
   function ep(key: ElemKey): React.CSSProperties {
-    const pos = elementPositions?.[key] ?? DEFAULT_POSITIONS[key];
+    const pos = elementPositions?.[key] ?? GATE_DEFAULT_POSITIONS[key];
+    const scale = pos.scale && pos.scale > 0 ? pos.scale : 1;
     return {
       position: "absolute",
       left: pos.xPct + "%",
       top: pos.yPct + "%",
-      transform: "translate(-50%, -50%)",
+      transform: `translate(-50%, -50%) scale(${scale})`,
       zIndex: 1,
       textAlign: "center",
     };
@@ -144,12 +162,14 @@ export function InviteGate({
       {/* ── Cover page — a real in-flow page, exactly one screen tall ── */}
       <div
         ref={gateRef}
-        className="inv-gate inv-animate"
+        className={`inv-gate${animateOpen ? " inv-animate" : ""}`}
         style={{
           fontFamily: theme.font,
           color: theme.text,
           ...(hasCustomPos ? {} : { justifyContent: gateJustify }),
           ...(bgUrl ? {} : { background: theme.coverGradient }),
+          // Cover not kept: remove it from the flow once opened.
+          ...(phase === "open" && !keepCover ? { display: "none" } : {}),
         }}
       >
           {/* Background layer — motion video, or image/GIF with optional blur */}
@@ -192,12 +212,12 @@ export function InviteGate({
 
               {/* Pretitle */}
               <div style={ep("pretitle")}>
-                <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>You are invited to</p>
+                <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>{pretitle || "You are invited to"}</p>
               </div>
 
               {/* Title + ornament */}
               <div style={ep("title")}>
-                <div className="inv-script" style={{ color: theme.primary }}>{eventTitle}</div>
+                <div className="inv-script" style={{ color: theme.title || theme.primary }}>{eventTitle}</div>
                 <div className="inv-ornament-line" style={{ color: theme.accent }}>
                   <div className="line" />
                   {theme.gem && <span className="gem">{theme.gem}</span>}
@@ -205,10 +225,14 @@ export function InviteGate({
                 </div>
               </div>
 
-              {/* Subtitle */}
-              <div style={ep("subtitle")}>
-                {/* subtitle placeholder — themed cover subheading */}
-              </div>
+              {/* Subtitle — the cover's intro lines / subheading */}
+              {subheading && (
+                <div style={ep("subtitle")}>
+                  <p className="inv-pretitle" style={{ color: theme.muted, margin: 0, fontStyle: "italic", letterSpacing: "0.04em" }}>
+                    {subheading}
+                  </p>
+                </div>
+              )}
 
               {/* Guest name */}
               {showGuestName && (
@@ -216,7 +240,7 @@ export function InviteGate({
                   <div className="inv-gate-guest" style={{ position: "relative" }}>
                     {guestFrame}
                     <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent, position: "relative", zIndex: 1 }}>♥ Dear</span>
-                    <div className="inv-gate-name" style={{ color: theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
+                    <div className="inv-gate-name" style={{ color: theme.title || theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
                   </div>
                 </div>
               )}
@@ -225,7 +249,7 @@ export function InviteGate({
               <div style={ep("openBtn")}>
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
                   <HandIcon className="inv-gate-hand" />
-                  <span className="inv-gate-open-label" style={{ color: theme.accent, borderColor: theme.accent }}>Open Letter</span>
+                  <span className="inv-gate-open-label" style={{ color: openColor, borderColor: openColor }}>Open Letter</span>
                 </button>
               </div>
             </>
@@ -238,12 +262,12 @@ export function InviteGate({
                   <img src={coverUrl} alt="Monogram"
                     style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 28px rgba(0,0,0,0.5)" }} />
                 )}
-                <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>You are invited to</p>
+                <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>{pretitle || "You are invited to"}</p>
               </div>
 
               {/* MIDDLE ZONE: event title + ornament */}
               <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-                <div className="inv-script" style={{ color: theme.primary }}>{eventTitle}</div>
+                <div className="inv-script" style={{ color: theme.title || theme.primary }}>{eventTitle}</div>
                 <div className="inv-ornament-line" style={{ color: theme.accent }}>
                   <div className="line" />
                   {theme.gem && <span className="gem">{theme.gem}</span>}
@@ -257,12 +281,12 @@ export function InviteGate({
                   <div className="inv-gate-guest" style={{ position: "relative" }}>
                     {guestFrame}
                     <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent, position: "relative", zIndex: 1 }}>♥ Dear</span>
-                    <div className="inv-gate-name" style={{ color: theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
+                    <div className="inv-gate-name" style={{ color: theme.title || theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
                   </div>
                 )}
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
                   <HandIcon className="inv-gate-hand" />
-                  <span className="inv-gate-open-label" style={{ color: theme.accent, borderColor: theme.accent }}>Open Letter</span>
+                  <span className="inv-gate-open-label" style={{ color: openColor, borderColor: openColor }}>Open Letter</span>
                 </button>
               </div>
             </>

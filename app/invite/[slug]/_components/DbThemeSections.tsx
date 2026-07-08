@@ -36,19 +36,24 @@ export interface SectionTextStyle {
   headerColor?: string;
 }
 
-/** Merge a section's `_style` overrides into the theme tokens for that section. */
+/** Merge a section's `_style` overrides into the theme tokens for that section.
+ *  The visible section title is rendered by SecHead from the `header`/`headerFont`
+ *  tokens, so the "Title" overrides must flow to those too (not only the
+ *  `title`/`headingFont` tokens used by the cover) — otherwise changing a
+ *  section's title font/color would have no visible effect. */
 function styled(theme: ThemeTokens, content: unknown): ThemeTokens {
   const st = (content as { _style?: SectionTextStyle } | null)?._style;
   if (!st || typeof st !== "object") return theme;
   return {
     ...theme,
     headingFont:  st.titleFont  || theme.headingFont,
+    headerFont:   st.titleFont  || theme.headerFont,
     title:        st.titleColor || theme.title,
+    header:       st.titleColor || st.headerColor || theme.header,
     headingScale: (theme.headingScale ?? 1) * (st.titleScale || 1),
     font:         st.bodyFont   || theme.font,
     body:         st.bodyColor  || theme.body,
     bodyScale:    (theme.bodyScale ?? 1) * (st.bodyScale || 1),
-    header:       st.headerColor || theme.header,
   };
 }
 
@@ -155,7 +160,6 @@ export function DbCoverSection({ content: baseContent, eventTitle, eventDate, ve
             objectFit: "cover",
             marginBottom: "1.5rem",
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            border: `2px solid ${theme.accent}55`,
           }}
         />
       )}
@@ -546,6 +550,73 @@ export function DbDetailsSection({ content: baseContent, venueName, venueMapUrl,
           )}
         </div>
       )}
+    </SecWrap>
+  );
+}
+
+// ── Agenda / Order of ceremony ─────────────────────────────────────────────────
+
+interface AgendaItem {
+  time?: string;
+  title?: string;
+  icon?: number | string;
+}
+
+interface AgendaProps {
+  content: { title?: string; items?: AgendaItem[]; hideTitle?: boolean };
+  theme: ThemeTokens;
+}
+
+/** Timeline of time → moment rows. Distinct from Details (venue/address); this
+ *  renders the event's schedule (`items: [{ time, title }]`). */
+export function DbAgendaSection({ content: baseContent, theme: baseTheme }: AgendaProps) {
+  const content = useLangContent(baseContent);
+  const theme = styled(baseTheme, content);
+  const items = (content.items ?? []).filter((it) => (it.time && it.time.trim()) || (it.title && it.title.trim()));
+  if (items.length === 0) return null;
+
+  return (
+    <SecWrap theme={theme}>
+      {!content.hideTitle && <SecHead label={content.title || "Order of Ceremony"} theme={theme} />}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {items.map((row, i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "1rem",
+              padding: "0.95rem 0",
+              borderBottom: i < items.length - 1 ? `1px solid ${theme.border}` : "none",
+            }}
+          >
+            <div
+              style={{
+                minWidth: 68,
+                flexShrink: 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 5,
+                fontFamily: tok.headerFont(theme),
+                fontSize: remScale(0.875, tok.bs(theme)),
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                color: tok.header(theme),
+              }}
+            >
+              {row.icon != null && row.icon !== "" && (
+                <img src={`/themes/agenda/${row.icon}.png`} alt="" style={{ width: 30, height: 30, objectFit: "contain" }} />
+              )}
+              <span>{row.time || "—"}</span>
+            </div>
+            <div style={{ width: 3, alignSelf: "stretch", background: tok.header(theme), borderRadius: 2, opacity: 0.5, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0, fontSize: remScale(0.9375, tok.bs(theme)), color: tok.body(theme), lineHeight: 1.6, wordBreak: "break-word" }}>
+              {row.title || ""}
+            </div>
+          </div>
+        ))}
+      </div>
     </SecWrap>
   );
 }

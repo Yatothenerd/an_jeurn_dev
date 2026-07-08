@@ -78,7 +78,11 @@ export interface DesignHand {
 
 export interface DesignGate {
   revealStyle: "fade" | "envelope" | "curtain" | "slideUp";
+  /** Play the entrance animation when the cover opens into the sections. */
+  animateOpen: boolean;
   keepCoverAfterOpen: boolean;
+  /** Color of the gate "Open" button label/border. null = follow theme accent. */
+  openButtonColor: string | null;
   scrollGuide: boolean;
   /** Guidance-overlay caption shown once after opening (admin-customizable). */
   guideText: string;
@@ -92,8 +96,11 @@ export interface DesignGate {
   showGuestName: boolean;
   guestFrameUrl: string | null;
   monogram: { gate: boolean; sections: boolean };
-  elementPositions?: Partial<Record<GateElementKey, { xPct: number; yPct: number }>>;
+  elementPositions?: Partial<Record<GateElementKey, GatePlacement>>;
 }
+
+/** Free placement of a gate element: center position (%) + optional size multiplier. */
+export interface GatePlacement { xPct: number; yPct: number; scale?: number }
 
 /** Bilingual content: guests toggle the whole invitation between two languages. */
 export interface DesignLanguages {
@@ -113,6 +120,8 @@ export interface DesignPage {
   floatButtons: DesignFloatButtons;
   /** Plain background color for the sections (used when no background media is set). */
   bgColor: string | null;
+  /** Desktop-only backdrop shown around the portrait invite on wide screens — distinct from bgColor/media above, which are scoped to the portrait column. */
+  outerBg: { url: string | null; color: string | null };
   languages: DesignLanguages;
 }
 
@@ -151,6 +160,8 @@ interface LegacyOverlay {
   guideHand?: DesignHand;
   gateBgColor?: string | null;
   pageBgColor?: string | null;
+  outerBgUrl?: string | null;
+  outerBgColor?: string | null;
   languages?: Partial<DesignLanguages>;
   backgroundBlur?: number;
   sectionBlur?: number;
@@ -158,6 +169,8 @@ interface LegacyOverlay {
   gateOverlay?: DesignOverlay;
   actionButton?: { bg: string; color: string };
   revealStyle?: DesignGate["revealStyle"];
+  animateOpen?: boolean;
+  openButtonColor?: string | null;
   keepCoverAfterOpen?: boolean;
   scrollGuide?: boolean;
   gatePosition?: DesignGate["position"];
@@ -219,7 +232,9 @@ export function resolveDesign(input: {
     },
     gate: {
       revealStyle: oc.revealStyle ?? "fade",
+      animateOpen: oc.animateOpen ?? true,
       keepCoverAfterOpen: oc.keepCoverAfterOpen ?? true,
+      openButtonColor: oc.openButtonColor ?? null,
       scrollGuide: oc.scrollGuide ?? true,
       guideText: oc.guideText || "Scroll to explore",
       hand: oc.guideHand ?? { kind: "default", value: "" },
@@ -234,7 +249,9 @@ export function resolveDesign(input: {
     },
     page: {
       sectionBlur: oc.sectionBlur ?? 0,
-      sectionOverlay: oc.sectionOverlay ?? { enabled: false, color: "#000000", opacity: 0.25 },
+      // Dim over the sections background. Defaults to the legacy 28% black scrim
+      // so existing invites look unchanged; admins can retune or disable it.
+      sectionOverlay: oc.sectionOverlay ?? { enabled: true, color: "#000000", opacity: 0.28 },
       actionButton: oc.actionButton ?? null,
       showRsvp: oc.showRsvp ?? true,
       floatButtons: {
@@ -243,6 +260,7 @@ export function resolveDesign(input: {
         show: { ...DEFAULT_FLOAT_BUTTONS.show, ...(oc.floatButtons?.show ?? {}) },
       },
       bgColor: oc.pageBgColor ?? null,
+      outerBg: { url: oc.outerBgUrl ?? null, color: oc.outerBgColor ?? null },
       languages: {
         enabled: oc.languages?.enabled ?? false,
         primaryLabel: oc.languages?.primaryLabel || "ខ្មែរ",

@@ -47,7 +47,7 @@ export function CoverSection({ content, eventTitle, eventDate, venueName, guestN
       ))}
 
       {monogramUrl && (
-        <img src={monogramUrl} alt="Monogram" className="inv-monogram" style={{ border: `2px solid ${theme.accent}55` }} />
+        <img src={monogramUrl} alt="Monogram" className="inv-monogram" />
       )}
 
       <p className="inv-pretitle" style={{ color: theme.accent }}>

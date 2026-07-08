@@ -83,16 +83,42 @@ img { max-width: 100%; }
   .invite-shell { max-width: 560px; box-shadow: 0 0 60px rgba(0,0,0,0.28); }
 }
 
-/* ── Single fixed background — always fills the whole device viewport ──
-   background-size:cover scales the image to fill the screen with no distortion
-   (it crops, never stretches), fitting mobile, tablet and desktop alike. */
+/* ── Sections background — fills the portrait invite column only ──
+   background-size:cover scales the image with no distortion (it crops, never
+   stretches). On desktop it's capped to the same 560px column as .invite-shell
+   so it never bleeds into the wide desktop backdrop (see .inv-outer-bg below). */
 .inv-fixed-bg {
   position: fixed;
-  inset: 0;
+  top: 0; bottom: 0; left: 0; right: 0;
   width: 100%;
   height: 100%;
   z-index: 0;
   overflow: hidden;
+}
+@media (min-width: 1000px) {
+  .inv-fixed-bg { left: 50%; right: auto; width: 560px; transform: translateX(-50%); }
+}
+/* ── Outer background — the desktop-only backdrop around the portrait column.
+   Invisible on mobile (the portrait column already fills the screen). */
+.inv-outer-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* z-index 0 (not -1): the <body> paints an opaque background, and a -1 layer
+     renders behind it and never shows. It sits below the sections bg (drawn
+     later in the DOM at z-index 0) and the shell (z-index 1). */
+  z-index: 0;
+  overflow: hidden;
+}
+.inv-outer-bg-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
 }
 .inv-fixed-bg-media {
   position: absolute;
@@ -105,10 +131,11 @@ img { max-width: 100%; }
   object-fit: cover;
   object-position: center center;
 }
+/* Adjustable dim over the sections background. Color + opacity come from the
+   design's sectionOverlay (admin-controlled); defaults to 28% black. */
 .inv-fixed-bg-scrim {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.28);
 }
 
 /* ── Cover — full-screen fit (svh tracks the real mobile viewport) ── */
@@ -253,7 +280,19 @@ img { max-width: 100%; }
 }
 .inv-fab-stack.pos-right { right: 1.25rem; bottom: 7rem; }
 .inv-fab-stack.pos-left  { left: 1.25rem;  bottom: 7rem; }
-.inv-fab-stack.pos-bar   { left: 50%; transform: translateX(-50%); bottom: 1.1rem; flex-direction: row; }
+/* Bottom position renders as one connected tab bar (like a regular app), not
+   individually floating circles. */
+.inv-fab-stack.pos-bar {
+  left: 50%; transform: translateX(-50%); bottom: 0; flex-direction: row;
+  width: 100%; justify-content: space-evenly; gap: 0;
+  background: rgba(15,15,20,0.92);
+  backdrop-filter: blur(10px);
+  border-radius: 18px 18px 0 0;
+  padding: 0.55rem 0.5rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -6px 24px rgba(0,0,0,0.28);
+}
+.inv-fab-stack.pos-bar .inv-fab { background: transparent !important; box-shadow: none; border-radius: 10px; }
+.inv-fab-stack.pos-bar .inv-fab.hv-lift:hover { transform: translateY(-2px); box-shadow: none; }
 
 .inv-fab {
   border: none;
@@ -343,7 +382,12 @@ img { max-width: 100%; }
 span.inv-gate-hand  { width: auto; font-size: 3.2rem; line-height: 1; display: block; }
 span.inv-guide-hand { width: auto; font-size: 2.4rem; line-height: 1; display: block; }
 @keyframes inv-tap { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-7px) scale(1.07); } }
-.inv-gate-open-label { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; padding: 0.4rem 1rem; border: 1px solid; border-radius: 999px; }
+.inv-gate-open-label { font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; padding: 0.4rem 1rem; border: 1px solid; border-radius: 999px; animation: inv-open-attract 2.1s ease-in-out infinite; }
+/* Idle "attract" pulse so the Open button draws the eye on landing. */
+@keyframes inv-open-attract {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  50%      { transform: scale(1.07); box-shadow: 0 0 16px 1px currentColor; }
+}
 
 .inv-guide { position: fixed; inset: 0; z-index: 2100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.9rem; background: rgba(0,0,0,0.55); color: #fff; cursor: pointer; }
 .inv-guide-hand { width: 58px; height: auto; animation: inv-pan 1.6s ease-in-out infinite; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4)); }
@@ -351,7 +395,7 @@ span.inv-guide-hand { width: auto; font-size: 2.4rem; line-height: 1; display: b
 .inv-guide-text { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.9; margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .inv-gate-hand, .inv-guide-hand { animation: none; }
+  .inv-gate-hand, .inv-guide-hand, .inv-gate-open-label { animation: none; }
 }
 
 @media (max-width: 480px) { body { font-size: 16px; } }
