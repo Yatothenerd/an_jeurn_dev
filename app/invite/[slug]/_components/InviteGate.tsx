@@ -69,8 +69,14 @@ interface Props {
   eventTitle: string;
   /** Greeting line shown above the names (the "You are invited to" slot). */
   pretitle?: string;
+  /** Long-text behavior for the greeting line: wrap onto a new line, or shrink to fit one line (default "wrap"). */
+  pretitleFit?: TextFit;
+  /** Long-text behavior for the names/title: wrap onto a new line, or shrink to fit one line (default "wrap"). */
+  titleFit?: TextFit;
   /** Cover subheading / intro lines — shown in the gate's subtitle slot when the admin has arranged elements freely. */
   subheading?: string;
+  /** Long-text behavior for the intro lines: wrap onto a new line, or shrink to fit one line (default "wrap"). */
+  subheadingFit?: TextFit;
   guestName: string | null;
   guestLabel?: string;
   /** Prefix badge shown above the guest name (default "Dear"). */
@@ -103,6 +109,8 @@ interface Props {
   openButtonFill?: string | null;
   /** Custom label for the "Open" button (default "Open Letter"). */
   openButtonText?: string | null;
+  /** Long-text behavior for the "Open" button label: wrap onto a new line, or shrink to fit one line (default "wrap"). */
+  openButtonFit?: TextFit;
   /** Font-family stack for the "Open" button label. */
   openButtonFont?: string | null;
   /** Font size (px) for the "Open" button label. */
@@ -129,11 +137,12 @@ interface Props {
 }
 
 export function InviteGate({
-  eventTitle, pretitle, subheading, guestName, guestLabel, guestPrefix,
+  eventTitle, pretitle, pretitleFit = "wrap", titleFit = "wrap", subheading, subheadingFit = "wrap",
+  guestName, guestLabel, guestPrefix,
   guestPrefixColor, guestPrefixFont, guestPrefixSize, guestPrefixWeight, guestPrefixFit = "wrap",
   guestNameFit = "wrap",
   theme, bgUrl, coverUrl, gateOverlay,
-  animateOpen = true, openButtonColor, openButtonStroke, openButtonFill, openButtonText,
+  animateOpen = true, openButtonColor, openButtonStroke, openButtonFill, openButtonText, openButtonFit = "wrap",
   openButtonFont, openButtonSize, openButtonWeight, openButtonStrokeEnabled = true, openButtonFillEnabled = false,
   scrollGuide = true, guideText, hand,
   scrollToContent = true,
@@ -260,6 +269,12 @@ export function InviteGate({
 
   const label = guestName || guestLabel || "Dear Guest";
   const guestNameNode = guestNameFit === "shrink" ? <AutoFitText>{label}</AutoFitText> : label;
+  const pretitleText = pretitle || "You are invited to";
+  const pretitleNode = pretitleFit === "shrink" ? <AutoFitText>{pretitleText}</AutoFitText> : pretitleText;
+  const titleNode = titleFit === "shrink" ? <AutoFitText>{eventTitle}</AutoFitText> : eventTitle;
+  const subheadingNode = subheadingFit === "shrink" ? <AutoFitText>{subheading}</AutoFitText> : subheading;
+  const openButtonLabel = openButtonText || "Open Letter";
+  const openButtonNode = openButtonFit === "shrink" ? <AutoFitText>{openButtonLabel}</AutoFitText> : openButtonLabel;
   const gateJustify = position === "top" ? "flex-start" : position === "bottom" ? "flex-end" : "space-between";
 
   // Decorative frame behind the guest name: full screen width, natural height
@@ -327,12 +342,12 @@ export function InviteGate({
 
               {/* Pretitle */}
               <div style={ep("pretitle")}>
-                <p className="inv-pretitle" style={{ ...ovStyle("pretitle", theme.accent), margin: 0 }}>{pretitle || "You are invited to"}</p>
+                <p className="inv-pretitle" style={{ ...ovStyle("pretitle", theme.accent), margin: 0 }}>{pretitleNode}</p>
               </div>
 
               {/* Title + ornament */}
               <div style={ep("title")}>
-                <div className="inv-script" style={ovStyle("title", theme.title || theme.primary)}>{eventTitle}</div>
+                <div className="inv-script" style={ovStyle("title", theme.title || theme.primary)}>{titleNode}</div>
                 <div className="inv-ornament-line" style={{ color: theme.accent }}>
                   <div className="line" />
                   {theme.gem && <span className="gem">{theme.gem}</span>}
@@ -344,7 +359,7 @@ export function InviteGate({
               {subheading && (
                 <div style={ep("subtitle")}>
                   <p className="inv-pretitle" style={{ ...ovStyle("subtitle", theme.muted), margin: 0, fontStyle: "italic", letterSpacing: "0.04em" }}>
-                    {subheading}
+                    {subheadingNode}
                   </p>
                 </div>
               )}
@@ -363,7 +378,7 @@ export function InviteGate({
               {/* Open Letter button */}
               <div style={ep("openBtn")}>
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
-                  <span className="inv-gate-open-label" style={openBtnStyle}>{openButtonText || "Open Letter"}</span>
+                  <span className="inv-gate-open-label" style={openBtnStyle}>{openButtonNode}</span>
                 </button>
               </div>
             </>
@@ -376,12 +391,12 @@ export function InviteGate({
                   <img src={coverUrl} alt="Monogram"
                     style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 28px rgba(0,0,0,0.5)" }} />
                 )}
-                <p className="inv-pretitle" style={{ ...ovStyle("pretitle", theme.accent), margin: 0 }}>{pretitle || "You are invited to"}</p>
+                <p className="inv-pretitle" style={{ ...ovStyle("pretitle", theme.accent), margin: 0 }}>{pretitleNode}</p>
               </div>
 
               {/* MIDDLE ZONE: event title + ornament */}
               <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-                <div className="inv-script" style={ovStyle("title", theme.title || theme.primary)}>{eventTitle}</div>
+                <div className="inv-script" style={ovStyle("title", theme.title || theme.primary)}>{titleNode}</div>
                 <div className="inv-ornament-line" style={{ color: theme.accent }}>
                   <div className="line" />
                   {theme.gem && <span className="gem">{theme.gem}</span>}
@@ -399,7 +414,7 @@ export function InviteGate({
                   </div>
                 )}
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
-                  <span className="inv-gate-open-label" style={openBtnStyle}>{openButtonText || "Open Letter"}</span>
+                  <span className="inv-gate-open-label" style={openBtnStyle}>{openButtonNode}</span>
                 </button>
               </div>
             </>

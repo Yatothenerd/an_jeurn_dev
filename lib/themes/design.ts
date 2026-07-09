@@ -100,6 +100,8 @@ export interface DesignGate {
   openButtonStrokeEnabled: boolean;
   /** Show the "Open" button's fill color (default false — transparent). */
   openButtonFillEnabled: boolean;
+  /** Long-text behavior for the "Open" button label: wrap onto a new line, or shrink to fit one line. */
+  openButtonFit: "wrap" | "shrink";
   scrollGuide: boolean;
   /** Guidance-overlay caption shown once after opening (admin-customizable). */
   guideText: string;
@@ -128,6 +130,12 @@ export interface DesignGate {
   /** Long-text behavior for the guest's name: wrap onto a new line, or shrink to fit one line.
    *  Most useful in "shrink" mode since a real guest's name length is unknown in advance. */
   guestNameFit: "wrap" | "shrink";
+  /** Long-text behavior for the greeting line: wrap onto a new line, or shrink to fit one line. */
+  pretitleFit: "wrap" | "shrink";
+  /** Long-text behavior for the names/title: wrap onto a new line, or shrink to fit one line. */
+  titleFit: "wrap" | "shrink";
+  /** Long-text behavior for the intro lines: wrap onto a new line, or shrink to fit one line. */
+  subheadingFit: "wrap" | "shrink";
   monogram: { gate: boolean; sections: boolean };
   elementPositions?: Partial<Record<GateElementKey, GatePlacement>>;
 }
@@ -217,6 +225,7 @@ interface LegacyOverlay {
   openButtonWeight?: number | null;
   openButtonStrokeEnabled?: boolean;
   openButtonFillEnabled?: boolean;
+  openButtonFit?: "wrap" | "shrink" | null;
   keepCoverAfterOpen?: boolean;
   scrollGuide?: boolean;
   gatePosition?: DesignGate["position"];
@@ -229,6 +238,9 @@ interface LegacyOverlay {
   guestPrefixWeight?: number | null;
   guestPrefixFit?: "wrap" | "shrink" | null;
   guestNameFit?: "wrap" | "shrink" | null;
+  pretitleFit?: "wrap" | "shrink" | null;
+  titleFit?: "wrap" | "shrink" | null;
+  subheadingFit?: "wrap" | "shrink" | null;
   monogram?: { gate: boolean; sections: boolean };
   elementPositions?: DesignGate["elementPositions"];
   showRsvp?: boolean;
@@ -296,6 +308,7 @@ export function resolveDesign(input: {
       openButtonWeight: oc.openButtonWeight ?? null,
       openButtonStrokeEnabled: oc.openButtonStrokeEnabled ?? true,
       openButtonFillEnabled: oc.openButtonFillEnabled ?? false,
+      openButtonFit: oc.openButtonFit ?? "wrap",
       scrollGuide: oc.scrollGuide ?? true,
       guideText: oc.guideText || "Scroll to explore",
       hand: oc.guideHand ?? { kind: "default", value: "" },
@@ -312,6 +325,9 @@ export function resolveDesign(input: {
       guestPrefixWeight: oc.guestPrefixWeight ?? null,
       guestPrefixFit: oc.guestPrefixFit ?? "wrap",
       guestNameFit: oc.guestNameFit ?? "wrap",
+      pretitleFit: oc.pretitleFit ?? "wrap",
+      titleFit: oc.titleFit ?? "wrap",
+      subheadingFit: oc.subheadingFit ?? "wrap",
       monogram: oc.monogram ?? { gate: true, sections: false },
       elementPositions: oc.elementPositions ?? undefined,
     },

@@ -15,7 +15,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, type FontOption } from "@/lib/themes/shared/standard-css";
+import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, buildFontsHref, type FontOption } from "@/lib/themes/shared/standard-css";
 import {
   type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
   type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type IdleAnim, type SectionBg, type HandAnim, type Interaction,
@@ -262,6 +262,18 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
   const [previewLang, setPreviewLang] = useState<"kh" | "en">("kh");
+
+  // Load the invitation web fonts so FONT_OPTIONS render in their real typeface —
+  // the live guest invite loads these too (see app/invite/[slug]/page.tsx), but
+  // this editor's preview otherwise has no font stylesheet of its own.
+  useEffect(() => {
+    if (document.querySelector("link[data-anjeurn-fonts]")) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = buildFontsHref();
+    link.setAttribute("data-anjeurn-fonts", "");
+    document.head.appendChild(link);
+  }, []);
 
   const patch = useCallback((p: Partial<BuilderState>) => setSt((s) => ({ ...s, ...p })), []);
 

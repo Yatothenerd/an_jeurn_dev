@@ -19,6 +19,9 @@ const BASE_FONT_FAMILIES = [
   "Lato:wght@300;400;700",
   "EB+Garamond:ital,wght@0,400;0,500;1,400",
   "Marcellus",
+  "Alex+Brush",
+  "Kantumruy+Pro:wght@300;400;500;600;700",
+  "Nunito:wght@400;500;600;700",
 ];
 
 // ── Event font picker ─────────────────────────────────────────────────────────
@@ -36,6 +39,7 @@ export const HEADING_FONTS: FontOption[] = [
   { label: "EB Garamond",        stack: "'EB Garamond', Georgia, serif" },
   { label: "Great Vibes",        stack: "'Great Vibes', cursive" },
   { label: "Dancing Script",     stack: "'Dancing Script', cursive" },
+  { label: "Alex Brush",         stack: "'Alex Brush', cursive" },
 ];
 
 export const BODY_FONTS: FontOption[] = [
@@ -44,6 +48,7 @@ export const BODY_FONTS: FontOption[] = [
   { label: "EB Garamond",        stack: "'EB Garamond', Georgia, serif" },
   { label: "Cormorant Garamond", stack: "'Cormorant Garamond', Georgia, serif" },
   { label: "Georgia",            stack: "Georgia, 'Times New Roman', serif" },
+  { label: "Kantumruy Pro",      stack: "'Kantumruy Pro', 'Nunito', sans-serif" },
 ];
 
 export const DEFAULT_FONTS = {

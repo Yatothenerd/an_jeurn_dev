@@ -338,10 +338,13 @@ interface GateWysiwygData {
   /** Prefix badge above the guest name (default "Dear"), and its own styling. */
   guestPrefix?: string;
   guestPrefixColor?: string; guestPrefixFont?: string; guestPrefixSize?: number; guestPrefixWeight?: number; guestPrefixFit?: TextFit;
+  guestNameFit?: TextFit;
   /** Open-button colors/label/font/size so the preview mirrors the live gate. */
   openBtnColor?: string; openBtnStroke?: string; openBtnFill?: string; openBtnText?: string;
   openBtnFont?: string; openBtnSize?: number; openBtnWeight?: number;
-  openBtnStrokeEnabled?: boolean; openBtnFillEnabled?: boolean;
+  openBtnStrokeEnabled?: boolean; openBtnFillEnabled?: boolean; openBtnFit?: TextFit;
+  /** Wrap/shrink behavior for the greeting, names and intro-lines text. */
+  pretitleFit?: TextFit; titleFit?: TextFit; subheadingFit?: TextFit;
 }
 
 /** Canva/Photoshop-style transform box — a measured outline around the active
@@ -452,44 +455,77 @@ function GateWysiwygEditor({ positions, onChange, data }: {
   };
   const end = () => { drag.current = null; };
 
-  // Real content for each gate element, styled with the live theme colors/fonts.
+  // Real content for each gate element, using the SAME rem sizes and style
+  // formulas as the live gate (InviteGate.tsx) so this preview is pixel-accurate
+  // once scaled down — not an ad hoc approximation.
   const content = (key: GateElementKey): React.ReactNode => {
     switch (key) {
       case "monogram":
         return data.showMonogram && data.monogramUrl
-          ? <img src={data.monogramUrl} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", boxShadow: "0 2px 12px rgba(0,0,0,0.5)" }} />
+          ? <img src={data.monogramUrl} alt="" style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 28px rgba(0,0,0,0.5)" }} />
           : null;
       case "pretitle":
-        return <span style={{ color: place("pretitle").color || data.accent, fontFamily: place("pretitle").font || undefined, fontWeight: place("pretitle").weight || 600, textAlign: place("pretitle").align || "center", fontSize: "0.42rem", letterSpacing: "0.18em", textTransform: "uppercase" }}>{data.greeting || "You are invited to"}</span>;
+        return (
+          <span style={{
+            color: place("pretitle").color || data.accent,
+            fontFamily: place("pretitle").font || undefined,
+            fontWeight: place("pretitle").weight || undefined,
+            textAlign: place("pretitle").align || "center",
+            fontSize: "0.7rem", letterSpacing: "0.25em", textTransform: "uppercase", opacity: 0.75,
+            ...(data.pretitleFit === "shrink" ? { whiteSpace: "nowrap" } : {}),
+          }}>{data.greeting || "You are invited to"}</span>
+        );
       case "title":
         return (
-          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-            <span style={{ color: place("title").color || data.primary, fontFamily: place("title").font || data.headingFont, fontWeight: place("title").weight || undefined, fontSize: "0.95rem", lineHeight: 1.1, textAlign: place("title").align || "center", maxWidth: 150 }}>{data.title || "Event title"}</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 4, color: data.accent }}>
-              <span style={{ width: 16, height: 1, background: "currentColor", opacity: 0.6 }} />
-              <span style={{ fontSize: "0.4rem" }}>◆</span>
-              <span style={{ width: 16, height: 1, background: "currentColor", opacity: 0.6 }} />
+          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+            <span style={{
+              color: place("title").color || data.primary,
+              fontFamily: place("title").font || "'Great Vibes', cursive",
+              fontWeight: place("title").weight || undefined,
+              fontSize: "3.4rem", lineHeight: 1.1, textAlign: place("title").align || "center",
+              ...(data.titleFit === "shrink" ? { whiteSpace: "nowrap" } : {}),
+            }}>{data.title || "Event title"}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 10, color: data.accent, width: "78%", maxWidth: 320 }}>
+              <span style={{ flex: 1, height: 1, background: "currentColor", opacity: 0.25 }} />
+              <span style={{ fontSize: "0.7rem", opacity: 0.6 }}>◆</span>
+              <span style={{ flex: 1, height: 1, background: "currentColor", opacity: 0.25 }} />
             </span>
           </span>
         );
       case "subtitle":
         return data.subheading
-          ? <span style={{ color: place("subtitle").color || data.muted, fontFamily: place("subtitle").font || undefined, fontWeight: place("subtitle").weight || undefined, fontSize: "0.4rem", fontStyle: "italic", letterSpacing: "0.04em", textAlign: place("subtitle").align || "center", whiteSpace: "nowrap" }}>{data.subheading}</span>
+          ? (
+            <span style={{
+              color: place("subtitle").color || data.muted,
+              fontFamily: place("subtitle").font || undefined,
+              fontWeight: place("subtitle").weight || undefined,
+              fontSize: "0.7rem", fontStyle: "italic", letterSpacing: "0.04em", textTransform: "uppercase", opacity: 0.75,
+              textAlign: place("subtitle").align || "center",
+              ...(data.subheadingFit === "shrink" ? { whiteSpace: "nowrap" } : {}),
+            }}>{data.subheading}</span>
+          )
           : null;
       case "guestName":
         return data.showGuestName ? (
-          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
             <span style={{
               color: data.guestPrefixColor || data.accent,
               border: `1px solid ${data.guestPrefixColor || data.accent}`,
-              borderRadius: 999, padding: "1px 7px",
+              borderRadius: 999, padding: "0.3rem 0.9rem", opacity: 0.85,
               fontFamily: data.guestPrefixFont || undefined,
-              fontSize: data.guestPrefixSize ? `${data.guestPrefixSize * 0.4}px` : "0.34rem",
+              fontSize: data.guestPrefixSize ? `${data.guestPrefixSize}px` : "0.62rem",
               fontWeight: data.guestPrefixWeight || undefined,
-              letterSpacing: "0.12em", textTransform: "uppercase",
+              letterSpacing: "0.18em", textTransform: "uppercase",
               whiteSpace: (data.guestPrefixFit ?? "wrap") === "wrap" ? "normal" : "nowrap",
             }}>♥ {data.guestPrefix || "Dear"}</span>
-            <span style={{ color: place("guestName").color || data.primary, fontFamily: place("guestName").font || data.headingFont, fontWeight: place("guestName").weight || undefined, textAlign: place("guestName").align || "center", fontSize: "0.62rem" }}>{data.guestLabel || "Dear Guest"}</span>
+            <span style={{
+              color: place("guestName").color || data.primary,
+              fontFamily: place("guestName").font || data.headingFont,
+              fontWeight: place("guestName").weight || undefined,
+              textAlign: place("guestName").align || "center",
+              fontSize: "1.4rem", lineHeight: 1.1,
+              ...((data.guestNameFit ?? "wrap") === "shrink" ? { whiteSpace: "nowrap" } : {}),
+            }}>{data.guestLabel || "Dear Guest"}</span>
           </span>
         ) : null;
       case "openBtn": {
@@ -500,11 +536,12 @@ function GateWysiwygEditor({ positions, onChange, data }: {
           <span style={{
             color: oc,
             fontFamily: data.openBtnFont || place("openBtn").font || undefined,
-            fontSize: data.openBtnSize ? `${data.openBtnSize * 0.4}px` : "0.4rem",
+            fontSize: data.openBtnSize ? `${data.openBtnSize}px` : "0.62rem",
             fontWeight: data.openBtnWeight || undefined,
             border: strokeOn ? `1px solid ${data.openBtnStroke || oc}` : "none",
-            borderRadius: 999, padding: "3px 12px", letterSpacing: "0.14em", textTransform: "uppercase",
+            borderRadius: 999, padding: "0.4rem 1rem", letterSpacing: "0.2em", textTransform: "uppercase",
             background: fillOn && data.openBtnFill ? data.openBtnFill : "transparent",
+            ...(data.openBtnFit === "shrink" ? { whiteSpace: "nowrap" } : {}),
           }}>
             {data.openBtnText || "Open Letter"}
           </span>
@@ -512,6 +549,17 @@ function GateWysiwygEditor({ positions, onChange, data }: {
       }
     }
   };
+
+  // Design-space canvas matches a real phone width so the rem-based sizes
+  // above render at their true relative proportions — then the whole thing
+  // is scaled down uniformly to fit the small preview slot. This is what
+  // keeps this WYSIWYG preview pixel-accurate to the live gate, instead of
+  // each element needing its own hand-tuned "looks about right" font size.
+  const DESIGN_W = 390;
+  const BOX_W = 220;
+  const BOX_H = Math.round(BOX_W * 17.5 / 9);
+  const zoom = BOX_W / DESIGN_W;
+  const DESIGN_H = Math.round(BOX_H / zoom);
 
   return (
     <>
@@ -521,7 +569,7 @@ function GateWysiwygEditor({ positions, onChange, data }: {
         onPointerUp={end}
         onPointerDown={() => setActive(null)}
         style={{
-          position: "relative", width: 220, aspectRatio: "9 / 17.5", maxHeight: 440, margin: "0.4rem auto 0",
+          position: "relative", width: BOX_W, height: BOX_H, margin: "0.4rem auto 0",
           borderRadius: 18, border: "1px solid var(--c-border)",
           background: data.bgUrl ? `#14161c url(${data.bgUrl}) center / cover no-repeat` : (data.gateBg || "linear-gradient(160deg, #2b2f3a, #14161c)"),
           overflow: "hidden", touchAction: "none", userSelect: "none",
@@ -530,41 +578,54 @@ function GateWysiwygEditor({ positions, onChange, data }: {
         {/* readability scrim, mirroring the live gate */}
         {data.bgUrl && <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.28)" }} />}
 
-        {GATE_ELEMENTS.map(({ key }) => {
-          const node = content(key);
-          if (!node) return null;
-          const p = place(key);
-          const scale = p.scale && p.scale > 0 ? p.scale : 1;
-          const isActive = active === key;
-          return (
-            <div
-              key={key}
-              ref={(el) => { if (el) elRefs.current.set(key, el); else elRefs.current.delete(key); }}
-              onPointerDown={startMove(key)}
-              style={{
-                position: "absolute", left: `${p.xPct}%`, top: `${p.yPct}%`,
-                transform: `translate(-50%, -50%) scale(${scale})`,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "grab", padding: 2, borderRadius: 4,
-                outline: isActive ? "none" : "1px dashed rgba(255,255,255,0.25)",
-                outlineOffset: 2, zIndex: isActive ? 10 : 1,
-              }}
-            >
-              {node}
-            </div>
-          );
-        })}
+        <div style={{ position: "absolute", left: 0, top: 0, width: DESIGN_W, height: DESIGN_H, transform: `scale(${zoom})`, transformOrigin: "0 0" }}>
+          {GATE_ELEMENTS.map(({ key }) => {
+            const node = content(key);
+            if (!node) return null;
+            const p = place(key);
+            const scale = p.scale && p.scale > 0 ? p.scale : 1;
+            const isActive = active === key;
+            return (
+              <div
+                key={key}
+                ref={(el) => { if (el) elRefs.current.set(key, el); else elRefs.current.delete(key); }}
+                onPointerDown={startMove(key)}
+                style={{
+                  position: "absolute", left: `${p.xPct}%`, top: `${p.yPct}%`,
+                  transform: `translate(-50%, -50%) scale(${scale})`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "grab", padding: 2, borderRadius: 4,
+                  outline: isActive ? "none" : "1px dashed rgba(255,255,255,0.25)",
+                  outlineOffset: 2, zIndex: isActive ? 10 : 1,
+                }}
+              >
+                {node}
+              </div>
+            );
+          })}
+        </div>
         {/* Canva/Photoshop-style transform box — corner + edge handles around the selected element */}
         {active && (
           <GateTransformBox boxRef={boxRef} targetEl={elRefs.current.get(active) ?? null} onHandleDown={startResize(active)} />
         )}
       </div>
       {active && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem", marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--c-muted)", textAlign: "center" }}>
-          <span>Selected: <strong style={{ color: "var(--c-text)" }}>{GATE_ELEMENTS.find((g) => g.key === active)?.label ?? active}</strong> — edit its text, color &amp; font in the cards below.</span>
-          {(place(active).scale ?? 1) !== 1 && (
-            <button type="button" style={s.smallGhost} onClick={() => onChange({ ...positions, [active]: { ...place(active), scale: 1 } })}>Reset size</button>
-          )}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem", marginTop: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem", fontSize: "0.72rem", color: "var(--c-muted)", textAlign: "center" }}>
+            <span>Selected: <strong style={{ color: "var(--c-text)" }}>{GATE_ELEMENTS.find((g) => g.key === active)?.label ?? active}</strong> — edit its text, color &amp; font in the cards below.</span>
+            {(place(active).scale ?? 1) !== 1 && (
+              <button type="button" style={s.smallGhost} onClick={() => onChange({ ...positions, [active]: { ...place(active), scale: 1 } })}>Reset size</button>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+            <span style={{ fontSize: "0.68rem", color: "var(--c-muted)" }}>Snap to:</span>
+            {([["Left", 15], ["Center", 50], ["Right", 85]] as const).map(([label, xPct]) => (
+              <button key={label} type="button" style={s.smallGhost}
+                onClick={() => onChange({ ...positions, [active]: { ...place(active), xPct } })}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </>
@@ -645,6 +706,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
           <p style={s.hint}>Shown prominently on the opening gate and the cover section.</p>
           <Field label="Greeting line (above names)"><Txt value={str("greeting")} onChange={set("greeting")} placeholder="You are invited to" /></Field>
           <Field label="Names / heading"><Txt value={str("heading")} onChange={set("heading")} placeholder="Artem + Vika" /></Field>
+          <p style={s.hint}>This is what guests see as the big title on the opening gate and cover. Leave blank to fall back to the event title.</p>
           <Field label="Intro lines"><Area value={str("subheading")} onChange={set("subheading")} rows={2} placeholder={"We invite you\nto our"} /></Field>
           <Field label="Big word"><Txt value={str("bigWord")} onChange={set("bigWord")} placeholder="wedding" /></Field>
           <Field label="Guest greeting label"><Txt value={str("guestLabel")} onChange={set("guestLabel")} placeholder="Dear" /></Field>
@@ -920,6 +982,10 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     guestPrefixWeight: (oc.guestPrefixWeight as number | undefined) ?? undefined,
     guestPrefixFit: (oc.guestPrefixFit as "wrap" | "shrink" | undefined) ?? "wrap",
     guestNameFit: (oc.guestNameFit as "wrap" | "shrink" | undefined) ?? "wrap",
+    pretitleFit: (oc.pretitleFit as "wrap" | "shrink" | undefined) ?? "wrap",
+    titleFit: (oc.titleFit as "wrap" | "shrink" | undefined) ?? "wrap",
+    subheadingFit: (oc.subheadingFit as "wrap" | "shrink" | undefined) ?? "wrap",
+    openButtonFit: (oc.openButtonFit as "wrap" | "shrink" | undefined) ?? "wrap",
   });
   // Adjustable dim over the cover/gate background (mirrors sectionOverlay).
   const ocGateOverlay = (oc.gateOverlay ?? { enabled: false, color: "#000000", opacity: 0.45 }) as { enabled: boolean; color: string; opacity: number };
@@ -1018,6 +1084,10 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       openButtonWeight: coverOpts.openButtonWeight || null,
       openButtonStrokeEnabled: coverOpts.openButtonStrokeEnabled,
       openButtonFillEnabled: coverOpts.openButtonFillEnabled,
+      openButtonFit: coverOpts.openButtonFit,
+      pretitleFit: coverOpts.pretitleFit,
+      titleFit: coverOpts.titleFit,
+      subheadingFit: coverOpts.subheadingFit,
       gateOverlay,
       monogram,
       scrollGuide: guide.enabled,
@@ -1278,7 +1348,8 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         {/* Event basics */}
         <div style={s.card}>
           <div style={s.cardTitle}>Event</div>
-          <Field label="Title / couple names"><Txt value={basics.title} onChange={(v) => setBasics((b) => ({ ...b, title: v }))} /></Field>
+          <Field label="Event title (internal)"><Txt value={basics.title} onChange={(v) => setBasics((b) => ({ ...b, title: v }))} /></Field>
+          <p style={s.hint}>Used to identify this event in the admin — not shown to guests. Set the wording guests actually see under Cover → &ldquo;Names / heading&rdquo;.</p>
           <Field label="Date & time"><Txt type="datetime-local" value={basics.eventDate} onChange={(v) => setBasics((b) => ({ ...b, eventDate: v }))} /></Field>
           <Field label="Venue"><Txt value={basics.venueName} onChange={(v) => setBasics((b) => ({ ...b, venueName: v }))} /></Field>
           <Field label="Map URL"><Txt value={basics.venueMapUrl} onChange={(v) => setBasics((b) => ({ ...b, venueMapUrl: v }))} /></Field>
@@ -1348,7 +1419,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
             positions={elementPositions}
             onChange={setElementPositions}
             data={{
-              title: basics.title,
+              title: coverStr("heading") || basics.title,
               greeting: ((sections.find((x) => x.type === "cover")?.content as { greeting?: string } | undefined)?.greeting) ?? "",
               subheading: ((sections.find((x) => x.type === "cover")?.content as { subheading?: string } | undefined)?.subheading) ?? "",
               guestLabel: ((sections.find((x) => x.type === "cover")?.content as { guestLabel?: string } | undefined)?.guestLabel) ?? "Dear Guest",
@@ -1367,6 +1438,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
               guestPrefixSize: coverOpts.guestPrefixSize || undefined,
               guestPrefixWeight: coverOpts.guestPrefixWeight || undefined,
               guestPrefixFit: coverOpts.guestPrefixFit,
+              guestNameFit: coverOpts.guestNameFit,
               openBtnColor: coverOpts.openButtonColor || undefined,
               openBtnStroke: coverOpts.openButtonStroke || undefined,
               openBtnFill: coverOpts.openButtonFill || undefined,
@@ -1376,6 +1448,10 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
               openBtnWeight: coverOpts.openButtonWeight || undefined,
               openBtnStrokeEnabled: coverOpts.openButtonStrokeEnabled,
               openBtnFillEnabled: coverOpts.openButtonFillEnabled,
+              openBtnFit: coverOpts.openButtonFit,
+              pretitleFit: coverOpts.pretitleFit,
+              titleFit: coverOpts.titleFit,
+              subheadingFit: coverOpts.subheadingFit,
             }}
           />
         </div>
@@ -1385,13 +1461,16 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           <div style={s.cardTitle}>Greeting</div>
           <Field label="Text"><Txt value={coverStr("greeting")} onChange={(v) => patchCover({ greeting: v })} placeholder="You are invited to" /></Field>
           <Field label="Color · font · size">{elemStyleRow("pretitle", themeDefaults.accent)}</Field>
+          <TextFitRow value={coverOpts.pretitleFit} onChange={(v) => setCoverOpts((o) => ({ ...o, pretitleFit: v }))} />
         </div>
 
-        {/* Names element (text = event title, edited in Basics) */}
+        {/* Names element — the big title on the gate/cover */}
         <div style={s.card}>
           <div style={s.cardTitle}>Names</div>
-          <p style={s.hint}>The event title — edit its wording in the <strong>Basics</strong> step.</p>
+          <Field label="Text"><Txt value={coverStr("heading")} onChange={(v) => patchCover({ heading: v })} placeholder="Sophea & Dara" /></Field>
+          <p style={s.hint}>Leave blank to fall back to the event title set in <strong>Basics</strong>.</p>
           <Field label="Color · font · size">{elemStyleRow("title", themeDefaults.title || themeDefaults.primary)}</Field>
+          <TextFitRow value={coverOpts.titleFit} onChange={(v) => setCoverOpts((o) => ({ ...o, titleFit: v }))} />
         </div>
 
         {/* Intro lines element */}
@@ -1399,6 +1478,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           <div style={s.cardTitle}>Intro lines</div>
           <Field label="Text"><Area value={coverStr("subheading")} onChange={(v) => patchCover({ subheading: v })} rows={2} placeholder={"We invite you\nto our"} /></Field>
           <Field label="Color · font · size">{elemStyleRow("subtitle", themeDefaults.muted)}</Field>
+          <TextFitRow value={coverOpts.subheadingFit} onChange={(v) => setCoverOpts((o) => ({ ...o, subheadingFit: v }))} />
         </div>
 
         {/* Open button element — label, font, size, colors */}
@@ -1451,6 +1531,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
               <ColorField value={coverOpts.openButtonFill || "#000000"} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonFill: v }))} />
             </Field>
           )}
+          <TextFitRow value={coverOpts.openButtonFit} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonFit: v }))} />
         </div>
 
         {/* Opening behaviour — animation, keep cover */}

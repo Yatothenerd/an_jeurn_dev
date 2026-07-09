@@ -58,8 +58,9 @@ export function DetailsForm({ event, client }: { event: EventData; client: Clien
         </div>
 
         <label style={s.field}>
-          <span style={s.label}>Title / couple names</span>
+          <span style={s.label}>Event title (internal)</span>
           <input style={s.input} value={form.title} onChange={(e) => set("title")(e.target.value)} />
+          <span style={s.metaMuted}>Used to identify this event in the admin and in filenames — not shown to guests. Set the wording guests see under Content → Cover → &ldquo;Names / heading&rdquo;.</span>
         </label>
         <div style={s.row2}>
           <label style={s.field}>

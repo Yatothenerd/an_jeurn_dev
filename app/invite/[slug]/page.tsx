@@ -281,8 +281,17 @@ export default async function InvitePage({
   }
 
   // Freeform theme — the builder canvas ships its own full-page renderer.
+  // Still needs the shared Google Fonts stylesheet: the builder's font picker
+  // (FONT_OPTIONS in EventBuilder.tsx) offers every family in BASE_FONT_FAMILIES,
+  // and without this link they silently fall back to system fonts on the live page.
   if (design.themeId === FREEFORM_THEME_ID) {
-    return <BuilderInvite state={design.builderDraft as BuilderState} guestName={guestName ?? undefined} />;
+    return (
+      <>
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link rel="stylesheet" href={buildFontsHref()} />
+        <BuilderInvite state={design.builderDraft as BuilderState} guestName={guestName ?? undefined} />
+      </>
+    );
   }
 
   const themeMod = getTheme(design.themeId);
@@ -371,10 +380,14 @@ export default async function InvitePage({
     (pkg?.hasKhqr ?? false) &&
     activeSections.some((sec) => sec.type === "khqr" && khqrItems(sec.content as Parameters<typeof khqrItems>[0]).length > 0);
 
-  const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string; logoUrl?: string; subheading?: string; greeting?: string } | undefined;
+  const coverContent = activeSections.find((s) => s.type === "cover")?.content as { guestLabel?: string; logoUrl?: string; subheading?: string; greeting?: string; heading?: string } | undefined;
   // Gate monogram = the uploaded logo only. Removing the logo removes the
   // monogram (no silent fallback to the cover image).
   const gateMonogramUrl = coverContent?.logoUrl || null;
+  // The event's `title` field is an internal admin label (used to identify the
+  // event in lists/filenames) — the cover section's `heading` is the actual
+  // guest-facing wording, editable separately. Fall back to the title when unset.
+  const displayTitle = coverContent?.heading || data.event.title;
 
   // When "show cover after opening" is off, the cover lives only on the gate —
   // drop it from the scrolling sections so guests land straight on the content.
@@ -422,7 +435,7 @@ export default async function InvitePage({
         return <div key={sec.id} id={anchorId(sec.type)}>{wrapped}</div>;
       })}
 
-      {layout.footer?.({ tokens, eventTitle: data.event.title })}
+      {layout.footer?.({ tokens, eventTitle: displayTitle })}
 
       {page.showRsvp && (
         <RsvpModal
@@ -516,9 +529,11 @@ export default async function InvitePage({
 
       {showOpeningCover ? (
         <InviteGate
-          eventTitle={data.event.title}
+          eventTitle={displayTitle}
           pretitle={coverContent?.greeting}
+          pretitleFit={gate.pretitleFit}
           subheading={coverContent?.subheading}
+          subheadingFit={gate.subheadingFit}
           guestName={guestName}
           guestLabel={coverContent?.guestLabel}
           guestPrefix={gate.guestPrefix}
@@ -528,6 +543,7 @@ export default async function InvitePage({
           guestPrefixWeight={gate.guestPrefixWeight}
           guestPrefixFit={gate.guestPrefixFit}
           guestNameFit={gate.guestNameFit}
+          titleFit={gate.titleFit}
           theme={gateTokens}
           bgUrl={inv.coverUrl}
           coverUrl={gateMonogramUrl}
@@ -543,6 +559,7 @@ export default async function InvitePage({
           openButtonWeight={gate.openButtonWeight}
           openButtonStrokeEnabled={gate.openButtonStrokeEnabled}
           openButtonFillEnabled={gate.openButtonFillEnabled}
+          openButtonFit={gate.openButtonFit}
           scrollGuide={gate.scrollGuide}
           guideText={gate.guideText}
           hand={gate.hand}
