@@ -47,6 +47,14 @@ export interface ThemeTokens {
   header?: string;
   /** DB-theme semantic color for body text and detail values (falls back to text). */
   body?: string;
+  /** Section title font-weight (400–800). Falls back to the browser default. */
+  titleWeight?: number;
+  /** Section title text-align. Falls back to center. */
+  titleAlign?: "left" | "center" | "right";
+  /** Section body font-weight (400–800). Falls back to the browser default. */
+  bodyWeight?: number;
+  /** Section body text-align. Falls back to center. */
+  bodyAlign?: "left" | "center" | "right";
   /** Hairline border used on cards (already includes alpha). */
   border: string;
   btnBg: string;

@@ -55,6 +55,9 @@ interface Props {
   designLocked?: boolean;
   sectionRows: Array<{ type: string; content: unknown }>;
   initialPhotos: PhotoRow[];
+  /** Resolved theme default colors/font for the gate, so the WYSIWYG editor's
+   *  fallbacks match the live invite (not hardcoded gold). */
+  themeDefaults: { accent: string; title: string; primary: string; muted: string; headingFont: string };
 }
 
 // ── Section defaults ─────────────────────────────────────────────────────────
@@ -72,9 +75,59 @@ const SECTION_META: Record<string, { label: string; icon: string }> = {
 };
 
 /** Per-section text-box fine-tuning (rendered by DbThemeSections `styled()`). */
+type TextAlignOpt = "left" | "center" | "right";
 interface SectionStyleOverride {
-  titleFont?: string; titleColor?: string; titleScale?: number;
-  bodyFont?: string;  bodyColor?: string;  bodyScale?: number;
+  titleFont?: string; titleColor?: string; titleScale?: number; titleWeight?: number; titleAlign?: TextAlignOpt;
+  bodyFont?: string;  bodyColor?: string;  bodyScale?: number;  bodyWeight?: number;  bodyAlign?: TextAlignOpt;
+}
+
+const WEIGHT_OPTIONS: Array<{ v: number; l: string }> = [
+  { v: 400, l: "Normal" }, { v: 500, l: "Medium" }, { v: 600, l: "Semibold" }, { v: 700, l: "Bold" }, { v: 800, l: "Extra bold" },
+];
+
+/** Font-weight dropdown + text-align button group, reused by every text style editor. */
+function WeightAlignRow({ weight, onWeight, align, onAlign, weightDefault = 600 }: {
+  weight?: number; onWeight: (v: number | undefined) => void;
+  align?: TextAlignOpt; onAlign: (v: TextAlignOpt | undefined) => void;
+  weightDefault?: number;
+}) {
+  return (
+    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+      <select className="eb-input" style={{ ...s.input, flex: "1 1 110px", minWidth: 110 }}
+        value={weight ?? ""} onChange={(e) => onWeight(e.target.value ? +e.target.value : undefined)}>
+        <option value="">Weight: theme ({weightDefault})</option>
+        {WEIGHT_OPTIONS.map((w) => <option key={w.v} value={w.v}>{w.l} ({w.v})</option>)}
+      </select>
+      <div style={{ display: "flex", gap: "0.25rem" }}>
+        {(["left", "center", "right"] as const).map((a) => (
+          <button key={a} type="button" title={`Align ${a}`}
+            style={{ ...s.smallBtn, ...(align === a ? s.smallBtnOn : {}) }}
+            onClick={() => onAlign(align === a ? undefined : a)}>
+            {a === "left" ? "⯇" : a === "right" ? "⯈" : "◆"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type TextFit = "wrap" | "shrink";
+
+/** Wrap vs. shrink-to-fit toggle for long text — used wherever content length
+ *  varies at runtime (guest names) or can simply run long (badges). */
+function TextFitRow({ value, onChange }: { value: TextFit; onChange: (v: TextFit) => void }) {
+  return (
+    <div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+      <span style={{ fontSize: "0.72rem", color: "var(--c-muted)" }}>Long text:</span>
+      {(["wrap", "shrink"] as const).map((f) => (
+        <button key={f} type="button"
+          style={{ ...s.smallBtn, ...(value === f ? s.smallBtnOn : {}) }}
+          onClick={() => onChange(f)}>
+          {f === "wrap" ? "Wrap to new line" : "Shrink to fit"}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 const DEFAULT_SECTIONS: EditorSection[] = [
@@ -196,6 +249,10 @@ function TextStylePanel({ value, onChange, titleSample, bodySample }: {
           <Field label="Title size">
             <SizeField value={value.titleScale ?? 1} onChange={(v) => set({ titleScale: v === 1 ? undefined : v })} />
           </Field>
+          <Field label="Title weight · align">
+            <WeightAlignRow weight={value.titleWeight} onWeight={(v) => set({ titleWeight: v })}
+              align={value.titleAlign} onAlign={(v) => set({ titleAlign: v })} weightDefault={600} />
+          </Field>
           <Field label="Body font">
             <FontPicker value={value.bodyFont ?? ""} onChange={(v) => set({ bodyFont: v || undefined })} options={BODY_FONTS} previewText={bodySample || undefined} />
           </Field>
@@ -204,6 +261,10 @@ function TextStylePanel({ value, onChange, titleSample, bodySample }: {
           </Field>
           <Field label="Body size">
             <SizeField value={value.bodyScale ?? 1} onChange={(v) => set({ bodyScale: v === 1 ? undefined : v })} />
+          </Field>
+          <Field label="Body weight · align">
+            <WeightAlignRow weight={value.bodyWeight} onWeight={(v) => set({ bodyWeight: v })}
+              align={value.bodyAlign} onAlign={(v) => set({ bodyAlign: v })} weightDefault={400} />
           </Field>
         </div>
       )}
@@ -267,13 +328,80 @@ const GATE_ELEMENTS: Array<{ key: GateElementKey; label: string }> = [
   { key: "openBtn",   label: "Open button" },
 ];
 
-type GatePlace = { xPct: number; yPct: number; scale?: number };
+type GatePlace = { xPct: number; yPct: number; scale?: number; color?: string; font?: string; weight?: number; align?: TextAlignOpt };
 
 interface GateWysiwygData {
   title: string; greeting: string; subheading: string; guestLabel: string;
   bgUrl: string; monogramUrl: string; showMonogram: boolean; showGuestName: boolean;
   accent: string; primary: string; muted: string; headingFont: string;
   gateBg: string;
+  /** Prefix badge above the guest name (default "Dear"), and its own styling. */
+  guestPrefix?: string;
+  guestPrefixColor?: string; guestPrefixFont?: string; guestPrefixSize?: number; guestPrefixWeight?: number; guestPrefixFit?: TextFit;
+  /** Open-button colors/label/font/size so the preview mirrors the live gate. */
+  openBtnColor?: string; openBtnStroke?: string; openBtnFill?: string; openBtnText?: string;
+  openBtnFont?: string; openBtnSize?: number; openBtnWeight?: number;
+  openBtnStrokeEnabled?: boolean; openBtnFillEnabled?: boolean;
+}
+
+/** Canva/Photoshop-style transform box — a measured outline around the active
+ *  element with 8 corner/edge handles, all driving the same uniform resize. */
+function GateTransformBox({ boxRef, targetEl, onHandleDown }: {
+  boxRef: React.RefObject<HTMLDivElement>;
+  targetEl: HTMLElement | null;
+  onHandleDown: (e: React.PointerEvent) => void;
+}) {
+  const [box, setBox] = useState<{ l: number; t: number; w: number; h: number } | null>(null);
+  useEffect(() => {
+    if (!targetEl || !boxRef.current) { setBox(null); return; }
+    const measure = () => {
+      if (!boxRef.current) return;
+      const cr = boxRef.current.getBoundingClientRect();
+      const ir = targetEl.getBoundingClientRect();
+      setBox({
+        l: (ir.left - cr.left) / cr.width * 100,
+        t: (ir.top - cr.top) / cr.height * 100,
+        w: ir.width / cr.width * 100,
+        h: ir.height / cr.height * 100,
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(targetEl);
+    return () => ro.disconnect();
+  }, [targetEl, boxRef]);
+  if (!box) return null;
+  const { l, t, w, h } = box;
+  const pad = 3; // small margin so the box clears the text/glyphs, like Canva's selection outline
+  const L = l - pad, T = t - pad, W = w + pad * 2, H = h + pad * 2;
+  const handles = [
+    { x: L,         y: T,         cur: "nw-resize" },
+    { x: L + W / 2, y: T,         cur: "n-resize"  },
+    { x: L + W,     y: T,         cur: "ne-resize" },
+    { x: L + W,     y: T + H / 2, cur: "e-resize"  },
+    { x: L + W,     y: T + H,     cur: "se-resize" },
+    { x: L + W / 2, y: T + H,     cur: "s-resize"  },
+    { x: L,         y: T + H,     cur: "sw-resize" },
+    { x: L,         y: T + H / 2, cur: "w-resize"  },
+  ];
+  return (
+    <>
+      <div style={{
+        position: "absolute", left: `${L}%`, top: `${T}%`, width: `${W}%`, height: `${H}%`,
+        border: "1.5px solid var(--c-accent)", borderRadius: 3, pointerEvents: "none", zIndex: 9,
+      }} />
+      {handles.map((c, i) => (
+        <div key={i}
+          style={{
+            position: "absolute", left: `${c.x}%`, top: `${c.y}%`, width: 9, height: 9,
+            marginLeft: -4.5, marginTop: -4.5, background: "#fff", border: "1.5px solid var(--c-accent)",
+            borderRadius: 2, cursor: c.cur, touchAction: "none", zIndex: 11,
+          }}
+          onPointerDown={onHandleDown}
+        />
+      ))}
+    </>
+  );
 }
 
 /** WYSIWYG opening-gate editor — drag & resize the REAL cover elements on a
@@ -284,6 +412,7 @@ function GateWysiwygEditor({ positions, onChange, data }: {
   data: GateWysiwygData;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
+  const elRefs = useRef<Map<GateElementKey, HTMLDivElement>>(new Map());
   const drag = useRef<{ key: GateElementKey; mode: "move" | "resize"; startScale: number; cx: number; cy: number; startDist: number; moved: boolean } | null>(null);
   const [active, setActive] = useState<GateElementKey | null>(null);
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -331,11 +460,11 @@ function GateWysiwygEditor({ positions, onChange, data }: {
           ? <img src={data.monogramUrl} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", boxShadow: "0 2px 12px rgba(0,0,0,0.5)" }} />
           : null;
       case "pretitle":
-        return <span style={{ color: data.accent, fontSize: "0.42rem", letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 600 }}>{data.greeting || "You are invited to"}</span>;
+        return <span style={{ color: place("pretitle").color || data.accent, fontFamily: place("pretitle").font || undefined, fontWeight: place("pretitle").weight || 600, textAlign: place("pretitle").align || "center", fontSize: "0.42rem", letterSpacing: "0.18em", textTransform: "uppercase" }}>{data.greeting || "You are invited to"}</span>;
       case "title":
         return (
           <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-            <span style={{ color: data.primary, fontFamily: data.headingFont, fontSize: "0.95rem", lineHeight: 1.1, textAlign: "center", maxWidth: 150 }}>{data.title || "Event title"}</span>
+            <span style={{ color: place("title").color || data.primary, fontFamily: place("title").font || data.headingFont, fontWeight: place("title").weight || undefined, fontSize: "0.95rem", lineHeight: 1.1, textAlign: place("title").align || "center", maxWidth: 150 }}>{data.title || "Event title"}</span>
             <span style={{ display: "flex", alignItems: "center", gap: 4, color: data.accent }}>
               <span style={{ width: 16, height: 1, background: "currentColor", opacity: 0.6 }} />
               <span style={{ fontSize: "0.4rem" }}>◆</span>
@@ -345,17 +474,42 @@ function GateWysiwygEditor({ positions, onChange, data }: {
         );
       case "subtitle":
         return data.subheading
-          ? <span style={{ color: data.muted, fontSize: "0.4rem", fontStyle: "italic", letterSpacing: "0.04em", textAlign: "center", whiteSpace: "nowrap" }}>{data.subheading}</span>
+          ? <span style={{ color: place("subtitle").color || data.muted, fontFamily: place("subtitle").font || undefined, fontWeight: place("subtitle").weight || undefined, fontSize: "0.4rem", fontStyle: "italic", letterSpacing: "0.04em", textAlign: place("subtitle").align || "center", whiteSpace: "nowrap" }}>{data.subheading}</span>
           : null;
       case "guestName":
         return data.showGuestName ? (
           <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-            <span style={{ color: data.accent, border: `1px solid ${data.accent}`, borderRadius: 999, padding: "1px 7px", fontSize: "0.34rem", letterSpacing: "0.12em", textTransform: "uppercase" }}>♥ Dear</span>
-            <span style={{ color: data.primary, fontFamily: data.headingFont, fontSize: "0.62rem" }}>{data.guestLabel || "Dear Guest"}</span>
+            <span style={{
+              color: data.guestPrefixColor || data.accent,
+              border: `1px solid ${data.guestPrefixColor || data.accent}`,
+              borderRadius: 999, padding: "1px 7px",
+              fontFamily: data.guestPrefixFont || undefined,
+              fontSize: data.guestPrefixSize ? `${data.guestPrefixSize * 0.4}px` : "0.34rem",
+              fontWeight: data.guestPrefixWeight || undefined,
+              letterSpacing: "0.12em", textTransform: "uppercase",
+              whiteSpace: (data.guestPrefixFit ?? "wrap") === "wrap" ? "normal" : "nowrap",
+            }}>♥ {data.guestPrefix || "Dear"}</span>
+            <span style={{ color: place("guestName").color || data.primary, fontFamily: place("guestName").font || data.headingFont, fontWeight: place("guestName").weight || undefined, textAlign: place("guestName").align || "center", fontSize: "0.62rem" }}>{data.guestLabel || "Dear Guest"}</span>
           </span>
         ) : null;
-      case "openBtn":
-        return <span style={{ color: data.accent, border: `1px solid ${data.accent}`, borderRadius: 999, padding: "3px 12px", fontSize: "0.4rem", letterSpacing: "0.14em", textTransform: "uppercase", background: "rgba(0,0,0,0.25)" }}>Open Letter</span>;
+      case "openBtn": {
+        const oc = place("openBtn").color || data.openBtnColor || data.accent;
+        const strokeOn = data.openBtnStrokeEnabled ?? true;
+        const fillOn = data.openBtnFillEnabled ?? false;
+        return (
+          <span style={{
+            color: oc,
+            fontFamily: data.openBtnFont || place("openBtn").font || undefined,
+            fontSize: data.openBtnSize ? `${data.openBtnSize * 0.4}px` : "0.4rem",
+            fontWeight: data.openBtnWeight || undefined,
+            border: strokeOn ? `1px solid ${data.openBtnStroke || oc}` : "none",
+            borderRadius: 999, padding: "3px 12px", letterSpacing: "0.14em", textTransform: "uppercase",
+            background: fillOn && data.openBtnFill ? data.openBtnFill : "transparent",
+          }}>
+            {data.openBtnText || "Open Letter"}
+          </span>
+        );
+      }
     }
   };
 
@@ -385,35 +539,32 @@ function GateWysiwygEditor({ positions, onChange, data }: {
           return (
             <div
               key={key}
+              ref={(el) => { if (el) elRefs.current.set(key, el); else elRefs.current.delete(key); }}
               onPointerDown={startMove(key)}
               style={{
                 position: "absolute", left: `${p.xPct}%`, top: `${p.yPct}%`,
                 transform: `translate(-50%, -50%) scale(${scale})`,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 cursor: "grab", padding: 2, borderRadius: 4,
-                outline: isActive ? "1.5px solid var(--c-accent)" : "1px dashed rgba(255,255,255,0.25)",
+                outline: isActive ? "none" : "1px dashed rgba(255,255,255,0.25)",
                 outlineOffset: 2, zIndex: isActive ? 10 : 1,
               }}
             >
               {node}
-              {isActive && (
-                <span
-                  onPointerDown={startResize(key)}
-                  title="Drag to resize"
-                  style={{
-                    position: "absolute", right: -6, bottom: -6, width: 12, height: 12, borderRadius: "50%",
-                    background: "var(--c-accent)", border: "2px solid #fff", cursor: "nwse-resize", boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-                  }}
-                />
-              )}
             </div>
           );
         })}
+        {/* Canva/Photoshop-style transform box — corner + edge handles around the selected element */}
+        {active && (
+          <GateTransformBox boxRef={boxRef} targetEl={elRefs.current.get(active) ?? null} onHandleDown={startResize(active)} />
+        )}
       </div>
       {active && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem", marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--c-muted)" }}>
-          <span>Size: {Math.round((place(active).scale ?? 1) * 100)}%</span>
-          <button type="button" style={s.smallGhost} onClick={() => onChange({ ...positions, [active]: { ...place(active), scale: 1 } })}>Reset size</button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem", marginTop: "0.5rem", fontSize: "0.72rem", color: "var(--c-muted)", textAlign: "center" }}>
+          <span>Selected: <strong style={{ color: "var(--c-text)" }}>{GATE_ELEMENTS.find((g) => g.key === active)?.label ?? active}</strong> — edit its text, color &amp; font in the cards below.</span>
+          {(place(active).scale ?? 1) !== 1 && (
+            <button type="button" style={s.smallGhost} onClick={() => onChange({ ...positions, [active]: { ...place(active), scale: 1 } })}>Reset size</button>
+          )}
         </div>
       )}
     </>
@@ -517,17 +668,30 @@ function SectionForm({ sec, onContent, locked, altLang }: {
           <Field label="Photo (optional)"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
         </>
       );
-    case "countdown":
+    case "countdown": {
+      const uc = (c.countdownColors ?? {}) as Record<string, string>;
+      const setUc = (k: string, v: string) => onC({ countdownColors: { ...uc, [k]: v || undefined } });
       return (
         <>
           <Field label="Title"><Txt value={str("label")} onChange={set("label")} placeholder="When?" /></Field>
           <Field label="Target date & time">
             <Txt type="datetime-local" value={str("targetDate").slice(0, 16)} onChange={set("targetDate")} />
           </Field>
+          <div style={s.subHead}>Number colors</div>
+          <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
+            {(["days", "hours", "minutes", "seconds"] as const).map((k) => (
+              <label key={k} style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "0.7rem", color: "var(--c-muted)", textTransform: "capitalize" }}>
+                {k}
+                <ColorField value={uc[k] ?? ""} onChange={(v) => setUc(k, v)} />
+              </label>
+            ))}
+          </div>
+          <p style={s.hint}>Leave a unit blank to use the section&apos;s title color.</p>
         </>
       );
+    }
     case "agenda": {
-      const items = (Array.isArray(c.items) ? c.items : []) as Array<{ time?: string; title?: string; icon?: number }>;
+      const items = (Array.isArray(c.items) ? c.items : []) as Array<{ time?: string; title?: string; icon?: number; color?: string }>;
       const setItems = (next: typeof items) => onC({ items: next });
       const patchItem = (i: number, p: Partial<typeof items[number]>) => setItems(items.map((x, j) => (j === i ? { ...x, ...p } : x)));
       return (
@@ -556,6 +720,10 @@ function SectionForm({ sec, onContent, locked, altLang }: {
                   ))}
                 </div>
               </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.7rem", color: "var(--c-muted)" }}>
+                Row color
+                <ColorField value={it.color ?? ""} onChange={(v) => patchItem(i, { color: v || undefined })} />
+              </label>
             </div>
           ))}
           <button type="button" style={s.smallBtn} onClick={() => setItems([...items, { time: "", title: "", icon: undefined }])}>+ Add moment</button>
@@ -664,7 +832,7 @@ const COLOR_KEYS: Array<{ key: string; label: string }> = [
 
 type Step = "basics" | "cover" | "sections" | "buttons" | "guide";
 
-export function ThemeEditor({ event, invitation, themeName, designLocked = false, sectionRows, initialPhotos }: Props) {
+export function ThemeEditor({ event, invitation, themeName, designLocked = false, sectionRows, initialPhotos, themeDefaults }: Props) {
   const oc = invitation.overlayConfig ?? {};
 
   const [step, setStep] = useState<Step>("basics");
@@ -737,7 +905,25 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     animateOpen: (oc.animateOpen as boolean | undefined) ?? true,
     keepCoverAfterOpen: (oc.keepCoverAfterOpen as boolean | undefined) ?? true,
     openButtonColor: (oc.openButtonColor as string | undefined) ?? "",
+    openButtonStroke: (oc.openButtonStroke as string | undefined) ?? "",
+    openButtonFill: (oc.openButtonFill as string | undefined) ?? "",
+    openButtonText: (oc.openButtonText as string | undefined) ?? "",
+    openButtonFont: (oc.openButtonFont as string | undefined) ?? "",
+    openButtonSize: (oc.openButtonSize as number | undefined) ?? 10,
+    openButtonWeight: (oc.openButtonWeight as number | undefined) ?? undefined,
+    openButtonStrokeEnabled: (oc.openButtonStrokeEnabled as boolean | undefined) ?? true,
+    openButtonFillEnabled: (oc.openButtonFillEnabled as boolean | undefined) ?? false,
+    guestPrefix: (oc.guestPrefix as string | undefined) ?? "",
+    guestPrefixColor: (oc.guestPrefixColor as string | undefined) ?? "",
+    guestPrefixFont: (oc.guestPrefixFont as string | undefined) ?? "",
+    guestPrefixSize: (oc.guestPrefixSize as number | undefined) ?? 10,
+    guestPrefixWeight: (oc.guestPrefixWeight as number | undefined) ?? undefined,
+    guestPrefixFit: (oc.guestPrefixFit as "wrap" | "shrink" | undefined) ?? "wrap",
+    guestNameFit: (oc.guestNameFit as "wrap" | "shrink" | undefined) ?? "wrap",
   });
+  // Adjustable dim over the cover/gate background (mirrors sectionOverlay).
+  const ocGateOverlay = (oc.gateOverlay ?? { enabled: false, color: "#000000", opacity: 0.45 }) as { enabled: boolean; color: string; opacity: number };
+  const [gateOverlay, setGateOverlay] = useState(ocGateOverlay);
   // Bilingual content.
   const ocLangs = (oc.languages ?? {}) as { enabled?: boolean; primaryLabel?: string; secondaryLabel?: string };
   const [languages, setLanguages] = useState({
@@ -824,6 +1010,15 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       animateOpen: coverOpts.animateOpen,
       keepCoverAfterOpen: coverOpts.keepCoverAfterOpen,
       openButtonColor: coverOpts.openButtonColor || null,
+      openButtonStroke: coverOpts.openButtonStroke || null,
+      openButtonFill: coverOpts.openButtonFill || null,
+      openButtonText: coverOpts.openButtonText || null,
+      openButtonFont: coverOpts.openButtonFont || null,
+      openButtonSize: coverOpts.openButtonSize || null,
+      openButtonWeight: coverOpts.openButtonWeight || null,
+      openButtonStrokeEnabled: coverOpts.openButtonStrokeEnabled,
+      openButtonFillEnabled: coverOpts.openButtonFillEnabled,
+      gateOverlay,
       monogram,
       scrollGuide: guide.enabled,
       guideText: guide.text,
@@ -837,6 +1032,13 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       sectionOverlay,
       showGuestName,
       guestFrameUrl: guestFrameUrl || null,
+      guestPrefix: coverOpts.guestPrefix || null,
+      guestPrefixColor: coverOpts.guestPrefixColor || null,
+      guestPrefixFont: coverOpts.guestPrefixFont || null,
+      guestPrefixSize: coverOpts.guestPrefixSize || null,
+      guestPrefixWeight: coverOpts.guestPrefixWeight || null,
+      guestPrefixFit: coverOpts.guestPrefixFit,
+      guestNameFit: coverOpts.guestNameFit,
       elementPositions: Object.keys(elementPositions).length > 0 ? elementPositions : undefined,
       languages,
     };
@@ -867,7 +1069,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       setStatus("error");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basics, sections, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, sectionOverlay, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts, event.id]);
+  }, [basics, sections, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, sectionOverlay, gateOverlay, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts, event.id]);
 
   useEffect(() => {
     if (firstRun.current) { firstRun.current = false; return; }
@@ -937,6 +1139,37 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
     setSections((ss) => ss.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const patchContent = (i: number, patch: SectionContent) =>
     setSections((ss) => ss.map((x, j) => (j === i ? { ...x, content: { ...x.content, ...patch } } : x)));
+
+  // ── Cover-element editing (used by the consolidated Cover panel) ───────────
+  // Text lives on the cover section's content; color/font/size are per-element
+  // overrides stored in `elementPositions` (shared with the drag layout box).
+  const coverIdx = sections.findIndex((x) => x.type === "cover");
+  const coverContent = (coverIdx >= 0 ? sections[coverIdx].content : {}) as SectionContent;
+  const coverStr = (k: string) => (typeof coverContent[k] === "string" ? (coverContent[k] as string) : "");
+  const patchCover = (patch: SectionContent) => { if (coverIdx >= 0) patchContent(coverIdx, patch); };
+  const elemOv = (key: GateElementKey): GatePlace | undefined => elementPositions[key];
+  const setElemOv = (key: GateElementKey, patch: Partial<GatePlace>) =>
+    setElementPositions((prev) => ({ ...prev, [key]: { ...(prev[key] ?? GATE_DEFAULT_POSITIONS[key]), ...patch } }));
+  /** Color + font + size + weight + align rows for a gate element, editing its `elementPositions` override. */
+  const elemStyleRow = (key: GateElementKey, defColor: string) => (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+        <span style={{ flex: "1 1 130px", minWidth: 130 }}>
+          <FontPicker value={elemOv(key)?.font ?? ""} onChange={(v) => setElemOv(key, { font: v || undefined })}
+            options={key === "title" || key === "guestName" ? HEADING_FONTS : BODY_FONTS} />
+        </span>
+        <span style={{ width: 92 }}>
+          <SizeField value={elemOv(key)?.scale ?? 1} onChange={(v) => setElemOv(key, { scale: v === 1 ? undefined : v })} />
+        </span>
+        <ColorField value={elemOv(key)?.color || defColor} onChange={(v) => setElemOv(key, { color: v })} />
+        {elemOv(key)?.color && (
+          <button type="button" style={s.smallGhost} title="Use theme color" onClick={() => setElemOv(key, { color: undefined })}>×</button>
+        )}
+      </div>
+      <WeightAlignRow weight={elemOv(key)?.weight} onWeight={(v) => setElemOv(key, { weight: v })}
+        align={elemOv(key)?.align} onAlign={(v) => setElemOv(key, { align: v })} weightDefault={400} />
+    </div>
+  );
   const move = (i: number, dir: -1 | 1) =>
     setSections((ss) => {
       const j = i + dir;
@@ -1070,7 +1303,29 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           </div>
           {showGuestName && (
             <>
-              <p style={s.hint}>The guest&apos;s name from their personal invite link, shown on the opening gate.</p>
+              <p style={s.hint}>Real guests see their own name here (from their invite link) — this text is only the preview placeholder.</p>
+              <Field label="Prefix badge (e.g. ♥ Dear)">
+                <Txt value={coverOpts.guestPrefix} onChange={(v) => setCoverOpts((o) => ({ ...o, guestPrefix: v }))} placeholder="Dear" />
+              </Field>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <span style={{ flex: "1 1 130px", minWidth: 130 }}>
+                  <FontPicker value={coverOpts.guestPrefixFont} onChange={(v) => setCoverOpts((o) => ({ ...o, guestPrefixFont: v }))} options={BODY_FONTS} />
+                </span>
+                <span style={{ width: 100 }}>
+                  <SizeField value={coverOpts.guestPrefixSize} onChange={(v) => setCoverOpts((o) => ({ ...o, guestPrefixSize: Math.round(v) }))} min={8} max={22} step={1} unit="px" />
+                </span>
+                <ColorField value={coverOpts.guestPrefixColor || themeDefaults.accent} onChange={(v) => setCoverOpts((o) => ({ ...o, guestPrefixColor: v }))} />
+              </div>
+              <select style={{ ...s.input }} value={coverOpts.guestPrefixWeight ?? ""}
+                onChange={(e) => setCoverOpts((o) => ({ ...o, guestPrefixWeight: e.target.value ? +e.target.value : undefined }))}>
+                <option value="">Weight: theme default</option>
+                {WEIGHT_OPTIONS.map((w) => <option key={w.v} value={w.v}>{w.l} ({w.v})</option>)}
+              </select>
+              <TextFitRow value={coverOpts.guestPrefixFit} onChange={(v) => setCoverOpts((o) => ({ ...o, guestPrefixFit: v }))} />
+              <Field label="Guest name (placeholder)"><Txt value={coverStr("guestLabel")} onChange={(v) => patchCover({ guestLabel: v })} placeholder="Dear Guest" /></Field>
+              <Field label="Color · font · size">{elemStyleRow("guestName", themeDefaults.title || themeDefaults.primary)}</Field>
+              <TextFitRow value={coverOpts.guestNameFit} onChange={(v) => setCoverOpts((o) => ({ ...o, guestNameFit: v }))} />
+              <p style={s.hint}>Real guest names vary in length — &ldquo;Shrink to fit&rdquo; keeps long names on one line by scaling them down automatically; &ldquo;Wrap&rdquo; lets them break onto a second line instead.</p>
               <Field label="Decorative frame (optional)">
                 <ImgField value={guestFrameUrl} onChange={setGuestFrameUrl} />
               </Field>
@@ -1088,7 +1343,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
               </button>
             )}
           </div>
-          <p style={s.hint}>Drag any element to move it; select one and drag the round handle to resize. This is the real cover — background, fonts, colors and text all match the live invite.</p>
+          <p style={s.hint}>Drag any element to move it; click one to select it and drag a corner or edge handle to resize — just like Canva or Photoshop. Its <strong>text, color &amp; font</strong> are edited in the cards below. This is the real cover — everything matches the live invite.</p>
           <GateWysiwygEditor
             positions={elementPositions}
             onChange={setElementPositions}
@@ -1101,16 +1356,104 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
               monogramUrl: ((sections.find((x) => x.type === "cover")?.content as { logoUrl?: string } | undefined)?.logoUrl) ?? "",
               showMonogram: monogram.gate,
               showGuestName,
-              accent: colors.accent || "#c9a24b",
-              primary: colors.title || colors.text || "#f5f0e6",
-              muted: colors.muted || "#b9b3a7",
-              headingFont: fonts.heading || "'Playfair Display', Georgia, serif",
+              accent: colors.accent || themeDefaults.accent,
+              primary: colors.title || colors.text || themeDefaults.title || themeDefaults.primary,
+              muted: colors.muted || themeDefaults.muted,
+              headingFont: fonts.heading || themeDefaults.headingFont,
               gateBg: bg.gateColor || "",
+              guestPrefix: coverOpts.guestPrefix || undefined,
+              guestPrefixColor: coverOpts.guestPrefixColor || undefined,
+              guestPrefixFont: coverOpts.guestPrefixFont || undefined,
+              guestPrefixSize: coverOpts.guestPrefixSize || undefined,
+              guestPrefixWeight: coverOpts.guestPrefixWeight || undefined,
+              guestPrefixFit: coverOpts.guestPrefixFit,
+              openBtnColor: coverOpts.openButtonColor || undefined,
+              openBtnStroke: coverOpts.openButtonStroke || undefined,
+              openBtnFill: coverOpts.openButtonFill || undefined,
+              openBtnText: coverOpts.openButtonText || undefined,
+              openBtnFont: coverOpts.openButtonFont || undefined,
+              openBtnSize: coverOpts.openButtonSize || undefined,
+              openBtnWeight: coverOpts.openButtonWeight || undefined,
+              openBtnStrokeEnabled: coverOpts.openButtonStrokeEnabled,
+              openBtnFillEnabled: coverOpts.openButtonFillEnabled,
             }}
           />
         </div>
 
-        {/* Opening behaviour — animation, keep cover, open-button color */}
+        {/* Greeting element */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Greeting</div>
+          <Field label="Text"><Txt value={coverStr("greeting")} onChange={(v) => patchCover({ greeting: v })} placeholder="You are invited to" /></Field>
+          <Field label="Color · font · size">{elemStyleRow("pretitle", themeDefaults.accent)}</Field>
+        </div>
+
+        {/* Names element (text = event title, edited in Basics) */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Names</div>
+          <p style={s.hint}>The event title — edit its wording in the <strong>Basics</strong> step.</p>
+          <Field label="Color · font · size">{elemStyleRow("title", themeDefaults.title || themeDefaults.primary)}</Field>
+        </div>
+
+        {/* Intro lines element */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Intro lines</div>
+          <Field label="Text"><Area value={coverStr("subheading")} onChange={(v) => patchCover({ subheading: v })} rows={2} placeholder={"We invite you\nto our"} /></Field>
+          <Field label="Color · font · size">{elemStyleRow("subtitle", themeDefaults.muted)}</Field>
+        </div>
+
+        {/* Open button element — label, font, size, colors */}
+        <div style={s.card}>
+          <div style={s.cardTitle}>Open button</div>
+          <Field label="Label"><Txt value={coverOpts.openButtonText} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonText: v }))} placeholder="Open Letter" /></Field>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <span style={{ flex: "1 1 130px", minWidth: 130 }}>
+              <FontPicker value={coverOpts.openButtonFont} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonFont: v }))} options={BODY_FONTS} />
+            </span>
+            <span style={{ width: 100 }}>
+              <SizeField value={coverOpts.openButtonSize} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonSize: Math.round(v) }))} min={8} max={22} step={1} unit="px" />
+            </span>
+          </div>
+          <select style={{ ...s.input }} value={coverOpts.openButtonWeight ?? ""}
+            onChange={(e) => setCoverOpts((o) => ({ ...o, openButtonWeight: e.target.value ? +e.target.value : undefined }))}>
+            <option value="">Weight: theme default</option>
+            {WEIGHT_OPTIONS.map((w) => <option key={w.v} value={w.v}>{w.l} ({w.v})</option>)}
+          </select>
+          <Field label="Text color">
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <ColorField value={coverOpts.openButtonColor || themeDefaults.accent} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonColor: v }))} />
+              {coverOpts.openButtonColor && (
+                <button type="button" style={s.smallGhost} onClick={() => setCoverOpts((o) => ({ ...o, openButtonColor: "" }))}>Use theme color</button>
+              )}
+            </div>
+          </Field>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={coverOpts.openButtonStrokeEnabled}
+              onChange={(e) => setCoverOpts((o) => ({ ...o, openButtonStrokeEnabled: e.target.checked }))} />
+            Show stroke (border)
+          </label>
+          {coverOpts.openButtonStrokeEnabled && (
+            <Field label="Stroke color">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <ColorField value={coverOpts.openButtonStroke || coverOpts.openButtonColor || themeDefaults.accent} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonStroke: v }))} />
+                {coverOpts.openButtonStroke && (
+                  <button type="button" style={s.smallGhost} onClick={() => setCoverOpts((o) => ({ ...o, openButtonStroke: "" }))}>Match text</button>
+                )}
+              </div>
+            </Field>
+          )}
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={coverOpts.openButtonFillEnabled}
+              onChange={(e) => setCoverOpts((o) => ({ ...o, openButtonFillEnabled: e.target.checked }))} />
+            Show fill (background)
+          </label>
+          {coverOpts.openButtonFillEnabled && (
+            <Field label="Fill color">
+              <ColorField value={coverOpts.openButtonFill || "#000000"} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonFill: v }))} />
+            </Field>
+          )}
+        </div>
+
+        {/* Opening behaviour — animation, keep cover */}
         <div style={s.card}>
           <div style={s.cardTitle}>Opening behaviour</div>
           <label style={s.checkRow}>
@@ -1124,14 +1467,6 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
             Keep the cover as the first page after opening
           </label>
           <p style={s.hint}>Turn off &ldquo;keep cover&rdquo; to land guests straight on the content — the cover then lives only as the opening gate.</p>
-          <Field label="“Open” button color">
-            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <ColorField value={coverOpts.openButtonColor} onChange={(v) => setCoverOpts((o) => ({ ...o, openButtonColor: v }))} />
-              {coverOpts.openButtonColor && (
-                <button type="button" style={s.smallGhost} onClick={() => setCoverOpts((o) => ({ ...o, openButtonColor: "" }))}>Use theme color</button>
-              )}
-            </div>
-          </Field>
         </div>
         </>
         )}
@@ -1331,6 +1666,28 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
           <Field label="Background blur">
             <SizeField value={bg.coverBlur} onChange={(v) => setBg((b) => ({ ...b, coverBlur: Math.round(v) }))} min={0} max={20} step={1} unit="px" />
           </Field>
+          <Field label="Background dim">
+            <label style={s.checkRow}>
+              <input type="checkbox" checked={gateOverlay.enabled}
+                onChange={(e) => setGateOverlay((o) => ({ ...o, enabled: e.target.checked }))} />
+              Darken the cover background for readability
+            </label>
+          </Field>
+          {gateOverlay.enabled && (
+            <>
+              <Field label="Dim color">
+                <ColorField value={gateOverlay.color} onChange={(v) => setGateOverlay((o) => ({ ...o, color: v }))} />
+              </Field>
+              <Field label="Dim strength">
+                <SizeField
+                  value={Math.round(gateOverlay.opacity * 100)}
+                  onChange={(v) => setGateOverlay((o) => ({ ...o, opacity: Math.max(0, Math.min(100, Math.round(v))) / 100 }))}
+                  min={0} max={100} step={5} unit="%"
+                />
+              </Field>
+            </>
+          )}
+          <p style={s.hint}>The dim only applies when a cover image or video is set.</p>
 
           <div style={s.subHead}>Sections</div>
           <Field label="Background media — image, GIF or motion video">

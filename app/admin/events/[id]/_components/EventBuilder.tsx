@@ -1282,12 +1282,46 @@ function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, 
               <Toggle on={st.showOpenBtn ?? true} onChange={(v) => patch({ showOpenBtn: v })} />
             </div>
             {(st.showOpenBtn ?? true) && (
-              <div className="eb-rowbetween">
-                <div><div className="eb-flbl">Open button color</div><div className="eb-muted eb-sm">Label &amp; border color (default white)</div></div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <input type="color" style={{ width: 34, height: 26, padding: 0, border: "1px solid var(--c-border)", borderRadius: 6, background: "none", cursor: "pointer" }}
-                    value={st.openBtnColor || "#ffffff"} onChange={(e) => patch({ openBtnColor: e.target.value })} />
-                  {st.openBtnColor && <button type="button" className="eb-resetpos" onClick={() => patch({ openBtnColor: undefined })}>reset</button>}
+              <div className="eb-stack" style={{ gap: "0.6rem" }}>
+                <Field label="Button text">
+                  <input className="eb-input" value={st.openBtnText ?? ""} placeholder="Open Ticket"
+                    onChange={(e) => patch({ openBtnText: e.target.value || undefined })} />
+                </Field>
+                {st.langs.english && st.langs.khmer && (
+                  <Field label="Button text (EN)">
+                    <input className="eb-input" value={st.openBtnTextEn ?? ""} placeholder={st.openBtnText || "Open Ticket"}
+                      onChange={(e) => patch({ openBtnTextEn: e.target.value || undefined })} style={{ borderColor: "var(--c-accent)" }} />
+                  </Field>
+                )}
+                <div className="eb-blockctl">
+                  <select className="eb-input eb-fontsel" style={{ fontFamily: st.openBtnFont || "inherit" }}
+                    value={st.openBtnFont ?? ""} onChange={(e) => patch({ openBtnFont: e.target.value || undefined })}>
+                    <option value="">Default font</option>
+                    {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
+                  </select>
+                  <input type="range" min={11} max={32} value={st.openBtnSize ?? 14} title="Size"
+                    onChange={(e) => patch({ openBtnSize: +e.target.value })} className="eb-range" />
+                </div>
+                <div className="eb-rowbetween">
+                  <div><div className="eb-flbl">Text color</div><div className="eb-muted eb-sm">Button label color</div></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <ColorDot value={st.openBtnColor || "#ffffff"} onChange={(v) => patch({ openBtnColor: v })} />
+                    {st.openBtnColor && <button type="button" className="eb-resetpos" onClick={() => patch({ openBtnColor: undefined })}>reset</button>}
+                  </div>
+                </div>
+                <div className="eb-rowbetween">
+                  <div><div className="eb-flbl">Stroke color</div><div className="eb-muted eb-sm">Border color (defaults to text color)</div></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <ColorDot value={st.openBtnStroke || st.openBtnColor || "#ffffff"} onChange={(v) => patch({ openBtnStroke: v })} />
+                    {st.openBtnStroke && <button type="button" className="eb-resetpos" onClick={() => patch({ openBtnStroke: undefined })}>reset</button>}
+                  </div>
+                </div>
+                <div className="eb-rowbetween">
+                  <div><div className="eb-flbl">Fill color</div><div className="eb-muted eb-sm">Button background</div></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <ColorDot value={st.openBtnFill || "rgba(255,255,255,0.12)"} onChange={(v) => patch({ openBtnFill: v })} />
+                    {st.openBtnFill && <button type="button" className="eb-resetpos" onClick={() => patch({ openBtnFill: undefined })}>reset</button>}
+                  </div>
                 </div>
               </div>
             )}

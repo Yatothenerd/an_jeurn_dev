@@ -1,11 +1,60 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ThemeTokens } from "@/lib/themes/types";
 import { HandPointer } from "./HandPointer";
 
+/** How a single-line text element handles content that's too long for its box:
+ *  wrap onto a new line, or shrink its own font-size until it fits on one line. */
+export type TextFit = "wrap" | "shrink";
+
+/** "Shrink to fit" — measures its own rendered width against the available
+ *  space and steps its font-size down (in place, via direct DOM writes to
+ *  avoid a render per frame) until the text fits on one line, or it hits the
+ *  floor. Used for content whose length varies at runtime (e.g. a guest's
+ *  real name) where a fixed font-size can't be picked in advance. */
+function AutoFitText({ children, style, minRatio = 0.55 }: {
+  children: React.ReactNode; style?: React.CSSProperties; minRatio?: number;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const baseSize = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    baseSize.current = parseFloat(getComputedStyle(el).fontSize);
+    const base = baseSize.current;
+    let size = base;
+    el.style.fontSize = `${size}px`;
+    let frame = 0;
+    const step = () => {
+      if (!el) return;
+      if (el.scrollWidth > el.clientWidth + 1 && size > base * minRatio) {
+        size = Math.max(base * minRatio, size - base * 0.05);
+        el.style.fontSize = `${size}px`;
+        frame = requestAnimationFrame(step);
+      }
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [children]);
+
+  return (
+    <span ref={ref} style={{ ...style, display: "inline-block", maxWidth: "100%", whiteSpace: "nowrap", overflow: "hidden", verticalAlign: "bottom" }}>
+      {children}
+    </span>
+  );
+}
+
 type ElemKey = "monogram" | "pretitle" | "title" | "subtitle" | "guestName" | "openBtn";
-export type ElementPositions = Partial<Record<ElemKey, { xPct: number; yPct: number; scale?: number }>>;
+export type ElementPositions = Partial<Record<ElemKey, {
+  xPct: number; yPct: number; scale?: number; color?: string; font?: string;
+  /** Font weight (400–800). */
+  weight?: number;
+  /** Text alignment within the element's box. */
+  align?: "left" | "center" | "right";
+}>>;
 
 export const GATE_DEFAULT_POSITIONS: Record<ElemKey, { xPct: number; yPct: number; scale?: number }> = {
   monogram:  { xPct: 50, yPct: 11 },
@@ -24,6 +73,21 @@ interface Props {
   subheading?: string;
   guestName: string | null;
   guestLabel?: string;
+  /** Prefix badge shown above the guest name (default "Dear"). */
+  guestPrefix?: string | null;
+  /** Text color for the prefix badge. Falls back to theme accent. */
+  guestPrefixColor?: string | null;
+  /** Font-family stack for the prefix badge. */
+  guestPrefixFont?: string | null;
+  /** Font size (px) for the prefix badge. */
+  guestPrefixSize?: number | null;
+  /** Font weight (400–800) for the prefix badge. */
+  guestPrefixWeight?: number | null;
+  /** Long-text behavior for the prefix badge: wrap onto a new line, or shrink to fit one line (default "wrap"). */
+  guestPrefixFit?: TextFit;
+  /** Long-text behavior for the guest's name: wrap onto a new line, or shrink to fit one line (default "wrap").
+   *  Most useful in "shrink" mode since a real guest's name length is unknown in advance. */
+  guestNameFit?: TextFit;
   theme: ThemeTokens;
   bgUrl?: string | null;
   coverUrl?: string | null;
@@ -31,8 +95,24 @@ interface Props {
   revealStyle?: "fade" | "envelope" | "curtain" | "slideUp";
   /** Play the entrance animation when opening the cover (default true). */
   animateOpen?: boolean;
-  /** Color for the "Open" button label/border. Falls back to theme accent. */
+  /** Color for the "Open" button label. Falls back to theme accent. */
   openButtonColor?: string | null;
+  /** Border (stroke) color for the "Open" button. Falls back to the label color. */
+  openButtonStroke?: string | null;
+  /** Fill (background) color for the "Open" button. Transparent when unset. */
+  openButtonFill?: string | null;
+  /** Custom label for the "Open" button (default "Open Letter"). */
+  openButtonText?: string | null;
+  /** Font-family stack for the "Open" button label. */
+  openButtonFont?: string | null;
+  /** Font size (px) for the "Open" button label. */
+  openButtonSize?: number | null;
+  /** Font weight (400–800) for the "Open" button label. */
+  openButtonWeight?: number | null;
+  /** Show the button's border (default true). */
+  openButtonStrokeEnabled?: boolean;
+  /** Show the button's fill color (default false — transparent). */
+  openButtonFillEnabled?: boolean;
   scrollGuide?: boolean;
   /** Custom caption for the one-time guidance overlay. */
   guideText?: string;
@@ -49,8 +129,12 @@ interface Props {
 }
 
 export function InviteGate({
-  eventTitle, pretitle, subheading, guestName, guestLabel, theme, bgUrl, coverUrl, gateOverlay,
-  animateOpen = true, openButtonColor,
+  eventTitle, pretitle, subheading, guestName, guestLabel, guestPrefix,
+  guestPrefixColor, guestPrefixFont, guestPrefixSize, guestPrefixWeight, guestPrefixFit = "wrap",
+  guestNameFit = "wrap",
+  theme, bgUrl, coverUrl, gateOverlay,
+  animateOpen = true, openButtonColor, openButtonStroke, openButtonFill, openButtonText,
+  openButtonFont, openButtonSize, openButtonWeight, openButtonStrokeEnabled = true, openButtonFillEnabled = false,
   scrollGuide = true, guideText, hand,
   scrollToContent = true,
   position = "center", blur = 0,
@@ -58,7 +142,37 @@ export function InviteGate({
   elementPositions,
   children,
 }: Props) {
-  const openColor = openButtonColor || theme.accent;
+  // Per-element style overrides (color/font) set on the gate WYSIWYG editor.
+  const ov = (k: ElemKey) => elementPositions?.[k];
+  const ovStyle = (k: ElemKey, fallbackColor?: string, fallbackFont?: string): React.CSSProperties => ({
+    color: ov(k)?.color || fallbackColor,
+    ...((ov(k)?.font || fallbackFont) ? { fontFamily: ov(k)?.font || fallbackFont } : {}),
+    ...(ov(k)?.weight ? { fontWeight: ov(k)?.weight } : {}),
+    ...(ov(k)?.align ? { textAlign: ov(k)?.align } : {}),
+  });
+
+  const openColor = ov("openBtn")?.color || openButtonColor || theme.accent;
+  const openStroke = openButtonStroke || openColor;
+  const openBtnStyle: React.CSSProperties = {
+    color: openColor,
+    ...(openButtonStrokeEnabled
+      ? { borderColor: openStroke, borderWidth: 1, borderStyle: "solid" }
+      : { borderStyle: "none", borderWidth: 0 }),
+    background: openButtonFillEnabled && openButtonFill ? openButtonFill : "transparent",
+    ...((openButtonFont || ov("openBtn")?.font) ? { fontFamily: openButtonFont || ov("openBtn")?.font } : {}),
+    ...(openButtonSize ? { fontSize: openButtonSize } : {}),
+    ...(openButtonWeight ? { fontWeight: openButtonWeight } : {}),
+  };
+  const guestPrefixStyle: React.CSSProperties = {
+    color: guestPrefixColor || theme.accent,
+    borderColor: guestPrefixColor || theme.accent,
+    ...(guestPrefixFont ? { fontFamily: guestPrefixFont } : {}),
+    ...(guestPrefixSize ? { fontSize: guestPrefixSize } : {}),
+    ...(guestPrefixWeight ? { fontWeight: guestPrefixWeight } : {}),
+    ...(guestPrefixFit === "wrap" ? { whiteSpace: "normal" } : {}),
+    position: "relative", zIndex: 1,
+  };
+  const guestPrefixNode = <>♥ {guestPrefixFit === "shrink" ? <AutoFitText>{guestPrefix || "Dear"}</AutoFitText> : (guestPrefix || "Dear")}</>;
   // `scrollToContent` mirrors keepCoverAfterOpen. When OFF, the cover exists only
   // to open the invite — once opened we collapse it so guests land on content.
   const keepCover = scrollToContent;
@@ -145,6 +259,7 @@ export function InviteGate({
   }, [guide]);
 
   const label = guestName || guestLabel || "Dear Guest";
+  const guestNameNode = guestNameFit === "shrink" ? <AutoFitText>{label}</AutoFitText> : label;
   const gateJustify = position === "top" ? "flex-start" : position === "bottom" ? "flex-end" : "space-between";
 
   // Decorative frame behind the guest name: full screen width, natural height
@@ -212,12 +327,12 @@ export function InviteGate({
 
               {/* Pretitle */}
               <div style={ep("pretitle")}>
-                <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>{pretitle || "You are invited to"}</p>
+                <p className="inv-pretitle" style={{ ...ovStyle("pretitle", theme.accent), margin: 0 }}>{pretitle || "You are invited to"}</p>
               </div>
 
               {/* Title + ornament */}
               <div style={ep("title")}>
-                <div className="inv-script" style={{ color: theme.title || theme.primary }}>{eventTitle}</div>
+                <div className="inv-script" style={ovStyle("title", theme.title || theme.primary)}>{eventTitle}</div>
                 <div className="inv-ornament-line" style={{ color: theme.accent }}>
                   <div className="line" />
                   {theme.gem && <span className="gem">{theme.gem}</span>}
@@ -228,7 +343,7 @@ export function InviteGate({
               {/* Subtitle — the cover's intro lines / subheading */}
               {subheading && (
                 <div style={ep("subtitle")}>
-                  <p className="inv-pretitle" style={{ color: theme.muted, margin: 0, fontStyle: "italic", letterSpacing: "0.04em" }}>
+                  <p className="inv-pretitle" style={{ ...ovStyle("subtitle", theme.muted), margin: 0, fontStyle: "italic", letterSpacing: "0.04em" }}>
                     {subheading}
                   </p>
                 </div>
@@ -239,8 +354,8 @@ export function InviteGate({
                 <div style={ep("guestName")}>
                   <div className="inv-gate-guest" style={{ position: "relative" }}>
                     {guestFrame}
-                    <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent, position: "relative", zIndex: 1 }}>♥ Dear</span>
-                    <div className="inv-gate-name" style={{ color: theme.title || theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
+                    <span className="inv-greeting-label" style={guestPrefixStyle}>{guestPrefixNode}</span>
+                    <div className="inv-gate-name" style={{ ...ovStyle("guestName", theme.title || theme.primary, theme.headingFont), position: "relative", zIndex: 1 }}>{guestNameNode}</div>
                   </div>
                 </div>
               )}
@@ -248,8 +363,7 @@ export function InviteGate({
               {/* Open Letter button */}
               <div style={ep("openBtn")}>
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
-                  <HandIcon className="inv-gate-hand" />
-                  <span className="inv-gate-open-label" style={{ color: openColor, borderColor: openColor }}>Open Letter</span>
+                  <span className="inv-gate-open-label" style={openBtnStyle}>{openButtonText || "Open Letter"}</span>
                 </button>
               </div>
             </>
@@ -262,12 +376,12 @@ export function InviteGate({
                   <img src={coverUrl} alt="Monogram"
                     style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 28px rgba(0,0,0,0.5)" }} />
                 )}
-                <p className="inv-pretitle" style={{ color: theme.accent, margin: 0 }}>{pretitle || "You are invited to"}</p>
+                <p className="inv-pretitle" style={{ ...ovStyle("pretitle", theme.accent), margin: 0 }}>{pretitle || "You are invited to"}</p>
               </div>
 
               {/* MIDDLE ZONE: event title + ornament */}
               <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.75rem" }}>
-                <div className="inv-script" style={{ color: theme.title || theme.primary }}>{eventTitle}</div>
+                <div className="inv-script" style={ovStyle("title", theme.title || theme.primary)}>{eventTitle}</div>
                 <div className="inv-ornament-line" style={{ color: theme.accent }}>
                   <div className="line" />
                   {theme.gem && <span className="gem">{theme.gem}</span>}
@@ -280,13 +394,12 @@ export function InviteGate({
                 {showGuestName && (
                   <div className="inv-gate-guest" style={{ position: "relative" }}>
                     {guestFrame}
-                    <span className="inv-greeting-label" style={{ color: theme.accent, borderColor: theme.accent, position: "relative", zIndex: 1 }}>♥ Dear</span>
-                    <div className="inv-gate-name" style={{ color: theme.title || theme.primary, fontFamily: theme.headingFont, position: "relative", zIndex: 1 }}>{label}</div>
+                    <span className="inv-greeting-label" style={guestPrefixStyle}>{guestPrefixNode}</span>
+                    <div className="inv-gate-name" style={{ ...ovStyle("guestName", theme.title || theme.primary, theme.headingFont), position: "relative", zIndex: 1 }}>{guestNameNode}</div>
                   </div>
                 )}
                 <button className="inv-gate-open" onClick={open} aria-label="Open invitation">
-                  <HandIcon className="inv-gate-hand" />
-                  <span className="inv-gate-open-label" style={{ color: openColor, borderColor: openColor }}>Open Letter</span>
+                  <span className="inv-gate-open-label" style={openBtnStyle}>{openButtonText || "Open Letter"}</span>
                 </button>
               </div>
             </>

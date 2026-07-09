@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
-import { resolveDesign, FREEFORM_THEME_ID } from "@/lib/themes/design";
+import { resolveDesign, FREEFORM_THEME_ID, STANDARD_THEME_ID } from "@/lib/themes/design";
 import { getTheme } from "@/lib/themes/registry";
+import { STANDARD_TOKENS } from "@/lib/themes/themes/standard";
+import { DEFAULT_FONTS } from "@/lib/themes/shared/standard-css";
+import type { ThemeTokens } from "@/lib/themes/types";
 import { ThemeEditor } from "./_components/ThemeEditor";
 
 export const metadata = { title: "Event — Content" };
@@ -34,6 +37,8 @@ export default async function EventContentPage({
     defaultSections: inv?.defaultSections ?? null,
     sectionRows: inv?.sections ?? [],
   });
+  const themeMod = getTheme(design.themeId);
+  const baseTokens: ThemeTokens = { ...STANDARD_TOKENS, ...themeMod.tokens };
 
   // Freeform: text, images and sections all live on the builder canvas.
   if (design.themeId === FREEFORM_THEME_ID) {
@@ -72,10 +77,17 @@ export default async function EventContentPage({
         backgroundUrl: inv?.backgroundUrl ?? null,
         backgroundVideoUrl: inv?.backgroundVideoUrl ?? null,
       }}
-      themeName={getTheme(design.themeId).name}
-      designLocked={!!getTheme(design.themeId).preset}
+      themeName={themeMod.name}
+      designLocked={!!themeMod.preset}
       sectionRows={(inv?.sections ?? []).map((s) => ({ type: s.type, content: s.content }))}
       initialPhotos={(inv?.photos ?? []).map((p) => ({ id: p.id, url: p.url }))}
+      themeDefaults={{
+        accent: baseTokens.accent,
+        title: baseTokens.title || baseTokens.primary,
+        primary: baseTokens.primary,
+        muted: baseTokens.muted,
+        headingFont: baseTokens.headingFont || (themeMod.id === STANDARD_THEME_ID ? DEFAULT_FONTS.heading : baseTokens.font) || DEFAULT_FONTS.heading,
+      }}
     />
   );
 }

@@ -173,6 +173,7 @@ function renderSection(
           eventDate={data.event.eventDate}
           theme={tokens}
           hideTitle={c.hideTitle as boolean | undefined}
+          content={c}
         />
       ) : null;
     }
@@ -520,6 +521,13 @@ export default async function InvitePage({
           subheading={coverContent?.subheading}
           guestName={guestName}
           guestLabel={coverContent?.guestLabel}
+          guestPrefix={gate.guestPrefix}
+          guestPrefixColor={gate.guestPrefixColor}
+          guestPrefixFont={gate.guestPrefixFont}
+          guestPrefixSize={gate.guestPrefixSize}
+          guestPrefixWeight={gate.guestPrefixWeight}
+          guestPrefixFit={gate.guestPrefixFit}
+          guestNameFit={gate.guestNameFit}
           theme={gateTokens}
           bgUrl={inv.coverUrl}
           coverUrl={gateMonogramUrl}
@@ -527,6 +535,14 @@ export default async function InvitePage({
           revealStyle={gate.revealStyle}
           animateOpen={gate.animateOpen}
           openButtonColor={gate.openButtonColor}
+          openButtonStroke={gate.openButtonStroke}
+          openButtonFill={gate.openButtonFill}
+          openButtonText={gate.openButtonText}
+          openButtonFont={gate.openButtonFont}
+          openButtonSize={gate.openButtonSize}
+          openButtonWeight={gate.openButtonWeight}
+          openButtonStrokeEnabled={gate.openButtonStrokeEnabled}
+          openButtonFillEnabled={gate.openButtonFillEnabled}
           scrollGuide={gate.scrollGuide}
           guideText={gate.guideText}
           hand={gate.hand}

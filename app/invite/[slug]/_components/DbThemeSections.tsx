@@ -29,10 +29,18 @@ export interface SectionTextStyle {
   titleColor?: string;
   /** Multiplier on the theme heading scale (0.6–1.6). */
   titleScale?: number;
+  /** Font weight (400–800). Falls back to the section title's default (600). */
+  titleWeight?: number;
+  /** Text alignment. Falls back to center. */
+  titleAlign?: "left" | "center" | "right";
   bodyFont?: string;
   bodyColor?: string;
   /** Multiplier on the theme body scale (0.6–1.6). */
   bodyScale?: number;
+  /** Font weight (400–800). Falls back to the browser default (400). */
+  bodyWeight?: number;
+  /** Text alignment. Falls back to each element's own default. */
+  bodyAlign?: "left" | "center" | "right";
   headerColor?: string;
 }
 
@@ -51,9 +59,13 @@ function styled(theme: ThemeTokens, content: unknown): ThemeTokens {
     title:        st.titleColor || theme.title,
     header:       st.titleColor || st.headerColor || theme.header,
     headingScale: (theme.headingScale ?? 1) * (st.titleScale || 1),
+    titleWeight:  st.titleWeight || theme.titleWeight,
+    titleAlign:   st.titleAlign  || theme.titleAlign,
     font:         st.bodyFont   || theme.font,
     body:         st.bodyColor  || theme.body,
     bodyScale:    (theme.bodyScale ?? 1) * (st.bodyScale || 1),
+    bodyWeight:   st.bodyWeight || theme.bodyWeight,
+    bodyAlign:    st.bodyAlign  || theme.bodyAlign,
   };
 }
 
@@ -73,6 +85,8 @@ function SecWrap({ children, theme }: { children: React.ReactNode; theme: ThemeT
         fontFamily: theme.font,
         fontSize: remScale(1, tok.bs(theme)),
         color: tok.body(theme),
+        ...(theme.bodyWeight ? { fontWeight: theme.bodyWeight } : {}),
+        ...(theme.bodyAlign ? { textAlign: theme.bodyAlign } : {}),
       }}
     >
       <div style={{ maxWidth: 400, margin: "0 auto", width: "100%" }}>{children}</div>
@@ -82,7 +96,7 @@ function SecWrap({ children, theme }: { children: React.ReactNode; theme: ThemeT
 
 function SecHead({ label, theme }: { icon?: string; label: string; theme: ThemeTokens }) {
   return (
-    <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+    <div style={{ textAlign: theme.titleAlign || "center", marginBottom: "2rem" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginBottom: "0.625rem" }}>
         <div style={{ flex: 1, height: 1, background: tok.header(theme), opacity: 0.35 }} />
         <div style={{ width: 5, height: 5, borderRadius: "50%", background: tok.header(theme) }} />
@@ -92,7 +106,7 @@ function SecHead({ label, theme }: { icon?: string; label: string; theme: ThemeT
         style={{
           margin: 0,
           fontSize: remScale(0.5625, tok.hs(theme)),
-          fontWeight: 600,
+          fontWeight: theme.titleWeight || 600,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
           fontFamily: tok.headerFont(theme),
@@ -316,9 +330,17 @@ interface CountdownProps {
   eventDate: string;
   theme: ThemeTokens;
   hideTitle?: boolean;
+  /** Raw section content — carries `_style` overrides and per-unit colors. */
+  content?: unknown;
 }
 
-export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTitle }: CountdownProps) {
+/** Per-unit number color overrides, keyed by unit. Unset units fall back to
+ *  the section's title color (itself overridable via the Text style panel). */
+export interface CountdownUnitColors { days?: string; hours?: string; minutes?: string; seconds?: string }
+
+export function DbCountdownSection({ targetDate, label, eventDate, theme: baseTheme, hideTitle, content }: CountdownProps) {
+  const theme = styled(baseTheme, content);
+  const unitColors = ((content as { countdownColors?: CountdownUnitColors } | undefined)?.countdownColors) ?? {};
   const time = useCountdown(targetDate, eventDate);
 
   return (
@@ -339,11 +361,11 @@ export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTi
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.625rem" }}>
           {[
-            { v: time.days, l: "Days" },
-            { v: time.hours, l: "Hours" },
-            { v: time.minutes, l: "Mins" },
-            { v: time.seconds, l: "Secs" },
-          ].map(({ v, l }) => (
+            { v: time.days, l: "Days", key: "days" as const },
+            { v: time.hours, l: "Hours", key: "hours" as const },
+            { v: time.minutes, l: "Mins", key: "minutes" as const },
+            { v: time.seconds, l: "Secs", key: "seconds" as const },
+          ].map(({ v, l, key }) => (
             <div
               key={l}
               style={{
@@ -355,7 +377,7 @@ export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTi
               }}
             >
               {/* Accent top bar */}
-              <div style={{ height: 3, background: tok.header(theme), opacity: 0.7 }} />
+              <div style={{ height: 3, background: unitColors[key] || tok.header(theme), opacity: 0.7 }} />
               <div style={{ padding: "0.9rem 0.25rem 0.75rem" }}>
                 <div
                   style={{
@@ -363,7 +385,7 @@ export function DbCountdownSection({ targetDate, label, eventDate, theme, hideTi
                     fontWeight: 300,
                     lineHeight: 1,
                     fontFamily: tok.heading(theme),
-                    color: tok.title(theme),
+                    color: unitColors[key] || tok.title(theme),
                     letterSpacing: "-0.02em",
                   }}
                 >
@@ -560,6 +582,8 @@ interface AgendaItem {
   time?: string;
   title?: string;
   icon?: number | string;
+  /** Per-row accent color (icon, time, divider bar). Falls back to the section's header color. */
+  color?: string;
 }
 
 interface AgendaProps {
@@ -579,7 +603,9 @@ export function DbAgendaSection({ content: baseContent, theme: baseTheme }: Agen
     <SecWrap theme={theme}>
       {!content.hideTitle && <SecHead label={content.title || "Order of Ceremony"} theme={theme} />}
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {items.map((row, i) => (
+        {items.map((row, i) => {
+          const rowColor = row.color || tok.header(theme);
+          return (
           <div
             key={i}
             style={{
@@ -602,7 +628,7 @@ export function DbAgendaSection({ content: baseContent, theme: baseTheme }: Agen
                 fontSize: remScale(0.875, tok.bs(theme)),
                 fontWeight: 600,
                 letterSpacing: "0.04em",
-                color: tok.header(theme),
+                color: rowColor,
               }}
             >
               {row.icon != null && row.icon !== "" && (
@@ -610,12 +636,13 @@ export function DbAgendaSection({ content: baseContent, theme: baseTheme }: Agen
               )}
               <span>{row.time || "—"}</span>
             </div>
-            <div style={{ width: 3, alignSelf: "stretch", background: tok.header(theme), borderRadius: 2, opacity: 0.5, flexShrink: 0 }} />
+            <div style={{ width: 3, alignSelf: "stretch", background: rowColor, borderRadius: 2, opacity: 0.5, flexShrink: 0 }} />
             <div style={{ flex: 1, minWidth: 0, fontSize: remScale(0.9375, tok.bs(theme)), color: tok.body(theme), lineHeight: 1.6, wordBreak: "break-word" }}>
               {row.title || ""}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </SecWrap>
   );

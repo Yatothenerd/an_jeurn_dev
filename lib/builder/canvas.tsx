@@ -113,8 +113,21 @@ export interface BuilderState {
   coverBlocks: CoverBlock[]; openBtnPos: Pos; anim: AnimId; keepCover: boolean;
   /** Show the "Open" button on the cover (default true). */
   showOpenBtn?: boolean;
-  /** Color of the cover "Open" button label + border (default white). */
+  /** Label (text) color of the cover "Open" button (default white).
+   *  Also the fallback for the border color when `openBtnStroke` is unset. */
   openBtnColor?: string;
+  /** Border (stroke) color of the "Open" button. Falls back to `openBtnColor`. */
+  openBtnStroke?: string;
+  /** Fill (background) color of the "Open" button (default translucent white). */
+  openBtnFill?: string;
+  /** Font-family stack for the "Open" button label. */
+  openBtnFont?: string;
+  /** Font size (px) for the "Open" button label. */
+  openBtnSize?: number;
+  /** Custom "Open" button label (default "Open Ticket"). */
+  openBtnText?: string;
+  /** English "Open" button label — falls back to `openBtnText`. */
+  openBtnTextEn?: string;
   /** Opening the invite by scrolling / swiping up on the cover (default false). */
   openOnScroll?: boolean;
   coverBg: Background; contentBg: Background;
@@ -516,16 +529,24 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
             centerXPct={gn.pos.xPct} centerYPct={gn.pos.yPct}
             onHandleDown={startResize("guest", gn.size)} />
         )}
-        {onOpen && (showBtn || editable) && (
+        {onOpen && (showBtn || editable) && (() => {
+          const label = (lang === "en" ? (st.openBtnTextEn || st.openBtnText) : st.openBtnText) || "Open Ticket";
+          const strokeColor = st.openBtnStroke ?? st.openBtnColor;
+          return (
           <button type="button" className="pv-openbtn" data-edit={editable} data-hidden={!showBtn}
             disabled={!editable && locked}
             style={{ left: `${st.openBtnPos.xPct}%`, top: `${st.openBtnPos.yPct}%`, opacity: !editable && locked ? 0.5 : !showBtn ? 0.35 : 1,
-              ...(st.openBtnColor ? { color: st.openBtnColor, borderColor: st.openBtnColor } : {}) }}
+              ...(st.openBtnColor ? { color: st.openBtnColor } : {}),
+              ...(strokeColor ? { borderColor: strokeColor } : {}),
+              ...(st.openBtnFill ? { background: st.openBtnFill } : {}),
+              ...(st.openBtnFont ? { fontFamily: st.openBtnFont } : {}),
+              ...(st.openBtnSize ? { fontSize: st.openBtnSize } : {}) }}
             onPointerDown={start("open")}
             onClick={() => { if (!editable && !locked) onOpen?.(); }}>
-            {!editable && locked ? "Please wait…" : !showBtn ? "Open (hidden)" : "Open Ticket"}
+            {!editable && locked ? "Please wait…" : !showBtn ? `${label} (hidden)` : label}
           </button>
-        )}
+          );
+        })()}
         {editable && snapLines.x != null && <div className="pv-snapline pv-snapline-v" style={{ left: `${snapLines.x}%` }} />}
         {editable && snapLines.y != null && <div className="pv-snapline pv-snapline-h" style={{ top: `${snapLines.y}%` }} />}
       </div>

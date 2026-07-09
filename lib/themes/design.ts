@@ -81,8 +81,25 @@ export interface DesignGate {
   /** Play the entrance animation when the cover opens into the sections. */
   animateOpen: boolean;
   keepCoverAfterOpen: boolean;
-  /** Color of the gate "Open" button label/border. null = follow theme accent. */
+  /** Color of the gate "Open" button label (text). null = follow theme accent.
+   *  Also the fallback for the border color when `openButtonStroke` is unset. */
   openButtonColor: string | null;
+  /** Border (stroke) color of the gate "Open" button. null = follow text color. */
+  openButtonStroke: string | null;
+  /** Fill (background) color of the gate "Open" button. null = transparent. */
+  openButtonFill: string | null;
+  /** Custom label for the gate "Open" button. null = "Open Letter". */
+  openButtonText: string | null;
+  /** Font-family stack for the "Open" button label. null = inherit. */
+  openButtonFont: string | null;
+  /** Font size (px) for the "Open" button label. null = CSS default (~10px). */
+  openButtonSize: number | null;
+  /** Font weight (400–800) for the "Open" button label. null = CSS default. */
+  openButtonWeight: number | null;
+  /** Show the "Open" button's border (default true). */
+  openButtonStrokeEnabled: boolean;
+  /** Show the "Open" button's fill color (default false — transparent). */
+  openButtonFillEnabled: boolean;
   scrollGuide: boolean;
   /** Guidance-overlay caption shown once after opening (admin-customizable). */
   guideText: string;
@@ -95,12 +112,33 @@ export interface DesignGate {
   backgroundBlur: number;
   showGuestName: boolean;
   guestFrameUrl: string | null;
+  /** Prefix badge shown above the guest name. null = "Dear". */
+  guestPrefix: string | null;
+  /** Text/border color of the prefix badge. null = follow theme accent. */
+  guestPrefixColor: string | null;
+  /** Font-family stack for the prefix badge. null = inherit. */
+  guestPrefixFont: string | null;
+  /** Font size (px) for the prefix badge. null = CSS default (~10px). */
+  guestPrefixSize: number | null;
+  /** Font weight (400–800) for the prefix badge. null = CSS default. */
+  guestPrefixWeight: number | null;
+  /** Wrap long prefix text onto multiple lines (default true). */
+  /** Long-text behavior for the prefix badge: wrap onto a new line, or shrink to fit one line. */
+  guestPrefixFit: "wrap" | "shrink";
+  /** Long-text behavior for the guest's name: wrap onto a new line, or shrink to fit one line.
+   *  Most useful in "shrink" mode since a real guest's name length is unknown in advance. */
+  guestNameFit: "wrap" | "shrink";
   monogram: { gate: boolean; sections: boolean };
   elementPositions?: Partial<Record<GateElementKey, GatePlacement>>;
 }
 
-/** Free placement of a gate element: center position (%) + optional size multiplier. */
-export interface GatePlacement { xPct: number; yPct: number; scale?: number }
+/** Free placement + per-element style override of a gate element:
+ *  center position (%), optional size multiplier, and optional color/font/weight/align that
+ *  override the theme palette for that single element. */
+export interface GatePlacement {
+  xPct: number; yPct: number; scale?: number; color?: string; font?: string;
+  weight?: number; align?: "left" | "center" | "right";
+}
 
 /** Bilingual content: guests toggle the whole invitation between two languages. */
 export interface DesignLanguages {
@@ -171,11 +209,26 @@ interface LegacyOverlay {
   revealStyle?: DesignGate["revealStyle"];
   animateOpen?: boolean;
   openButtonColor?: string | null;
+  openButtonStroke?: string | null;
+  openButtonFill?: string | null;
+  openButtonText?: string | null;
+  openButtonFont?: string | null;
+  openButtonSize?: number | null;
+  openButtonWeight?: number | null;
+  openButtonStrokeEnabled?: boolean;
+  openButtonFillEnabled?: boolean;
   keepCoverAfterOpen?: boolean;
   scrollGuide?: boolean;
   gatePosition?: DesignGate["position"];
   showGuestName?: boolean;
   guestFrameUrl?: string | null;
+  guestPrefix?: string | null;
+  guestPrefixColor?: string | null;
+  guestPrefixFont?: string | null;
+  guestPrefixSize?: number | null;
+  guestPrefixWeight?: number | null;
+  guestPrefixFit?: "wrap" | "shrink" | null;
+  guestNameFit?: "wrap" | "shrink" | null;
   monogram?: { gate: boolean; sections: boolean };
   elementPositions?: DesignGate["elementPositions"];
   showRsvp?: boolean;
@@ -235,6 +288,14 @@ export function resolveDesign(input: {
       animateOpen: oc.animateOpen ?? true,
       keepCoverAfterOpen: oc.keepCoverAfterOpen ?? true,
       openButtonColor: oc.openButtonColor ?? null,
+      openButtonStroke: oc.openButtonStroke ?? null,
+      openButtonFill: oc.openButtonFill ?? null,
+      openButtonText: oc.openButtonText ?? null,
+      openButtonFont: oc.openButtonFont ?? null,
+      openButtonSize: oc.openButtonSize ?? null,
+      openButtonWeight: oc.openButtonWeight ?? null,
+      openButtonStrokeEnabled: oc.openButtonStrokeEnabled ?? true,
+      openButtonFillEnabled: oc.openButtonFillEnabled ?? false,
       scrollGuide: oc.scrollGuide ?? true,
       guideText: oc.guideText || "Scroll to explore",
       hand: oc.guideHand ?? { kind: "default", value: "" },
@@ -244,6 +305,13 @@ export function resolveDesign(input: {
       backgroundBlur: oc.backgroundBlur ?? 0,
       showGuestName: oc.showGuestName ?? true,
       guestFrameUrl: oc.guestFrameUrl ?? null,
+      guestPrefix: oc.guestPrefix ?? null,
+      guestPrefixColor: oc.guestPrefixColor ?? null,
+      guestPrefixFont: oc.guestPrefixFont ?? null,
+      guestPrefixSize: oc.guestPrefixSize ?? null,
+      guestPrefixWeight: oc.guestPrefixWeight ?? null,
+      guestPrefixFit: oc.guestPrefixFit ?? "wrap",
+      guestNameFit: oc.guestNameFit ?? "wrap",
       monogram: oc.monogram ?? { gate: true, sections: false },
       elementPositions: oc.elementPositions ?? undefined,
     },

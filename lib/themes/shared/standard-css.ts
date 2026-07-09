@@ -374,8 +374,14 @@ img { max-width: 100%; }
   text-align: center;
   padding: 3.5rem 1.5rem;
 }
+/* On desktop the gate (its cover image included) stays inside the portrait
+   invite column — same 560px cap as .invite-shell / .inv-fixed-bg — instead of
+   bleeding full-width across the screen; the desktop backdrop shows around it. */
+@media (min-width: 1000px) {
+  .inv-gate { max-width: 560px; }
+}
 .inv-gate-guest { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; margin: 0.2rem 0 0.4rem; }
-.inv-gate-name { font-family: 'Great Vibes', cursive; font-size: 2rem; line-height: 1.1; }
+.inv-gate-name { font-family: 'Great Vibes', cursive; font-size: 1.4rem; line-height: 1.1; }
 .inv-gate-open { background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; margin-top: 0.6rem; }
 .inv-gate-hand { width: 88px; height: auto; animation: inv-tap 1.6s ease-in-out infinite; }
 /* Emoji variants of the hand icon (admin-configurable) */
