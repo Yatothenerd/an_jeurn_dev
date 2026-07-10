@@ -570,6 +570,7 @@ export default async function InvitePage({
           guestFrameUrl={gate.guestFrameUrl}
           showMonogram={gate.monogram.gate}
           elementPositions={gate.elementPositions as ElementPositions | undefined}
+          gateDecoration={themeMod.gateDecoration}
         >
           {langShell}
         </InviteGate>

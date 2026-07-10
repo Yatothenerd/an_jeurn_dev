@@ -144,6 +144,13 @@ export interface ThemeModule {
   /** Section / shell chrome; falls back to the standard layout. */
   layout?: ThemeLayout;
   /**
+   * Optional bespoke decoration rendered over the top of the opening gate
+   * (the shared landing card every theme uses) — e.g. Lovely Book's
+   * cherub + bow flourish. Purely additive: themes that don't set this
+   * render the gate exactly as before.
+   */
+  gateDecoration?: ComponentType;
+  /**
    * When true, the builder shows a per-section background image/video uploader
    * (image/video themes read `content.bgUrl` / `content.bgVideo`).
    */

@@ -133,6 +133,8 @@ interface Props {
   guestFrameUrl?: string | null;
   showMonogram?: boolean;
   elementPositions?: ElementPositions;
+  /** Optional bespoke decoration rendered over the top of the gate card (e.g. Lovely Book's cherub + bow flourish). */
+  gateDecoration?: React.ComponentType;
   children: React.ReactNode;
 }
 
@@ -149,6 +151,7 @@ export function InviteGate({
   position = "center", blur = 0,
   showGuestName = true, guestFrameUrl, showMonogram = true,
   elementPositions,
+  gateDecoration: GateDecoration,
   children,
 }: Props) {
   // Per-element style overrides (color/font) set on the gate WYSIWYG editor.
@@ -327,6 +330,11 @@ export function InviteGate({
           )}
           {gateOverlay?.enabled && (
             <div style={{ position: "absolute", inset: 0, background: gateOverlay.color, opacity: gateOverlay.opacity }} />
+          )}
+          {GateDecoration && (
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 1, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
+              <GateDecoration />
+            </div>
           )}
 
           {hasCustomPos ? (
