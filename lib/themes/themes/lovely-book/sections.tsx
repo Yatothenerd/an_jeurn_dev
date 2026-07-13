@@ -143,6 +143,7 @@ export function LbWording({
   theme: ThemeTokens;
 }) {
   const paragraphs = (content.text ?? "").split(/\n+/).filter(Boolean);
+  if (!content.imageUrl && !content.title && paragraphs.length === 0) return null;
   return (
     <div>
       <LbDivider label="Our Special Day" />
