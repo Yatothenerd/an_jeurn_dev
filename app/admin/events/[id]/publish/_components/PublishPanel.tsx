@@ -143,7 +143,7 @@ const s = {
   shareRow: { display: "flex", gap: "0.4rem", alignItems: "center", flexWrap: "wrap" as const },
   shareLink: { flex: 1, minWidth: 200, fontSize: "0.78rem", padding: "0.5rem 0.7rem", background: "var(--c-surface-2)", border: "1px solid var(--c-border)", borderRadius: 8, color: "var(--c-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const },
   smallBtn: { padding: "0.45rem 0.8rem", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-text)", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", textDecoration: "none" },
-  bigBtn: { padding: "0.7rem 1.25rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: 9, cursor: "pointer", fontSize: "0.95rem", fontWeight: 700 },
+  bigBtn: { padding: "0.7rem 1.25rem", background: "var(--c-accent)", color: "var(--c-lime-text)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: "0.95rem", fontWeight: 700 },
   unpublishBtn: { background: "transparent", border: "1px solid var(--c-border)", color: "var(--c-text)", fontWeight: 600 },
   err: { margin: 0, fontSize: "0.8rem", color: "#dc2626" },
 } as const;

@@ -83,7 +83,7 @@ export function AppearanceSettings({ initial }: { initial: SiteSettings }) {
       <div style={{ minHeight: 22, fontSize: "0.85rem", fontWeight: 600 }}>
         {state === "saving" && <span style={{ color: "var(--c-muted)" }}>Saving…</span>}
         {state === "saved" && <span style={{ color: "#15803d" }}>✓ Saved — live on the site</span>}
-        {state === "error" && <span style={{ color: "#b3261e" }}>Couldn’t save. Try again.</span>}
+        {state === "error" && <span style={{ color: "#dc2626" }}>Couldn’t save. Try again.</span>}
       </div>
     </div>
   );

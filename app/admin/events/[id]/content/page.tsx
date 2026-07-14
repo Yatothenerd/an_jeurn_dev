@@ -96,6 +96,6 @@ const ff = {
   card: { background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12, padding: "1.5rem", maxWidth: 640 },
   h2: { margin: "0 0 0.5rem", fontSize: "1.05rem", fontWeight: 700, color: "var(--c-text)" },
   p: { margin: "0 0 1rem", fontSize: "0.9rem", color: "var(--c-muted)", lineHeight: 1.5 },
-  primary: { padding: "0.55rem 1.1rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.875rem", fontWeight: 600 },
+  primary: { padding: "0.55rem 1.1rem", background: "var(--c-accent)", color: "var(--c-lime-text)", borderRadius: 8, textDecoration: "none", fontSize: "0.875rem", fontWeight: 600 },
   ghost: { padding: "0.55rem 1.1rem", background: "var(--c-surface-2)", border: "1px solid var(--c-border)", color: "var(--c-text)", borderRadius: 8, textDecoration: "none", fontSize: "0.875rem", fontWeight: 600 },
 } as const;

@@ -108,7 +108,7 @@ const s = {
     outline: "none",
   },
   saveBtn: {
-    padding: "0.35rem 0.875rem", background: "var(--c-accent)", color: "#fff",
+    padding: "0.35rem 0.875rem", background: "var(--c-accent)", color: "var(--c-lime-text)",
     border: "none", borderRadius: 7, cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600,
   },
   cancelBtn: {

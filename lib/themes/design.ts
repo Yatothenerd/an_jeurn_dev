@@ -157,6 +157,8 @@ export interface DesignLanguages {
   secondaryLabel: string;
 }
 
+export type SectionEffect = "none" | "fade" | "slide-up" | "slide-down" | "zoom";
+
 export interface DesignPage {
   sectionBlur: number;
   sectionOverlay: DesignOverlay;
@@ -169,6 +171,9 @@ export interface DesignPage {
   /** Desktop-only backdrop shown around the portrait invite on wide screens — distinct from bgColor/media above, which are scoped to the portrait column. */
   outerBg: { url: string | null; color: string | null };
   languages: DesignLanguages;
+  /** Default entrance transition each section plays once as it scrolls into
+   *  view. A section's own `content._effect.entrance` overrides this. */
+  sectionEffect: SectionEffect;
 }
 
 export interface DesignSection {
@@ -244,6 +249,7 @@ interface LegacyOverlay {
   monogram?: { gate: boolean; sections: boolean };
   elementPositions?: DesignGate["elementPositions"];
   showRsvp?: boolean;
+  sectionEffect?: DesignPage["sectionEffect"];
 }
 
 function isBuilderDraft(v: unknown): boolean {
@@ -350,6 +356,8 @@ export function resolveDesign(input: {
         primaryLabel: oc.languages?.primaryLabel || "ខ្មែរ",
         secondaryLabel: oc.languages?.secondaryLabel || "EN",
       },
+      // "none" preserves existing invites' look exactly until an admin opts in.
+      sectionEffect: oc.sectionEffect ?? "none",
     },
     sections,
     builderDraft,

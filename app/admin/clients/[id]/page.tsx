@@ -138,7 +138,7 @@ function StatusBadge({ status }: { status: string }) {
     expired: { bg: "#fef9c3", color: "#854d0e" },
     revoked: { bg: "#fee2e2", color: "#b91c1c" },
   };
-  const c = colors[status] ?? { bg: "#f3f4f6", color: "#6b7280" };
+  const c = colors[status] ?? { bg: "var(--c-surface-2)", color: "var(--c-muted)" };
   return (
     <span style={{ padding: "0.15rem 0.5rem", borderRadius: "4px", fontSize: "0.75rem", fontWeight: 600, background: c.bg, color: c.color }}>
       {status}
@@ -166,6 +166,6 @@ const s = {
   eventMeta:    { fontSize: "0.75rem", color: "var(--c-muted)", marginTop: "0.125rem" },
   eventStatus:  { fontSize: "0.6875rem", padding: "0.125rem 0.375rem", borderRadius: "4px", background: "var(--c-surface-2)", color: "var(--c-muted)", fontWeight: 500 },
   eventActions: { display: "flex", gap: "0.5rem", flexWrap: "wrap" as const },
-  editBtn:      { padding: "0.3rem 0.75rem", background: "var(--c-accent)", color: "#fff", borderRadius: 6, textDecoration: "none", fontSize: "0.8125rem", fontWeight: 600 },
+  editBtn:      { padding: "0.3rem 0.75rem", background: "var(--c-accent)", color: "var(--c-lime-text)", borderRadius: 6, textDecoration: "none", fontSize: "0.8125rem", fontWeight: 600 },
   viewBtn:      { padding: "0.3rem 0.75rem", background: "var(--c-surface)", border: "1px solid var(--c-border)", color: "var(--c-text)", borderRadius: 6, textDecoration: "none", fontSize: "0.8125rem" },
 } as const;

@@ -80,7 +80,7 @@ const s = {
   header:     { display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1.5rem", flexWrap: "wrap" as const, gap: "0.75rem" },
   title:      { margin: "0 0 0.25rem", fontSize: "1.625rem", fontWeight: 700, color: "var(--c-text)" },
   sub:        { margin: 0, color: "var(--c-muted)", fontSize: "0.9375rem" },
-  newBtn:     { padding: "0.5625rem 1.25rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.9375rem", fontWeight: 600, display: "inline-block" },
+  newBtn:     { padding: "0.5625rem 1.25rem", background: "var(--c-accent)", color: "var(--c-lime-text)", borderRadius: 8, textDecoration: "none", fontSize: "0.9375rem", fontWeight: 600, display: "inline-block" },
   empty:      { textAlign: "center" as const, padding: "3.5rem 1rem", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 12 },
   list:       { display: "flex", flexDirection: "column" as const, gap: "0.625rem" },
   card:       { display: "flex", alignItems: "center", gap: "1rem", padding: "0.875rem 1rem", background: "var(--c-surface)", border: "1px solid var(--c-border)", borderRadius: 10, textDecoration: "none", transition: "border-color 0.15s" },

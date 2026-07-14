@@ -10,6 +10,8 @@
  */
 
 import type { FontOption } from "@/lib/themes/shared/standard-css";
+import { useRecentColors } from "@/lib/utils/recent-colors";
+import { RecentColorSwatches } from "./RecentColorSwatches";
 
 const ctl = {
   row: { display: "flex", alignItems: "center", gap: "0.5rem" },
@@ -103,32 +105,46 @@ export function ColorField({
   allowEmpty?: boolean;
 }) {
   const set = value !== "";
+  const [recent, recordRecent] = useRecentColors();
+
+  const commit = (hex: string) => {
+    onChange(hex);
+    recordRecent(hex);
+  };
+
   return (
-    <div style={ctl.row}>
-      <input
-        type="color"
-        value={toHex(value || "#888888")}
-        style={{ ...ctl.swatch, opacity: set ? 1 : 0.45 }}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Pick color"
-      />
-      <input
-        type="text"
-        value={value}
-        placeholder="theme"
-        spellCheck={false}
-        style={ctl.hexInput}
-        onChange={(e) => {
-          const v = e.target.value.trim();
-          if (v === "" || /^#?[0-9a-fA-F]{0,8}$/.test(v)) onChange(v === "" || v.startsWith("#") ? v : "#" + v);
-        }}
-        aria-label="Exact color value"
-      />
-      {allowEmpty && set && (
-        <button type="button" style={ctl.clear} title="Reset to theme default" onClick={() => onChange("")}>
-          ✕
-        </button>
-      )}
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+      <div style={ctl.row}>
+        <input
+          type="color"
+          value={toHex(value || "#888888")}
+          style={{ ...ctl.swatch, opacity: set ? 1 : 0.45 }}
+          onChange={(e) => commit(e.target.value)}
+          aria-label="Pick color"
+        />
+        <input
+          type="text"
+          value={value}
+          placeholder="theme"
+          spellCheck={false}
+          style={ctl.hexInput}
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            if (v === "" || /^#?[0-9a-fA-F]{0,8}$/.test(v)) onChange(v === "" || v.startsWith("#") ? v : "#" + v);
+          }}
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) recordRecent(v);
+          }}
+          aria-label="Exact color value"
+        />
+        {allowEmpty && set && (
+          <button type="button" style={ctl.clear} title="Reset to theme default" onClick={() => onChange("")}>
+            ✕
+          </button>
+        )}
+      </div>
+      <RecentColorSwatches recent={recent} onPick={commit} size={18} />
     </div>
   );
 }

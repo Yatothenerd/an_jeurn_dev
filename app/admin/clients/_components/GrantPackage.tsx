@@ -101,6 +101,6 @@ const s = {
   error: { color: "#dc2626", fontSize: "0.8125rem", margin: 0 },
   hint: { color: "var(--c-muted)", fontSize: "0.75rem", margin: 0 },
   btn: { padding: "0.3125rem 0.75rem", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "0.8125rem", fontWeight: 600, whiteSpace: "nowrap" as const },
-  purple: { background: "var(--c-accent)", color: "#fff" },
+  purple: { background: "var(--c-accent)", color: "var(--c-lime-text)" },
   gray: { background: "var(--c-surface-2)", color: "var(--c-text)" },
 } as const;

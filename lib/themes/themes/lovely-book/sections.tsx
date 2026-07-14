@@ -118,7 +118,7 @@ export function LbCover({
         <LbCherub flip />
       </div>
       <LbBow />
-      <p className="lb-eyebrow">{content.subheading || "With love"}</p>
+      {content.subheading && <p className="lb-eyebrow">{content.subheading}</p>}
       <h1 className="lb-big">{content.bigWord || eventTitle}</h1>
       <LbCake />
       <div className="lb-guestpill">✨ {content.guestLabel || "Respected Guest"}</div>
@@ -261,14 +261,28 @@ export function LbDetails({
   venueName,
   venueMapUrl,
 }: {
-  content: { title?: string; hideTitle?: boolean; items?: LbDetailItem[]; mapUrl?: string; mapLabel?: string; imageUrl?: string };
+  content: {
+    title?: string;
+    hideTitle?: boolean;
+    items?: LbDetailItem[];
+    mapUrl?: string;
+    mapLabel?: string;
+    imageUrl?: string;
+    dresscodeLabel?: string;
+    dresscodeText?: string;
+    dresscode?: string[];
+    notesLabel?: string;
+    notes?: string[];
+  };
   venueName: string | null;
   venueMapUrl: string | null;
   theme: ThemeTokens;
 }) {
   const items = content.items ?? [];
   const mapUrl = content.mapUrl || venueMapUrl;
-  if (!venueName && items.length === 0 && !mapUrl && !content.imageUrl) return null;
+  const notes = (content.notes ?? []).filter((n) => n.trim());
+  const hasDresscode = !!(content.dresscode && content.dresscode.length > 0);
+  if (!venueName && items.length === 0 && !mapUrl && !content.imageUrl && !hasDresscode && notes.length === 0) return null;
 
   return (
     <div>
@@ -288,6 +302,27 @@ export function LbDetails({
         <p style={{ textAlign: "center" }}>
           <a className="lb-btn" href={mapUrl} target="_blank" rel="noreferrer">{content.mapLabel || "Get Map"}</a>
         </p>
+      )}
+
+      {hasDresscode && (
+        <div style={{ marginTop: "1.4rem", textAlign: "center" }}>
+          <p className="lb-detail-label">{content.dresscodeLabel || "Dress code"}</p>
+          {content.dresscodeText && <p className="lb-body">{content.dresscodeText}</p>}
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap", marginTop: "0.4rem" }}>
+            {content.dresscode!.map((c, i) => (
+              <span key={i} style={{ width: 20, height: 20, borderRadius: "50%", background: c, border: "1px solid rgba(124,31,52,0.3)", display: "inline-block" }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {notes.length > 0 && (
+        <div style={{ marginTop: "1.4rem" }}>
+          <p className="lb-detail-label" style={{ textAlign: "center" }}>{content.notesLabel || "Notes"}</p>
+          {notes.map((n, i) => (
+            <p key={i} className="lb-body">{n}</p>
+          ))}
+        </div>
       )}
       <LbPavilion />
     </div>

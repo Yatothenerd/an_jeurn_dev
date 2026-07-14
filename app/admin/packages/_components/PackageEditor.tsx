@@ -194,7 +194,7 @@ const s = {
   pkgSlug: { margin: 0, fontSize: "0.75rem", color: "var(--c-muted)" },
   price: { fontSize: "1.5rem", fontWeight: 800, color: "var(--c-text)" },
   editBtn: {
-    padding: "0.45rem 1.1rem", background: "var(--c-accent)", color: "#fff",
+    padding: "0.45rem 1.1rem", background: "var(--c-accent)", color: "var(--c-lime-text)",
     border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600,
   },
   savedMsg: { fontSize: "0.8125rem", color: "#16a34a", fontWeight: 600 },
@@ -231,7 +231,7 @@ const s = {
     color: "var(--c-text)", borderRadius: "8px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600,
   },
   saveBtn: {
-    padding: "0.5rem 1.25rem", background: "var(--c-accent)", color: "#fff", border: "none",
+    padding: "0.5rem 1.25rem", background: "var(--c-accent)", color: "var(--c-lime-text)", border: "none",
     borderRadius: "8px", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600,
   },
 } as const;

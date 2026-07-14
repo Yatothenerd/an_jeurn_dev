@@ -194,10 +194,12 @@ export function DbCoverSection({ content: baseContent, eventTitle, eventDate, ve
         {content.heading || eventTitle}
       </h1>
 
-      {/* Subtitle / subheading */}
-      <p style={{ fontSize: remScale(1, tok.bs(theme)), margin: "0 0 1.75rem", color: tok.subtitle(theme) }}>
-        {content.subheading || "You are cordially invited"}
-      </p>
+      {/* Subtitle / subheading — omitted entirely when left blank */}
+      {content.subheading && (
+        <p style={{ fontSize: remScale(1, tok.bs(theme)), margin: "0 0 1.75rem", color: tok.subtitle(theme) }}>
+          {content.subheading}
+        </p>
+      )}
 
       {/* Accent divider */}
       <div style={{ width: 40, height: 1, background: theme.accent, margin: "0 auto 1.5rem", opacity: 0.7 }} />
@@ -294,8 +296,8 @@ export function DbWordingSection({ content: baseContent, theme: baseTheme }: Wor
             style={{
               textAlign: "center",
               whiteSpace: "pre-line",
-              fontSize: remScale(1.0625, tok.bs(theme)),
-              lineHeight: 2,
+              fontSize: remScale(1.3125, tok.bs(theme)),
+              lineHeight: 1.85,
               fontStyle: "italic",
               color: tok.body(theme),
               margin: 0,
@@ -425,7 +427,18 @@ interface PhotoDetailItem {
 }
 
 interface DetailsProps {
-  content: { title?: string; items?: DetailItem[]; photoItems?: PhotoDetailItem[]; hideTitle?: boolean };
+  content: {
+    title?: string;
+    items?: DetailItem[];
+    photoItems?: PhotoDetailItem[];
+    hideTitle?: boolean;
+    mapLabel?: string;
+    dresscodeLabel?: string;
+    dresscodeText?: string;
+    dresscode?: string[];
+    notesLabel?: string;
+    notes?: string[];
+  };
   venueName: string | null;
   venueMapUrl: string | null;
   theme: ThemeTokens;
@@ -442,7 +455,9 @@ export function DbDetailsSection({ content: baseContent, venueName, venueMapUrl,
   const hasVenueRow = textItems.some((it) => it.label.toLowerCase().includes("venue"));
   if (venueName && !hasVenueRow) textItems.push({ icon: "📍", label: "Venue", value: venueName });
 
-  if (photoItems.length === 0 && textItems.length === 0 && !venueMapUrl) return null;
+  const hasDresscode = !!(content.dresscode && content.dresscode.length > 0);
+  const hasNotes = !!(content.notes && content.notes.some((n) => n.trim()));
+  if (photoItems.length === 0 && textItems.length === 0 && !venueMapUrl && !hasDresscode && !hasNotes) return null;
 
   return (
     <SecWrap theme={theme}>
@@ -566,10 +581,43 @@ export function DbDetailsSection({ content: baseContent, venueName, venueMapUrl,
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>
                 </svg>
-                View on Map
+                {content.mapLabel || "View on Map"}
               </a>
             </div>
           )}
+        </div>
+      )}
+
+      {content.dresscode && content.dresscode.length > 0 && (
+        <div style={{ marginTop: "1.5rem", textAlign: "center" }}>
+          <div style={{ fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.16em", marginBottom: "0.5rem", color: tok.header(theme) }}>
+            {content.dresscodeLabel || "Dress code"}
+          </div>
+          {content.dresscodeText && (
+            <p style={{ fontSize: remScale(0.9375, tok.bs(theme)), color: tok.body(theme), margin: "0 0 0.6rem" }}>
+              {content.dresscodeText}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap" }}>
+            {content.dresscode.map((c, i) => (
+              <span key={i} style={{ width: 22, height: 22, borderRadius: "50%", background: c, border: `1px solid ${theme.border}`, display: "inline-block" }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {content.notes && content.notes.filter((n) => n.trim()).length > 0 && (
+        <div style={{ marginTop: "1.5rem" }}>
+          <div style={{ fontSize: "0.5rem", textTransform: "uppercase", letterSpacing: "0.16em", marginBottom: "0.5rem", color: tok.header(theme), textAlign: "center" }}>
+            {content.notesLabel || "Notes"}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            {content.notes.filter((n) => n.trim()).map((n, i) => (
+              <div key={i} style={{ fontSize: remScale(0.875, tok.bs(theme)), color: tok.body(theme), lineHeight: 1.6, textAlign: "center" }}>
+                {n}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </SecWrap>

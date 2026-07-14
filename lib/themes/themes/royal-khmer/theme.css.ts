@@ -4,19 +4,6 @@
 export const KHMER_CSS = `
 /* ════════ Royal Khmer (rk-*) ════════ */
 .rk-invite { font-family: 'Kantumruy Pro', sans-serif; color: #4a3728; background-color: #f9f7f4; background-image: radial-gradient(#b89f8a 0.5px, transparent 0.5px); background-size: 16px 16px; }
-.rk-cover { position: relative; min-height: 90vh; padding: 2.6rem 1.3rem; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; gap: 1rem; color: #dcb287; background: repeating-linear-gradient(90deg, rgba(0,0,0,0.38) 0px, rgba(0,0,0,0.08) 14px, transparent 28px, rgba(0,0,0,0.08) 42px, rgba(0,0,0,0.38) 56px), radial-gradient(circle at 50% 16%, #800020 58%, #5a0016 100%); background-size: 56px 100%, auto; box-shadow: inset 0 0 90px rgba(0,0,0,0.6); }
-.rk-cover::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 38px; background: radial-gradient(circle at 50% -40%, #800020 70%, #5a0016 100%); border-bottom: 2px solid #d4af37; border-radius: 0 0 100% 100% / 0 0 22% 22%; box-shadow: 0 4px 14px rgba(0,0,0,0.5); z-index: 1; }
-.rk-frame { position: absolute; pointer-events: none; z-index: 1; }
-.rk-frame.f1 { inset: 11px; border: 1px solid rgba(212,175,55,0.45); }
-.rk-frame.f2 { inset: 16px; border: 1px solid rgba(212,175,55,0.22); }
-.rk-monogram { width: 72px; height: auto; position: relative; z-index: 2; }
-.rk-cover-mid { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; }
-.rk-cover-kh { font-size: 0.8rem; color: #dcb287; letter-spacing: 0.03em; margin: 0; }
-.rk-cover-en { font-size: 0.6rem; color: rgba(249,247,244,0.8); letter-spacing: 0.08em; margin: 0.1rem 0 0; }
-.rk-nameplate { position: relative; display: flex; align-items: center; justify-content: center; margin: 0.6rem 0; min-height: 48px; width: 100%; }
-.rk-nameplate img { position: absolute; width: 100%; max-width: 220px; opacity: 0.6; }
-.rk-guest { position: relative; z-index: 2; font-family: 'Moulpali', serif; font-style: italic; font-size: 1.25rem; color: #fff; }
-.rk-cdiv { width: 38px; height: 1px; background: rgba(212,175,55,0.5); margin: 0.5rem auto; }
 .rk-section { position: relative; padding: 2.4rem 1.2rem; }
 .rk-section.cream { background-color: #f9f7f4; background-image: radial-gradient(#b89f8a 0.5px, transparent 0.5px); background-size: 16px 16px; }
 .rk-section.red { background: #800020; color: #f9f7f4; }
@@ -56,21 +43,21 @@ export const KHMER_CSS = `
 .rk-dots i { width: 3px; height: 3px; border-radius: 50%; background: #d4af37; display: block; }
 
 /* ════════ Royal Khmer — Light Cover (rk-cv2) ════════ */
-.rk-cv2 { position: relative; display: flex; flex-direction: column; min-height: 90vh; font-family: 'Kantumruy Pro', sans-serif; color: #1a2a5a; background-color: #f5f3ee; background-image: url("data:image/svg+xml,%3Csvg width='800' height='22' viewBox='0 0 800 22' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 11 C100 3 200 19 400 11 C600 3 700 19 800 11' fill='none' stroke='%231a3daa' stroke-width='0.4' opacity='0.13'/%3E%3C/svg%3E"); background-size: 100% 22px; }
+.rk-cv2 { position: relative; display: flex; flex-direction: column; min-height: 90vh; font-family: 'Kantumruy Pro', sans-serif; color: #4a3728; background-color: #f9f7f4; background-image: url("data:image/svg+xml,%3Csvg width='800' height='22' viewBox='0 0 800 22' preserveAspectRatio='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 11 C100 3 200 19 400 11 C600 3 700 19 800 11' fill='none' stroke='%23d4af37' stroke-width='0.4' opacity='0.2'/%3E%3C/svg%3E"); background-size: 100% 22px; }
 .rk-cv2-body { flex: 1; display: flex; flex-direction: row; }
 .rk-cv2-left { flex: 1; padding: 2.2rem 1rem 1.5rem 1.4rem; display: flex; flex-direction: column; justify-content: center; gap: 0.85rem; }
-.rk-cv2-kh { font-size: 0.72rem; color: #1a2a5a; line-height: 1.55; margin: 0; }
-.rk-cv2-en { font-size: 0.52rem; color: #3a5a9a; text-transform: uppercase; letter-spacing: 0.09em; margin: 0.18rem 0 0; }
-.rk-cv2-title { font-family: 'Moulpali', serif; font-size: 1rem; color: #1a2a5a; margin: 0; line-height: 1.35; }
-.rk-cv2-divider { height: 1px; background: rgba(26,60,154,0.22); margin: 0.1rem 0; }
-.rk-cv2-detail { font-size: 0.54rem; color: #3a5a9a; margin: 0.1rem 0 0; line-height: 1.45; }
-.rk-cv2-guest-block { border-top: 1px solid rgba(26,60,154,0.18); padding-top: 0.6rem; margin-top: 0.1rem; }
-.rk-cv2-guest-label { font-family: 'Moulpali', serif; font-size: 0.62rem; color: #1a3a80; margin: 0 0 0.2rem; }
-.rk-cv2-guestname { font-family: 'Moulpali', serif; font-size: 0.88rem; color: #1a2a5a; line-height: 1.3; }
-.rk-cv2-admit { font-size: 0.44rem; color: rgba(26,60,154,0.45); text-transform: uppercase; letter-spacing: 0.1em; margin: 0.25rem 0 0; }
-.rk-cv2-right { width: 42%; max-width: 150px; border-left: 2px solid rgba(30,80,200,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem 0.5rem; gap: 1rem; color: #3a78c9; }
+.rk-cv2-kh { font-size: 0.72rem; color: #4a3728; line-height: 1.55; margin: 0; }
+.rk-cv2-en { font-size: 0.52rem; color: #8a7560; text-transform: uppercase; letter-spacing: 0.09em; margin: 0.18rem 0 0; }
+.rk-cv2-title { font-family: 'Moulpali', serif; font-size: 1rem; color: #800020; margin: 0; line-height: 1.35; }
+.rk-cv2-divider { height: 1px; background: rgba(212,175,55,0.4); margin: 0.1rem 0; }
+.rk-cv2-detail { font-size: 0.54rem; color: #8a7560; margin: 0.1rem 0 0; line-height: 1.45; }
+.rk-cv2-guest-block { border-top: 1px solid rgba(212,175,55,0.3); padding-top: 0.6rem; margin-top: 0.1rem; }
+.rk-cv2-guest-label { font-family: 'Moulpali', serif; font-size: 0.62rem; color: #b76e79; margin: 0 0 0.2rem; }
+.rk-cv2-guestname { font-family: 'Moulpali', serif; font-size: 0.88rem; color: #800020; line-height: 1.3; }
+.rk-cv2-admit { font-size: 0.44rem; color: rgba(74,55,40,0.45); text-transform: uppercase; letter-spacing: 0.1em; margin: 0.25rem 0 0; }
+.rk-cv2-right { width: 42%; max-width: 150px; border-left: 2px solid rgba(212,175,55,0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem 0.5rem; gap: 1rem; color: #d4af37; }
 .rk-kbach { width: 90%; max-width: 124px; opacity: 0.82; }
-.rk-cv2-bottom { flex-shrink: 0; height: 54px; background-color: #1a237e; background-image: url("data:image/svg+xml,%3Csvg width='54' height='54' viewBox='0 0 54 54' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M27 5 L49 27 L27 49 L5 27 Z' fill='none' stroke='%23ffffff' stroke-width='0.9' opacity='0.35'/%3E%3Cpath d='M27 13 L41 27 L27 41 L13 27 Z' fill='none' stroke='%23ffffff' stroke-width='0.7' opacity='0.28'/%3E%3Ccircle cx='27' cy='27' r='3.5' fill='%23ffffff' opacity='0.22'/%3E%3C/svg%3E"); background-repeat: repeat-x; background-size: 54px 54px; }
+.rk-cv2-bottom { flex-shrink: 0; height: 54px; background-color: #800020; background-image: url("data:image/svg+xml,%3Csvg width='54' height='54' viewBox='0 0 54 54' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M27 5 L49 27 L27 49 L5 27 Z' fill='none' stroke='%23ffffff' stroke-width='0.9' opacity='0.35'/%3E%3Cpath d='M27 13 L41 27 L27 41 L13 27 Z' fill='none' stroke='%23ffffff' stroke-width='0.7' opacity='0.28'/%3E%3Ccircle cx='27' cy='27' r='3.5' fill='%23ffffff' opacity='0.22'/%3E%3C/svg%3E"); background-repeat: repeat-x; background-size: 54px 54px; }
 
 /* Ornate gold corner frame wrapper (Khmer applies to every section) */
 .sec-frame { position: relative; }

@@ -214,7 +214,7 @@ const s = {
   tplBody: { padding: "0.6rem 0.7rem", display: "flex", flexDirection: "column" as const, gap: "0.3rem" },
   tplName: { fontSize: "0.85rem", fontWeight: 700, color: "var(--c-text)" },
   tplPkgs: { fontSize: "0.7rem", color: "var(--c-muted)" },
-  applyBtn: { padding: "0.4rem 0.9rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: 7, cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, alignSelf: "flex-start" as const },
+  applyBtn: { padding: "0.4rem 0.9rem", background: "var(--c-accent)", color: "var(--c-lime-text)", border: "none", borderRadius: 7, cursor: "pointer", fontSize: "0.8rem", fontWeight: 600, alignSelf: "flex-start" as const },
   lock: { fontSize: "0.72rem", color: "var(--c-muted)" },
 
   themeGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.6rem" },
@@ -227,7 +227,7 @@ const s = {
   builderBtn: { alignSelf: "flex-start" as const, padding: "0.45rem 1rem", background: "var(--c-surface-2)", border: "1px solid var(--c-accent)", color: "var(--c-accent)", borderRadius: 8, textDecoration: "none", fontSize: "0.85rem", fontWeight: 600 },
 
   next: { display: "flex", justifyContent: "flex-end" },
-  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 },
+  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "var(--c-lime-text)", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 },
 
   previewCol: { width: 420, flexShrink: 0, position: "sticky" as const, top: "1rem" },
   previewBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" },

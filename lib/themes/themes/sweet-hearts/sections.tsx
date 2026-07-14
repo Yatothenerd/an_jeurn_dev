@@ -148,7 +148,7 @@ export function ShCover({
   return (
     <div className="sh-cover">
       <HangingHearts />
-      <p className="sh-cover-line">{content.subheading || "We invite you\nto our"}</p>
+      {content.subheading && <p className="sh-cover-line">{content.subheading}</p>}
       <h1 className="sh-cover-big">{content.bigWord || "wedding"}</h1>
       <LaceHeartFrame photo={photo} />
       <div className="sh-pill">{content.heading || eventTitle}</div>

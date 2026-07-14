@@ -322,7 +322,7 @@ const s = {
   dot:        { width: 8, height: 8, borderRadius: "50%", display: "inline-block", flexShrink: 0 },
 
   newBtn: {
-    padding: "0.5rem 1.125rem", background: "var(--c-accent)", color: "#fff",
+    padding: "0.5rem 1.125rem", background: "var(--c-accent)", color: "var(--c-lime-text)",
     border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", fontWeight: 600,
     transition: "opacity 0.15s",
   },
@@ -388,7 +388,7 @@ const s = {
 
   /* actions */
   actions:  { display: "flex", gap: "0.4rem", alignItems: "center", marginTop: "0.125rem" },
-  editBtn:  { padding: "0.35rem 0.75rem", background: "var(--c-accent)", color: "#fff", borderRadius: 7, textDecoration: "none", fontSize: "0.8rem", fontWeight: 600, flexShrink: 0 },
+  editBtn:  { padding: "0.35rem 0.75rem", background: "var(--c-accent)", color: "var(--c-lime-text)", borderRadius: 7, textDecoration: "none", fontSize: "0.8rem", fontWeight: 600, flexShrink: 0 },
   ghostBtn: { padding: "0.35rem 0.625rem", background: "var(--c-surface)", color: "var(--c-text)", border: "1px solid var(--c-border)", borderRadius: 7, cursor: "pointer", fontSize: "0.78rem", fontWeight: 600, flex: 1 },
   delBtn:   { padding: "0.35rem 0.5rem", background: "transparent", color: "var(--c-muted)", border: "1px solid var(--c-border)", borderRadius: 7, cursor: "pointer", fontSize: "0.8rem", fontWeight: 700, marginLeft: "auto", transition: "color 0.15s, border-color 0.15s" },
 
@@ -438,7 +438,7 @@ const s = {
     fontSize: "0.9rem", fontWeight: 500,
   },
   modalCreateBtn: {
-    padding: "0.5rem 1.25rem", background: "var(--c-accent)", color: "#fff",
+    padding: "0.5rem 1.25rem", background: "var(--c-accent)", color: "var(--c-lime-text)",
     border: "none", borderRadius: 8, cursor: "pointer",
     fontSize: "0.9rem", fontWeight: 600, transition: "opacity 0.15s",
   },

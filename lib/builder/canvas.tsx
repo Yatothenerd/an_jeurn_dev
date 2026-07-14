@@ -8,6 +8,8 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useCountdown } from "@/lib/themes/shared/use-countdown";
+import { useRecentColors } from "@/lib/utils/recent-colors";
+import { RecentColorSwatches } from "@/app/admin/_components/RecentColorSwatches";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -220,6 +222,21 @@ function pvHex(c: string): string {
   const m = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
   if (m) { const h = (n: string) => (+n).toString(16).padStart(2, "0"); return `#${h(m[1])}${h(m[2])}${h(m[3])}`; }
   return "#ffffff";
+}
+
+/** Text-color dot for the floating block toolbar, plus a few recent swatches
+ *  (capped + single-line — the toolbar is a fixed-height nowrap strip). */
+function PvColorDot({ color, onChange }: { color: string; onChange: (v: string) => void }) {
+  const [recent, recordRecent] = useRecentColors();
+  const commit = (v: string) => { onChange(v); recordRecent(v); };
+  return (
+    <>
+      <span className="pv-tclrdot" style={{ background: color }}>
+        <input type="color" value={pvHex(color)} onChange={(e) => commit(e.target.value)} />
+      </span>
+      <RecentColorSwatches recent={recent} onPick={commit} size={14} max={4} wrap={false} />
+    </>
+  );
 }
 
 function BlockTextEdit({ text, onChange, onClose }: {
@@ -469,10 +486,7 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
                   )}
                   <input type="number" className="pv-tnum" min={10} max={100} value={b.size}
                     onChange={(e) => onEditCoverBlock!(b.id, { size: +e.target.value })} />
-                  <span className="pv-tclrdot" style={{ background: b.color }}>
-                    <input type="color" value={pvHex(b.color)}
-                      onChange={(e) => onEditCoverBlock!(b.id, { color: e.target.value })} />
-                  </span>
+                  <PvColorDot color={b.color} onChange={(v) => onEditCoverBlock!(b.id, { color: v })} />
                 </div>
               )}
             </div>
@@ -515,10 +529,7 @@ export function PvCover({ st, editable = false, onMoveCover, onEditCoverBlock, f
                   )}
                   <input type="number" className="pv-tnum" min={8} max={80} value={gn.size}
                     onChange={(e) => onEditGuestName({ size: +e.target.value })} />
-                  <span className="pv-tclrdot" style={{ background: gn.color }}>
-                    <input type="color" value={pvHex(gn.color)}
-                      onChange={(e) => onEditGuestName({ color: e.target.value })} />
-                  </span>
+                  <PvColorDot color={gn.color} onChange={(v) => onEditGuestName({ color: v })} />
                 </div>
               )}
             </div>
@@ -821,10 +832,7 @@ function SectionBody({ s, editable, onEditBlock, lang = "kh", edit, eventDate }:
                     )}
                     <input type="number" className="pv-tnum" min={10} max={72} value={bl.size ?? 15}
                       onChange={(e) => edit.patchBlock(s.id, bl.id, { size: +e.target.value })} />
-                    <span className="pv-tclrdot" style={{ background: bl.color }}>
-                      <input type="color" value={pvHex(bl.color)}
-                        onChange={(e) => edit.patchBlock(s.id, bl.id, { color: e.target.value })} />
-                    </span>
+                    <PvColorDot color={bl.color} onChange={(v) => edit.patchBlock(s.id, bl.id, { color: v })} />
                     {(bl.dx || bl.dy) ? (
                       <button type="button" className="pv-tbtn" title="Reset position"
                         onClick={() => edit.patchBlock(s.id, bl.id, { dx: 0, dy: 0 })}>⟲</button>

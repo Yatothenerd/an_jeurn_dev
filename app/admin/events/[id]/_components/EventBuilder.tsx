@@ -16,6 +16,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, buildFontsHref, type FontOption } from "@/lib/themes/shared/standard-css";
+import { useRecentColors } from "@/lib/utils/recent-colors";
+import { RecentColorSwatches } from "@/app/admin/_components/RecentColorSwatches";
 import {
   type BuilderState, type MusicState, type Section, type SectionKind, type SectionBlock, type CoverBlock, type AgendaItem,
   type GuideBlock, type GuideState, type Mode, type AnimId, type SectionAnim, type IdleAnim, type SectionBg, type HandAnim, type Interaction,
@@ -168,9 +170,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function ColorDot({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [recent, recordRecent] = useRecentColors();
+  const commit = (v: string) => { onChange(v); recordRecent(v); };
   return (
-    <span className="eb-colordot" style={{ background: value }}>
-      <input type="color" value={hex(value)} onChange={(e) => onChange(e.target.value)} />
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <span className="eb-colordot" style={{ background: value }}>
+        <input type="color" value={hex(value)} onChange={(e) => commit(e.target.value)} />
+      </span>
+      <RecentColorSwatches recent={recent} onPick={commit} size={16} />
     </span>
   );
 }
@@ -1981,7 +1988,7 @@ const styles = `
 .eb-tabs { display: flex; gap: 0.25rem; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; padding: 0.375rem; position: sticky; top: 3.5rem; z-index: 5; }
 .eb-tab { flex: 1; padding: 0.5rem 0.25rem; border: none; background: transparent; color: var(--c-muted); border-radius: 8px; font-weight: 600; font-size: 0.78rem; cursor: pointer; font-family: inherit; transition: background .15s, color .15s; }
 .eb-tab:hover { color: var(--c-text); background: var(--c-surface-2); }
-.eb-tab[data-active="true"] { background: var(--c-accent); color: #fff; }
+.eb-tab[data-active="true"] { background: var(--c-accent); color: var(--c-lime-text); }
 
 /* Editor panel — independent scroll */
 .eb-panel { max-height: calc(100vh - 14rem); overflow-y: auto; padding-right: 0.25rem; }
@@ -2050,13 +2057,13 @@ const styles = `
 .eb-seg { display: flex; gap: 0.25rem; background: var(--c-surface-2); border: 1px solid var(--c-border); border-radius: 9px; padding: 0.25rem; }
 .eb-segsm { display: inline-flex; }
 .eb-segbtn { flex: 1; border: none; background: transparent; color: var(--c-muted); padding: 0.4rem 0.7rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: inherit; }
-.eb-segbtn[data-on="true"] { background: var(--c-accent); color: #fff; }
+.eb-segbtn[data-on="true"] { background: var(--c-accent); color: var(--c-lime-text); }
 
 /* Language tab toggle (KH / EN in edit panels) */
 .eb-langtabs { display: flex; gap: 0; border: 1px solid var(--c-border); border-radius: 8px; overflow: hidden; margin-bottom: 0.5rem; }
 .eb-langtab { flex: 1; border: none; background: var(--c-surface-2); color: var(--c-muted); padding: 0.45rem 0.75rem; cursor: pointer; font-size: 0.8125rem; font-weight: 700; font-family: inherit; transition: background .15s, color .15s; }
 .eb-langtab + .eb-langtab { border-left: 1px solid var(--c-border); }
-.eb-langtab[data-on="true"] { background: var(--c-accent); color: #fff; }
+.eb-langtab[data-on="true"] { background: var(--c-accent); color: var(--c-lime-text); }
 
 /* Section panels */
 .eb-section { border: 1.5px solid var(--c-border); border-radius: 10px; overflow: hidden; background: var(--c-surface); transition: border-color .15s, background .15s; }
@@ -2090,7 +2097,7 @@ const styles = `
 
 /* Save bar */
 .eb-savebar { display: flex; align-items: center; padding: 0.75rem 1rem; background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 12px; position: sticky; bottom: 0; }
-.eb-btn-primary { padding: 0.5rem 1.25rem; background: var(--c-accent-grad, var(--c-accent)); color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
+.eb-btn-primary { padding: 0.5rem 1.25rem; background: var(--c-accent-grad, var(--c-accent)); color: var(--c-lime-text); border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
 .eb-btn-ghost { padding: 0.5rem 1rem; background: var(--c-surface-2); color: var(--c-text); border: 1px solid var(--c-border); border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.9rem; }
 
 /* Preview column */
@@ -2098,7 +2105,7 @@ const styles = `
 @media (max-width: 920px) { .eb-previewcol { position: static; } }
 .eb-pvtoolbar { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; }
 .eb-chip { padding: 0.4rem 0.75rem; border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text); border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
-.eb-chip[data-on="true"] { background: var(--c-accent); color: #fff; border-color: var(--c-accent); }
+.eb-chip[data-on="true"] { background: var(--c-accent); color: var(--c-lime-text); border-color: var(--c-accent); }
 
 .eb-stage { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
 .eb-draghandle { font-size: 0.75rem; color: var(--c-muted); cursor: grab; user-select: none; display: flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.6rem; border: 1px solid var(--c-border); border-radius: 999px; background: var(--c-surface); touch-action: none; }

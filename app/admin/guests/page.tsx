@@ -142,7 +142,7 @@ const s = {
   filters:    { display: "flex", gap: "0.625rem", flexWrap: "wrap" as const, marginBottom: "1.5rem", alignItems: "center" },
   select:     { padding: "0.4375rem 0.75rem", border: "1px solid var(--c-border)", borderRadius: 7, background: "var(--c-surface)", color: "var(--c-text)", fontSize: "0.875rem", minWidth: 220 } as const,
   search:     { padding: "0.4375rem 0.75rem", border: "1px solid var(--c-border)", borderRadius: 7, background: "var(--c-surface)", color: "var(--c-text)", fontSize: "0.875rem", width: 200 } as const,
-  btn:        { padding: "0.4375rem 1rem", border: "none", borderRadius: 7, background: "var(--c-accent)", color: "#fff", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer" } as const,
+  btn:        { padding: "0.4375rem 1rem", border: "none", borderRadius: 7, background: "var(--c-accent)", color: "var(--c-lime-text)", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer" } as const,
   clear:      { padding: "0.4375rem 0.75rem", border: "1px solid var(--c-border)", borderRadius: 7, background: "none", color: "var(--c-muted)", fontSize: "0.875rem", textDecoration: "none" },
   empty:      { padding: "3rem", textAlign: "center" as const, color: "var(--c-muted)", background: "var(--c-surface)", borderRadius: 10, border: "1px solid var(--c-border)" },
   group:      { marginBottom: "1.5rem", border: "1px solid var(--c-border)", borderRadius: 10, overflow: "hidden" },

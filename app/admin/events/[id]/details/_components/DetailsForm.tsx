@@ -120,7 +120,7 @@ const s = {
   input: { width: "100%", boxSizing: "border-box" as const, padding: "0.55rem 0.7rem", borderRadius: 8, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-text)", fontSize: "0.9rem", fontFamily: "inherit" },
   row2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.8rem" },
   next: { display: "flex", justifyContent: "flex-end", marginTop: "0.25rem" },
-  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 },
+  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "var(--c-lime-text)", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 },
   meta: { margin: 0, fontSize: "0.875rem", color: "var(--c-text)" },
   metaMuted: { margin: 0, fontSize: "0.78rem", color: "var(--c-muted)", lineHeight: 1.45 },
 } as const;

@@ -178,7 +178,7 @@ const s = {
   submitBtn: {
     padding: "0.5rem 1rem",
     background: "var(--c-accent)",
-    color: "#fff",
+    color: "var(--c-lime-text)",
     border: "none",
     borderRadius: "6px",
     cursor: "pointer",

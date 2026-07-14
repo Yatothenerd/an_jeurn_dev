@@ -102,7 +102,7 @@ export function KhmerCover({
         <div className="rk-cv2-left">
           <div>
             <p className="rk-cv2-kh">{content.inviteKh || "សូមគោរពអញ្ជើញ"}</p>
-            <p className="rk-cv2-en">{content.subheading || "You are cordially invited to the"}</p>
+            {content.subheading && <p className="rk-cv2-en">{content.subheading}</p>}
           </div>
           <p className="rk-cv2-title">{content.heading || eventTitle}</p>
           <div className="rk-cv2-divider" />
@@ -224,12 +224,25 @@ export function KhmerDetails({
   venueName,
   venueMapUrl,
 }: {
-  content: { title?: string; items?: DetailItem[]; bgUrl?: string };
+  content: {
+    title?: string;
+    items?: DetailItem[];
+    bgUrl?: string;
+    mapUrl?: string;
+    mapLabel?: string;
+    dresscodeLabel?: string;
+    dresscodeText?: string;
+    dresscode?: string[];
+    notesLabel?: string;
+    notes?: string[];
+  };
   venueName: string | null;
   venueMapUrl: string | null;
   theme: ThemeTokens;
 }) {
   const items = content.items ?? [];
+  const mapUrl = content.mapUrl || venueMapUrl;
+  const notes = (content.notes ?? []).filter((n) => n.trim());
   return withBg(
     content.bgUrl,
     <>
@@ -241,11 +254,32 @@ export function KhmerDetails({
         </p>
       ))}
       {venueName && <p className="rk-body">{venueName}</p>}
-      {venueMapUrl && (
+      {mapUrl && (
         <div style={{ textAlign: "center" }}>
-          <a className="rk-btn" href={venueMapUrl} target="_blank" rel="noreferrer">
-            View on Map
+          <a className="rk-btn" href={mapUrl} target="_blank" rel="noreferrer">
+            {content.mapLabel || "View on Map"}
           </a>
+        </div>
+      )}
+
+      {content.dresscode && content.dresscode.length > 0 && (
+        <div style={{ marginTop: "1.4rem", textAlign: "center" }}>
+          <p className="rk-sub" style={{ marginBottom: "0.5rem" }}>{content.dresscodeLabel || "Dress code"}</p>
+          {content.dresscodeText && <p className="rk-body">{content.dresscodeText}</p>}
+          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", flexWrap: "wrap", marginTop: "0.4rem" }}>
+            {content.dresscode.map((c, i) => (
+              <span key={i} style={{ width: 20, height: 20, borderRadius: "50%", background: c, border: "1px solid rgba(212,175,55,0.4)", display: "inline-block" }} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {notes.length > 0 && (
+        <div style={{ marginTop: "1.4rem" }}>
+          <p className="rk-sub" style={{ textAlign: "center", marginBottom: "0.5rem" }}>{content.notesLabel || "Notes"}</p>
+          {notes.map((n, i) => (
+            <p key={i} className="rk-body">{n}</p>
+          ))}
         </div>
       )}
     </>

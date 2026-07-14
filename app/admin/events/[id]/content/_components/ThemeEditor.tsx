@@ -20,7 +20,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { HEADING_FONTS, BODY_FONTS, buildFontsHref } from "@/lib/themes/shared/standard-css";
 import { FontPicker, ColorField, SizeField } from "@/app/admin/_components/StyleControls";
-import { DEFAULT_FLOAT_BUTTONS, type DesignFloatButtons, type GateElementKey } from "@/lib/themes/design";
+import { RecentColorSwatches } from "@/app/admin/_components/RecentColorSwatches";
+import { useRecentColors } from "@/lib/utils/recent-colors";
+import { DEFAULT_FLOAT_BUTTONS, type DesignFloatButtons, type GateElementKey, type SectionEffect } from "@/lib/themes/design";
 import { GATE_DEFAULT_POSITIONS } from "@/app/invite/[slug]/_components/InviteGate";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -80,6 +82,14 @@ interface SectionStyleOverride {
   titleFont?: string; titleColor?: string; titleScale?: number; titleWeight?: number; titleAlign?: TextAlignOpt;
   bodyFont?: string;  bodyColor?: string;  bodyScale?: number;  bodyWeight?: number;  bodyAlign?: TextAlignOpt;
 }
+
+const SECTION_EFFECTS: Array<{ id: SectionEffect; label: string }> = [
+  { id: "none", label: "None" },
+  { id: "fade", label: "Fade in" },
+  { id: "slide-up", label: "Slide up" },
+  { id: "slide-down", label: "Slide down" },
+  { id: "zoom", label: "Zoom in" },
+];
 
 const WEIGHT_OPTIONS: Array<{ v: number; l: string }> = [
   { v: 400, l: "Normal" }, { v: 500, l: "Medium" }, { v: 600, l: "Semibold" }, { v: 700, l: "Bold" }, { v: 800, l: "Extra bold" },
@@ -220,16 +230,19 @@ function ImgField({ value, onChange }: { value: string; onChange: (v: string) =>
 
 // ── Per-section text-style fine-tuning (font / color / size per text box) ────
 
-function TextStylePanel({ value, onChange, titleSample, bodySample }: {
+function TextStylePanel({ value, onChange, titleSample, bodySample, effectValue, onEffectChange }: {
   value: SectionStyleOverride;
   onChange: (next: SectionStyleOverride) => void;
   /** Real content shown in the font previews so they match the live text. */
   titleSample?: string;
   bodySample?: string;
+  /** This section's entrance-effect override; undefined = follow the invite's default. */
+  effectValue?: SectionEffect;
+  onEffectChange?: (v: SectionEffect | undefined) => void;
 }) {
   const [open, setOpen] = useState(false);
   const set = (patch: Partial<SectionStyleOverride>) => onChange({ ...value, ...patch });
-  const active = Object.values(value).some((v) => v !== undefined && v !== "" && v !== 1);
+  const active = Object.values(value).some((v) => v !== undefined && v !== "" && v !== 1) || !!effectValue;
 
   return (
     <div style={{ border: "1px dashed var(--c-border)", borderRadius: 8, padding: "0.5rem 0.6rem" }}>
@@ -266,6 +279,21 @@ function TextStylePanel({ value, onChange, titleSample, bodySample }: {
             <WeightAlignRow weight={value.bodyWeight} onWeight={(v) => set({ bodyWeight: v })}
               align={value.bodyAlign} onAlign={(v) => set({ bodyAlign: v })} weightDefault={400} />
           </Field>
+          {onEffectChange && (
+            <Field label="Entrance effect">
+              <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+                <button type="button" style={{ ...s.smallBtn, ...(!effectValue ? s.smallBtnOn : {}) }}
+                  onClick={() => onEffectChange(undefined)}>Follow invite</button>
+                {SECTION_EFFECTS.map((eff) => (
+                  <button key={eff.id} type="button"
+                    style={{ ...s.smallBtn, ...(effectValue === eff.id ? s.smallBtnOn : {}) }}
+                    onClick={() => onEffectChange(eff.id)}>
+                    {eff.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          )}
         </div>
       )}
     </div>
@@ -641,6 +669,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
   /** When true, text edits write to the secondary language (content.i18n). */
   altLang?: boolean;
 }) {
+  const [recentColors, recordRecentColor] = useRecentColors();
   // Bilingual editing: text fields read/write `content.i18n` for the secondary
   // language (base values show through until translated); media, mode and
   // style stay shared across languages.
@@ -662,7 +691,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
     <div style={{ display: "flex", gap: "0.35rem" }}>
       {(["text", "image"] as const).map((m) => (
         <button key={m} type="button"
-          style={{ ...s.smallBtn, ...(m === (isImageMode ? "image" : "text") ? { background: "var(--c-accent)", color: "#fff", border: "1px solid var(--c-accent)" } : {}) }}
+          style={{ ...s.smallBtn, ...(m === (isImageMode ? "image" : "text") ? { background: "var(--c-accent)", color: "var(--c-lime-text)", border: "1px solid var(--c-accent)" } : {}) }}
           onClick={() => onContent({ mode: m === "image" ? "image" : undefined })}>
           {m === "text" ? "✒ Text-based" : "🏞 Image-based"}
         </button>
@@ -690,9 +719,12 @@ function SectionForm({ sec, onContent, locked, altLang }: {
     (typeof c.text === "string" && c.text) ||
     (typeof c.subheading === "string" && c.subheading) ||
     firstItem.value || firstItem.title || "";
+  const effectOverride = (c._effect as { entrance?: SectionEffect } | undefined)?.entrance;
   const stylePanel = !locked && (
     <TextStylePanel value={styleOverride} onChange={(next) => onContent({ _style: next })}
-      titleSample={titleSample} bodySample={bodySample} />
+      titleSample={titleSample} bodySample={bodySample}
+      effectValue={effectOverride}
+      onEffectChange={(v) => onContent({ _effect: v ? { entrance: v } : undefined })} />
   );
 
   const body = (() => {
@@ -818,13 +850,14 @@ function SectionForm({ sec, onContent, locked, altLang }: {
             {dress.map((col, i) => (
               <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
                 <input type="color" value={col} style={s.colorInput}
-                  onChange={(e) => onContent({ dresscode: dress.map((x, j) => (j === i ? e.target.value : x)) })} />
+                  onChange={(e) => { onContent({ dresscode: dress.map((x, j) => (j === i ? e.target.value : x)) }); recordRecentColor(e.target.value); }} />
                 <button type="button" style={s.tinyGhost} onClick={() => onContent({ dresscode: dress.filter((_, j) => j !== i) })}>✕</button>
               </span>
             ))}
             <button type="button" style={s.smallBtn} onClick={() => onContent({ dresscode: [...dress, "#e75480"] })}>+ Color</button>
             {/* dress-code colors are shared across both languages */}
           </div>
+          <RecentColorSwatches recent={recentColors} onPick={(c) => { onContent({ dresscode: [...dress, c] }); recordRecentColor(c); }} size={16} />
 
           <div style={s.subHead}>Notes</div>
           {notes.map((n, i) => (
@@ -955,6 +988,8 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
   // Adjustable dim over the sections background (the tint over the wallpaper).
   const ocOverlay = (oc.sectionOverlay ?? { enabled: true, color: "#000000", opacity: 0.28 }) as { enabled: boolean; color: string; opacity: number };
   const [sectionOverlay, setSectionOverlay] = useState(ocOverlay);
+  // Default entrance transition each section plays once as it scrolls into view.
+  const [sectionEffect, setSectionEffect] = useState<SectionEffect>((oc.sectionEffect as SectionEffect | undefined) ?? "none");
   // Guest-name decorative frame + free-drag gate layout (monogram/heading/etc.).
   const [showGuestName, setShowGuestName] = useState((oc.showGuestName as boolean | undefined) ?? true);
   const [guestFrameUrl, setGuestFrameUrl] = useState((oc.guestFrameUrl as string | undefined) ?? "");
@@ -1054,6 +1089,11 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstRun = useRef(true);
+  const firstRunSections = useRef(true);
+  // Set whenever anything OTHER than section content changes (colors, fonts,
+  // background, cover options, …) — those still need a real reload to preview,
+  // since only section content is live-patched into the running iframe.
+  const nonTextDirtyRef = useRef(false);
   const galleryFileRef = useRef<HTMLInputElement>(null);
   const [galleryBusy, setGalleryBusy] = useState(false);
 
@@ -1100,6 +1140,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       outerBgUrl: outerBg.url || null,
       outerBgColor: outerBg.color || null,
       sectionOverlay,
+      sectionEffect,
       showGuestName,
       guestFrameUrl: guestFrameUrl || null,
       guestPrefix: coverOpts.guestPrefix || null,
@@ -1134,20 +1175,55 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
 
     if (res?.ok) {
       setStatus("saved");
-      reloadRef.current(); // reload the live preview (double-buffered, no blackout)
+      // Section content is already live in the preview (see the postMessage
+      // effect below) — only reload when something a live-patch can't reach
+      // (colors, fonts, background, cover options, …) actually changed.
+      if (nonTextDirtyRef.current) {
+        nonTextDirtyRef.current = false;
+        reloadRef.current(); // reload the live preview (double-buffered, no blackout)
+      }
     } else {
       setStatus("error");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basics, sections, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, sectionOverlay, gateOverlay, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts, event.id]);
+  }, [basics, sections, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, sectionOverlay, sectionEffect, gateOverlay, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts, event.id]);
 
+  // `save` is recreated whenever `sections` changes (it's a dependency), so it
+  // can't sit in the "non-text" effect's deps below without that effect firing
+  // on every keystroke too. Call through a ref that's always current instead.
+  const saveRef = useRef(save);
+  saveRef.current = save;
+
+  // Section content edits: debounce-save for persistence, but the preview
+  // already updated instantly via postMessage — no reload needed here.
   useEffect(() => {
-    if (firstRun.current) { firstRun.current = false; return; }
+    if (firstRunSections.current) { firstRunSections.current = false; return; }
     setStatus("dirty");
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => void save(), 700);
+    saveTimer.current = setTimeout(() => void saveRef.current(), 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [basics, sections, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts, save]);
+  }, [sections]);
+
+  // Everything else still requires a real reload to preview.
+  useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
+    nonTextDirtyRef.current = true;
+    setStatus("dirty");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => void saveRef.current(), 700);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [basics, colors, coverUrl, fonts, fab, actionButton, monogram, guide, guideHand, bg, outerBg, sectionEffect, showGuestName, guestFrameUrl, elementPositions, languages, coverOpts]);
+
+  // ── Live text preview: relay section content to the running iframe the
+  // instant it changes (no debounce, no reload) — see InviteLiveSections.
+  // EditorSection has no db id/sortOrder (that's assigned on save); synthesize
+  // stable positional ones so the preview's list keys stay steady across edits. ─
+  useEffect(() => {
+    const liveSections = sections
+      .filter((s) => s.included)
+      .map((s, i) => ({ id: `live-${s.type}-${i}`, type: s.type, sortOrder: i, content: s.content }));
+    frameRefs.current[frontRef.current]?.contentWindow?.postMessage({ type: "anjeurn:live-content", sections: liveSections }, "*");
+  }, [sections, front]);
 
   // ── Live preview follows the edited section ────────────────────────────────
   // Cover → reload to the gate view (the gate IS the cover); any other section
@@ -1627,9 +1703,13 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
                   </button>
                   <button type="button" style={s.tinyGhost} title="Move up"   onClick={() => move(i, -1)}>↑</button>
                   <button type="button" style={s.tinyGhost} title="Move down" onClick={() => move(i, 1)}>↓</button>
-                  {sec.type === "image" && (
+                  {sec.type !== "cover" && (
                     <button type="button" style={s.tinyGhost} title="Remove section"
-                      onClick={() => setSections((ss) => ss.filter((_, j) => j !== i))}>✕</button>
+                      onClick={() => {
+                        if (!window.confirm(`Remove this ${SECTION_META[sec.type]?.label ?? sec.type} section?`)) return;
+                        setSections((ss) => ss.filter((_, j) => j !== i));
+                        if (isOpen) { setOpen(null); setOpenType(null); }
+                      }}>✕</button>
                   )}
                   <label style={s.incRow} title="Show on invitation">
                     <input type="checkbox" checked={sec.included} onChange={(e) => patchSection(i, { included: e.target.checked })} />
@@ -1954,6 +2034,22 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
         </div>
         )}
 
+        {step === "guide" && (
+        <div style={s.card}>
+          <div style={s.cardTitle}>Section transition</div>
+          <p style={s.hint}>How each section plays in the first time a guest scrolls it into view. A section can override this under its own Text style panel.</p>
+          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+            {SECTION_EFFECTS.map((eff) => (
+              <button key={eff.id} type="button"
+                style={{ ...s.smallBtn, ...(sectionEffect === eff.id ? s.smallBtnOn : {}) }}
+                onClick={() => setSectionEffect(eff.id)}>
+                {eff.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        )}
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
           <button type="button" style={{ ...s.smallBtn, visibility: stepIdx === 0 ? "hidden" : "visible" }}
             onClick={() => goStep(stepIdx - 1)}>← Back</button>
@@ -2015,9 +2111,9 @@ const s = {
   statusLine: { margin: "0.25rem 0 0", fontSize: "0.8rem", color: "var(--c-muted)" },
   themeChip: { fontSize: "0.8rem", fontWeight: 600, color: "var(--c-text)", background: "var(--c-surface-2)", border: "1px solid var(--c-border)", borderRadius: 999, padding: "0.3rem 0.8rem", whiteSpace: "nowrap" as const },
   changeLink: { color: "var(--c-accent)", textDecoration: "none" },
-  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "#fff", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600, whiteSpace: "nowrap" as const },
+  nextBtn: { padding: "0.55rem 1.25rem", background: "var(--c-accent)", color: "var(--c-lime-text)", borderRadius: 8, textDecoration: "none", fontSize: "0.9rem", fontWeight: 600, whiteSpace: "nowrap" as const },
   saveBtn: { padding: "0.5rem 1.1rem", borderRadius: 8, border: "none", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const },
-  saveBtnDirty: { background: "var(--c-accent)", color: "#fff" },
+  saveBtnDirty: { background: "var(--c-accent)", color: "var(--c-lime-text)" },
   saveBtnIdle: { background: "var(--c-surface-2)", color: "var(--c-muted)", border: "1px solid var(--c-border)" },
   saveBtnError: { background: "#dc2626", color: "#fff" },
 
@@ -2034,7 +2130,7 @@ const s = {
   rowGroup: { display: "flex", gap: "0.35rem", alignItems: "center" },
 
   smallBtn: { padding: "0.35rem 0.7rem", borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-text)", fontSize: "0.78rem", fontWeight: 600, cursor: "pointer", textDecoration: "none" },
-  smallBtnOn: { background: "var(--c-accent)", color: "#fff", border: "1px solid var(--c-accent)" },
+  smallBtnOn: { background: "var(--c-accent)", color: "var(--c-lime-text)", border: "1px solid var(--c-accent)" },
   iconChoice: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, padding: 2, borderRadius: 7, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-muted)", cursor: "pointer" },
   iconChoiceOn: { border: "2px solid var(--c-accent)", background: "var(--c-accent-soft)", color: "var(--c-text)" },
 
@@ -2047,7 +2143,7 @@ const s = {
   stepChipOn: { border: "1px solid var(--c-accent)", color: "var(--c-text)", background: "var(--c-accent-soft)" },
   stepLabel: { whiteSpace: "nowrap" as const },
   stepNum: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: "50%", background: "var(--c-surface)", border: "1px solid var(--c-border)", fontSize: "0.65rem", fontWeight: 700, flexShrink: 0 },
-  stepNumOn: { background: "var(--c-accent)", color: "#fff", border: "1px solid var(--c-accent)" },
+  stepNumOn: { background: "var(--c-accent)", color: "var(--c-lime-text)", border: "1px solid var(--c-accent)" },
   stepNumDone: { background: "#22c55e", color: "#fff", border: "1px solid #22c55e" },
 
   dragHandle: { cursor: "grab", color: "var(--c-muted)", fontSize: "0.9rem", padding: "0 0.25rem", userSelect: "none" as const, touchAction: "none" as const },

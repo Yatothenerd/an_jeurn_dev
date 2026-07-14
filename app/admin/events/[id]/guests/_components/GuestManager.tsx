@@ -146,7 +146,7 @@ const s = {
   h2: { margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--c-text)" },
   addRow: { display: "flex", gap: "0.5rem", flexWrap: "wrap" as const },
   input: { minWidth: 140, boxSizing: "border-box" as const, padding: "0.55rem 0.7rem", borderRadius: 8, border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-text)", fontSize: "0.9rem", fontFamily: "inherit" },
-  addBtn: { padding: "0.55rem 1.1rem", background: "var(--c-accent)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", fontWeight: 600 },
+  addBtn: { padding: "0.55rem 1.1rem", background: "var(--c-accent)", color: "var(--c-lime-text)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: "0.875rem", fontWeight: 600 },
   err: { margin: 0, fontSize: "0.8rem", color: "#dc2626" },
   hint: { margin: 0, fontSize: "0.78rem", color: "var(--c-muted)", lineHeight: 1.45 },
 
