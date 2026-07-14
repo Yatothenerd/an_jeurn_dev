@@ -447,21 +447,18 @@ body { background: #0c0c14; }
 }
 
 /* ── Section reveal-on-scroll (distinct from .inv-animate above, which only
-   plays once when the gate opens). Each section gets its own IntersectionObserver
-   (see RevealOnScroll.tsx) that adds .is-in the first time it scrolls into view.
-   data-effect picks the transform; "none" always renders fully visible. ── */
-.inv-reveal { transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22,1,0.36,1); }
-.inv-reveal[data-effect="none"] { opacity: 1; transform: none; }
-.inv-reveal[data-effect="fade"] { opacity: 0; }
-.inv-reveal[data-effect="fade"].is-in { opacity: 1; }
-.inv-reveal[data-effect="slide-up"] { opacity: 0; transform: translateY(32px); }
-.inv-reveal[data-effect="slide-up"].is-in { opacity: 1; transform: none; }
-.inv-reveal[data-effect="slide-down"] { opacity: 0; transform: translateY(-32px); }
-.inv-reveal[data-effect="slide-down"].is-in { opacity: 1; transform: none; }
-.inv-reveal[data-effect="zoom"] { opacity: 0; transform: scale(0.92); }
-.inv-reveal[data-effect="zoom"].is-in { opacity: 1; transform: none; }
+   plays once when the gate opens). Each section gets its own ScrollTrigger
+   (see RevealOnScroll.tsx) that GSAP-staggers the section's own top-level
+   children in the first time it scrolls into view. These rules only set the
+   pre-JS hidden state (by data-effect) so there's no flash of unstyled
+   content before hydration — GSAP owns the actual reveal transform/timing. */
+.inv-reveal[data-effect="none"] > * { opacity: 1; transform: none; }
+.inv-reveal[data-effect="fade"] > * { opacity: 0; }
+.inv-reveal[data-effect="slide-up"] > * { opacity: 0; transform: translateY(32px); }
+.inv-reveal[data-effect="slide-down"] > * { opacity: 0; transform: translateY(-32px); }
+.inv-reveal[data-effect="zoom"] > * { opacity: 0; transform: scale(0.92); }
 @media (prefers-reduced-motion: reduce) {
-  .inv-reveal { transition: none; opacity: 1; transform: none; }
+  .inv-reveal > * { opacity: 1 !important; transform: none !important; }
 }
 `;
 

@@ -14,7 +14,7 @@
  * canvas — so the preview matches the real invitation exactly.
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { HEADING_FONTS, BODY_FONTS, DEFAULT_FONTS, buildFontsHref, type FontOption } from "@/lib/themes/shared/standard-css";
 import { useRecentColors } from "@/lib/utils/recent-colors";
 import { RecentColorSwatches } from "@/app/admin/_components/RecentColorSwatches";
@@ -364,23 +364,27 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
   const replay = () => { setCoverOpen(false); setAnimKey((k) => k + 1); };
 
   // ── Section helpers
-  const setSection = (id: string, p: Partial<Section>) =>
-    setSt((s) => ({ ...s, sections: s.sections.map((x) => (x.id === id ? { ...x, ...p } : x)) }));
-  const addSection = (kind: SectionKind = "custom") =>
-    setSt((s) => ({ ...s, sections: [...s.sections, mkSection(kind, kind === "custom" ? "New Section" : SECTION_LABELS[kind])] }));
-  const removeSection = (id: string) =>
-    setSt((s) => ({ ...s, sections: s.sections.filter((x) => x.id !== id) }));
-  const moveSection = (from: number, to: number) =>
-    setSt((s) => { const a = [...s.sections]; const [m] = a.splice(from, 1); a.splice(to, 0, m); return { ...s, sections: a }; });
+  // Wrapped in useCallback (all use the functional setSt form, so they need no
+  // dependencies) so they keep a stable identity across every keystroke — this
+  // is what lets React.memo on the extracted list-item components (SectionCard,
+  // CoverBlockRow) actually skip re-rendering unrelated items.
+  const setSection = useCallback((id: string, p: Partial<Section>) =>
+    setSt((s) => ({ ...s, sections: s.sections.map((x) => (x.id === id ? { ...x, ...p } : x)) })), []);
+  const addSection = useCallback((kind: SectionKind = "custom") =>
+    setSt((s) => ({ ...s, sections: [...s.sections, mkSection(kind, kind === "custom" ? "New Section" : SECTION_LABELS[kind])] })), []);
+  const removeSection = useCallback((id: string) =>
+    setSt((s) => ({ ...s, sections: s.sections.filter((x) => x.id !== id) })), []);
+  const moveSection = useCallback((from: number, to: number) =>
+    setSt((s) => { const a = [...s.sections]; const [m] = a.splice(from, 1); a.splice(to, 0, m); return { ...s, sections: a }; }), []);
   // Content text-block helpers (rows + columns)
-  const setBlock = (secId: string, blockId: string, p: Partial<SectionBlock>) =>
-    setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.map((b) => b.id === blockId ? { ...b, ...p } : b) } : x) }));
-  const addBlock = (secId: string) =>
-    setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: [...x.blocks, { id: uid(), text: "", font: DEFAULT_FONTS.body, color: "#ffffff" }] } : x) }));
-  const removeBlock = (secId: string, blockId: string) =>
-    setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.filter((b) => b.id !== blockId) } : x) }));
+  const setBlock = useCallback((secId: string, blockId: string, p: Partial<SectionBlock>) =>
+    setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.map((b) => b.id === blockId ? { ...b, ...p } : b) } : x) })), []);
+  const addBlock = useCallback((secId: string) =>
+    setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: [...x.blocks, { id: uid(), text: "", font: DEFAULT_FONTS.body, color: "#ffffff" }] } : x) })), []);
+  const removeBlock = useCallback((secId: string, blockId: string) =>
+    setSt((s) => ({ ...s, sections: s.sections.map((x) => x.id === secId ? { ...x, blocks: x.blocks.filter((b) => b.id !== blockId) } : x) })), []);
   // Live-preview inline edit of a content block
-  const editContentBlock = (secId: string, blockId: string, text: string) => setBlock(secId, blockId, { text });
+  const editContentBlock = useCallback((secId: string, blockId: string, text: string) => setBlock(secId, blockId, { text }), [setBlock]);
 
   const canNext = step !== "identity" || !!st.monogram.url;
 
@@ -389,7 +393,7 @@ export function EventBuilder({ event, invitation, templateMode }: Props) {
       {/* dangerouslySetInnerHTML: React HTML-escapes text children of <style>
           on the server (&quot;), breaking attribute selectors pre-hydration and
           triggering hydration-mismatch warnings. */}
-      <style dangerouslySetInnerHTML={{ __html: styles + canvasStyles }} />
+      <style dangerouslySetInnerHTML={{ __html: allStyles }} />
 
       <div className="eb-root">
         {/* ── LEFT: wizard editor ─────────────────────────────────────────── */}
@@ -763,6 +767,107 @@ function TransitionsTab({ st, patch, setSection, onOpenTicket, onReplay }: {
 
 // ── Content tab ──────────────────────────────────────────────────────────────
 
+// One section's editor card — extracted from ContentTab's list and wrapped in
+// React.memo. Section mutations (setBlock/setSection/etc.) only replace the
+// touched section's object in `st.sections`; every other section keeps its
+// prior object reference, so memo lets this component skip re-rendering (and
+// skip re-running SectionKindEditor/AgendaEditor/GalleryEditor/font-option
+// maps) for every section except the one actually being edited. All callback
+// props must stay referentially stable across keystrokes for this to work —
+// see the useCallback wrapping in EventBuilder and ContentTab below.
+interface SectionCardProps {
+  sec: Section;
+  index: number;
+  isFirst: boolean;
+  isLast: boolean;
+  open: boolean;
+  isDragOver: boolean;
+  monogramUrl: string;
+  monogramShowContent: boolean;
+  hasEnglish: boolean;
+  editLang: "kh" | "en";
+  setSection: (id: string, p: Partial<Section>) => void;
+  setBlock: (secId: string, blockId: string, p: Partial<SectionBlock>) => void;
+  addBlock: (secId: string) => void;
+  removeBlock: (secId: string, blockId: string) => void;
+  removeSection: (id: string) => void;
+  moveSection: (from: number, to: number) => void;
+  onToggleOpen: (id: string) => void;
+  onDragStart: (i: number) => void;
+  onDragOverIndex: (i: number) => void;
+  onDragLeave: () => void;
+  onDrop: (i: number) => void;
+}
+
+const SectionCard = memo(function SectionCard({
+  sec, index, isFirst, isLast, open, isDragOver, monogramUrl, monogramShowContent,
+  hasEnglish, editLang, setSection, setBlock, addBlock, removeBlock, removeSection,
+  moveSection, onToggleOpen, onDragStart, onDragOverIndex, onDragLeave, onDrop,
+}: SectionCardProps) {
+  return (
+    <div className="eb-section" data-open={open} data-dragover={isDragOver}
+      draggable onDragStart={() => onDragStart(index)}
+      onDragOver={(e) => { e.preventDefault(); onDragOverIndex(index); }}
+      onDragLeave={onDragLeave}
+      onDrop={() => onDrop(index)}>
+      <div className="eb-sechead">
+        <span className="eb-grip" title="Drag to reorder">⠿</span>
+        <input className="eb-secname" value={sec.name} onChange={(e) => setSection(sec.id, { name: e.target.value })} />
+        <button type="button" className="eb-iconbtn" title="Move up" disabled={isFirst} onClick={() => moveSection(index, index - 1)}>↑</button>
+        <button type="button" className="eb-iconbtn" title="Move down" disabled={isLast} onClick={() => moveSection(index, index + 1)}>↓</button>
+        <button type="button" className="eb-iconbtn" data-on={sec.showTitle} title={sec.showTitle ? "Hide section title" : "Show section title"} onClick={() => setSection(sec.id, { showTitle: !sec.showTitle })}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 700 }}>T</span>
+        </button>
+        <button type="button" className="eb-iconbtn" title={sec.visible ? "Hide section" : "Show section"} onClick={() => setSection(sec.id, { visible: !sec.visible })}>
+          {sec.visible ? "👁" : "🚫"}
+        </button>
+        <button type="button" className="eb-iconbtn" title="Expand" onClick={() => onToggleOpen(sec.id)}>
+          <span style={{ display: "inline-block", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
+        </button>
+      </div>
+
+      {open && (
+        <div className="eb-secbody">
+          <div className="eb-seg eb-segsm">
+            {(["photo", "text"] as Mode[]).map((m) => (
+              <button key={m} type="button" className="eb-segbtn" data-on={sec.mode === m} onClick={() => setSection(sec.id, { mode: m })}>
+                {m === "photo" ? "🖼 Photo" : "✏️ Content"}
+              </button>
+            ))}
+          </div>
+
+          <div className="eb-rowbetween">
+            <span className="eb-flbl">Entrance animation</span>
+            <select className="eb-input" style={{ width: 130 }} value={sec.anim} onChange={(e) => setSection(sec.id, { anim: e.target.value as SectionAnim })}>
+              {SECTION_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+          </div>
+          <div className="eb-rowbetween">
+            <div><span className="eb-flbl">Idle animation</span><div className="eb-muted eb-sm">Gentle motion while on screen</div></div>
+            <select className="eb-input" style={{ width: 130 }} value={sec.idle ?? "none"} onChange={(e) => setSection(sec.id, { idle: e.target.value as IdleAnim })}>
+              {IDLE_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+          </div>
+          {monogramUrl && (
+            <div className="eb-rowbetween">
+              <span className="eb-flbl">Show monogram</span>
+              <Toggle on={sec.showMonogram ?? (sec.kind === "wording" && monogramShowContent)}
+                onChange={(v) => setSection(sec.id, { showMonogram: v })} />
+            </div>
+          )}
+          <SectionBgEditor sec={sec} setSection={setSection} />
+
+          <SectionKindEditor sec={sec} setSection={setSection} setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} hasEnglish={hasEnglish} editLang={editLang} />
+
+          {sec.kind === "custom" && (
+            <button type="button" className="eb-removelink" onClick={() => removeSection(sec.id)}>Remove section</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+});
+
 function ContentTab({ st, patch, setSection, addSection, removeSection, moveSection, setBlock, addBlock, removeBlock, editLang = "kh", setEditLang, hideBg = false }: {
   st: BuilderState; patch: (p: Partial<BuilderState>) => void;
   setSection: (id: string, p: Partial<Section>) => void;
@@ -776,6 +881,18 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
   const [openId, setOpenId] = useState<string | null>(st.sections[0]?.id ?? null);
   const dragFrom = useRef<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+
+  // Stable callbacks (empty/near-empty deps) so SectionCard's React.memo isn't
+  // defeated by a fresh function reference on every keystroke.
+  const toggleOpen = useCallback((id: string) => setOpenId((cur) => (cur === id ? null : id)), []);
+  const handleDragStart = useCallback((i: number) => { dragFrom.current = i; }, []);
+  const handleDragOverIndex = useCallback((i: number) => { setDragOver(i); }, []);
+  const handleDragLeave = useCallback(() => { setDragOver(null); }, []);
+  const handleDrop = useCallback((i: number) => {
+    if (dragFrom.current !== null && dragFrom.current !== i) moveSection(dragFrom.current, i);
+    dragFrom.current = null;
+    setDragOver(null);
+  }, [moveSection]);
 
   return (
     <div className="eb-stack">
@@ -799,71 +916,32 @@ function ContentTab({ st, patch, setSection, addSection, removeSection, moveSect
 
       {/* Section panels */}
       <div className="eb-stack">
-        {st.sections.map((sec, i) => {
-          const open = openId === sec.id;
-          return (
-            <div key={sec.id} className="eb-section" data-open={open} data-dragover={dragOver === i}
-              draggable onDragStart={() => (dragFrom.current = i)}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(i); }}
-              onDragLeave={() => setDragOver(null)}
-              onDrop={() => { if (dragFrom.current !== null && dragFrom.current !== i) moveSection(dragFrom.current, i); dragFrom.current = null; setDragOver(null); }}>
-              <div className="eb-sechead">
-                <span className="eb-grip" title="Drag to reorder">⠿</span>
-                <input className="eb-secname" value={sec.name} onChange={(e) => setSection(sec.id, { name: e.target.value })} />
-                <button type="button" className="eb-iconbtn" title="Move up" disabled={i === 0} onClick={() => moveSection(i, i - 1)}>↑</button>
-                <button type="button" className="eb-iconbtn" title="Move down" disabled={i === st.sections.length - 1} onClick={() => moveSection(i, i + 1)}>↓</button>
-                <button type="button" className="eb-iconbtn" data-on={sec.showTitle} title={sec.showTitle ? "Hide section title" : "Show section title"} onClick={() => setSection(sec.id, { showTitle: !sec.showTitle })}>
-                  <span style={{ fontSize: "0.7rem", fontWeight: 700 }}>T</span>
-                </button>
-                <button type="button" className="eb-iconbtn" title={sec.visible ? "Hide section" : "Show section"} onClick={() => setSection(sec.id, { visible: !sec.visible })}>
-                  {sec.visible ? "👁" : "🚫"}
-                </button>
-                <button type="button" className="eb-iconbtn" title="Expand" onClick={() => setOpenId(open ? null : sec.id)}>
-                  <span style={{ display: "inline-block", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }}>▾</span>
-                </button>
-              </div>
-
-              {open && (
-                <div className="eb-secbody">
-                  <div className="eb-seg eb-segsm">
-                    {(["photo", "text"] as Mode[]).map((m) => (
-                      <button key={m} type="button" className="eb-segbtn" data-on={sec.mode === m} onClick={() => setSection(sec.id, { mode: m })}>
-                        {m === "photo" ? "🖼 Photo" : "✏️ Content"}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="eb-rowbetween">
-                    <span className="eb-flbl">Entrance animation</span>
-                    <select className="eb-input" style={{ width: 130 }} value={sec.anim} onChange={(e) => setSection(sec.id, { anim: e.target.value as SectionAnim })}>
-                      {SECTION_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-                    </select>
-                  </div>
-                  <div className="eb-rowbetween">
-                    <div><span className="eb-flbl">Idle animation</span><div className="eb-muted eb-sm">Gentle motion while on screen</div></div>
-                    <select className="eb-input" style={{ width: 130 }} value={sec.idle ?? "none"} onChange={(e) => setSection(sec.id, { idle: e.target.value as IdleAnim })}>
-                      {IDLE_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
-                    </select>
-                  </div>
-                  {st.monogram.url && (
-                    <div className="eb-rowbetween">
-                      <span className="eb-flbl">Show monogram</span>
-                      <Toggle on={sec.showMonogram ?? (sec.kind === "wording" && st.monogram.showContent)}
-                        onChange={(v) => setSection(sec.id, { showMonogram: v })} />
-                    </div>
-                  )}
-                  <SectionBgEditor sec={sec} setSection={setSection} />
-
-                  <SectionKindEditor sec={sec} setSection={setSection} setBlock={setBlock} addBlock={addBlock} removeBlock={removeBlock} hasEnglish={st.langs.english} editLang={editLang} />
-
-                  {sec.kind === "custom" && (
-                    <button type="button" className="eb-removelink" onClick={() => removeSection(sec.id)}>Remove section</button>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {st.sections.map((sec, i) => (
+          <SectionCard
+            key={sec.id}
+            sec={sec}
+            index={i}
+            isFirst={i === 0}
+            isLast={i === st.sections.length - 1}
+            open={openId === sec.id}
+            isDragOver={dragOver === i}
+            monogramUrl={st.monogram.url}
+            monogramShowContent={st.monogram.showContent}
+            hasEnglish={st.langs.english}
+            editLang={editLang}
+            setSection={setSection}
+            setBlock={setBlock}
+            addBlock={addBlock}
+            removeBlock={removeBlock}
+            removeSection={removeSection}
+            moveSection={moveSection}
+            onToggleOpen={toggleOpen}
+            onDragStart={handleDragStart}
+            onDragOverIndex={handleDragOverIndex}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          />
+        ))}
         <select className="eb-input eb-addsection" value="" onChange={(e) => { if (e.target.value) addSection(e.target.value as SectionKind); }}>
           <option value="">+ Add section…</option>
           {(["wording", "agenda", "memory", "aba", "map", "wishing", "rsvp", "countdown", "custom"] as SectionKind[]).map((k) => (
@@ -1259,6 +1337,37 @@ function IdentityStep({ st, patch }: { st: BuilderState; patch: (p: Partial<Buil
 
 // ── Step 2: Content (Cover sub-tab + Sections sub-tab) ───────────────────────
 
+// One cover-text row, extracted from ContentStep's cover-blocks list and
+// memoized for the same reason as SectionCard above: setCoverBlock only
+// replaces the edited block's object, so unrelated rows can bail out of
+// re-rendering (skipping their FONT_OPTIONS <select> rebuild) on every keystroke.
+interface CoverBlockRowProps {
+  block: CoverBlock;
+  editLang: "kh" | "en";
+  hasEnglish: boolean;
+  setCoverBlock: (id: string, p: Partial<CoverBlock>) => void;
+  removeCoverBlock: (id: string) => void;
+}
+
+const CoverBlockRow = memo(function CoverBlockRow({ block: b, editLang, hasEnglish, setCoverBlock, removeCoverBlock }: CoverBlockRowProps) {
+  return (
+    <div className="eb-block">
+      {editLang === "en" && hasEnglish
+        ? <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setCoverBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)" }} />
+        : <input className="eb-input" value={b.text} onChange={(e) => setCoverBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
+      }
+      <div className="eb-blockctl">
+        <select className="eb-input eb-fontsel" style={{ fontFamily: b.font }} value={b.font} onChange={(e) => setCoverBlock(b.id, { font: e.target.value })}>
+          {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
+        </select>
+        <input type="range" min={11} max={48} value={b.size} onChange={(e) => setCoverBlock(b.id, { size: +e.target.value })} className="eb-range" title="Size" />
+        <ColorDot value={b.color} onChange={(v) => setCoverBlock(b.id, { color: v })} />
+        <button type="button" className="eb-iconbtn eb-danger" title="Remove" onClick={() => removeCoverBlock(b.id)}>✕</button>
+      </div>
+    </div>
+  );
+});
+
 function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, moveSection, setBlock, addBlock, removeBlock, editLang = "kh", setEditLang, subTab, setSubTab, onOpenTicket, onReplay }: {
   st: BuilderState; patch: (p: Partial<BuilderState>) => void;
   setSt: React.Dispatch<React.SetStateAction<BuilderState>>;
@@ -1271,12 +1380,14 @@ function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, 
   subTab: "cover" | "sections"; setSubTab: (t: "cover" | "sections") => void;
   onOpenTicket: () => void; onReplay: () => void;
 }) {
-  const setCoverBlock = (id: string, p: Partial<CoverBlock>) =>
-    setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.map((b) => (b.id === id ? { ...b, ...p } : b)) }));
-  const addCoverBlock = () =>
-    setSt((s) => ({ ...s, coverBlocks: [...s.coverBlocks, { id: uid(), text: "New text", font: DEFAULT_FONTS.body, color: "#ffffff", size: 18, pos: { xPct: 50, yPct: 60 } }] }));
-  const removeCoverBlock = (id: string) =>
-    setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.filter((b) => b.id !== id) }));
+  // Stable identities (functional setSt form) so CoverBlockRow's React.memo
+  // can skip re-rendering unaffected cover-text rows on every keystroke.
+  const setCoverBlock = useCallback((id: string, p: Partial<CoverBlock>) =>
+    setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.map((b) => (b.id === id ? { ...b, ...p } : b)) })), [setSt]);
+  const addCoverBlock = useCallback(() =>
+    setSt((s) => ({ ...s, coverBlocks: [...s.coverBlocks, { id: uid(), text: "New text", font: DEFAULT_FONTS.body, color: "#ffffff", size: 18, pos: { xPct: 50, yPct: 60 } }] })), [setSt]);
+  const removeCoverBlock = useCallback((id: string) =>
+    setSt((s) => ({ ...s, coverBlocks: s.coverBlocks.filter((b) => b.id !== id) })), [setSt]);
 
   return (
     <div className="eb-stack">
@@ -1391,20 +1502,8 @@ function ContentStep({ st, patch, setSt, setSection, addSection, removeSection, 
             )}
             <div className="eb-stack">
               {st.coverBlocks.map((b) => (
-                <div key={b.id} className="eb-block">
-                  {editLang === "en" && st.langs.english
-                    ? <input className="eb-input" value={b.textEn ?? ""} onChange={(e) => setCoverBlock(b.id, { textEn: e.target.value })} placeholder="English text…" style={{ borderColor: "var(--c-accent)" }} />
-                    : <input className="eb-input" value={b.text} onChange={(e) => setCoverBlock(b.id, { text: e.target.value })} placeholder="ខ្មែរ text…" />
-                  }
-                  <div className="eb-blockctl">
-                    <select className="eb-input eb-fontsel" style={{ fontFamily: b.font }} value={b.font} onChange={(e) => setCoverBlock(b.id, { font: e.target.value })}>
-                      {FONT_OPTIONS.map((f) => <option key={f.label} value={f.stack} style={{ fontFamily: f.stack }}>{f.label}</option>)}
-                    </select>
-                    <input type="range" min={11} max={48} value={b.size} onChange={(e) => setCoverBlock(b.id, { size: +e.target.value })} className="eb-range" title="Size" />
-                    <ColorDot value={b.color} onChange={(v) => setCoverBlock(b.id, { color: v })} />
-                    <button type="button" className="eb-iconbtn eb-danger" title="Remove" onClick={() => removeCoverBlock(b.id)}>✕</button>
-                  </div>
-                </div>
+                <CoverBlockRow key={b.id} block={b} editLang={editLang} hasEnglish={st.langs.english}
+                  setCoverBlock={setCoverBlock} removeCoverBlock={removeCoverBlock} />
               ))}
             </div>
             <div className="eb-rowgap">
@@ -2178,3 +2277,8 @@ const styles = `
 .eb-add { transition: border-color .15s, color .15s; }
 .eb-segbtn { transition: background .15s, color .15s; }
 `;
+
+// Both `styles` and `canvasStyles` are constant strings — concatenate them once
+// at module scope instead of on every EventBuilder render, so the <style>
+// element gets the same string reference across re-renders.
+const allStyles = styles + canvasStyles;

@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef } from "react";
+import gsap from "gsap";
 import { type BuilderState, type Background, PvCover, PvContent, GuideOverlay, FloatingOverlayButtons, LangSwitcher, canvasStyles } from "@/lib/builder/canvas";
 
 const biStyles = `
@@ -14,8 +15,9 @@ const biStyles = `
 .bi-outer-bg { position: fixed; inset: 0; z-index: 0; }
 .bi-outer-bg video { width: 100%; height: 100%; object-fit: cover; }
 .bi-frame { position: relative; z-index: 1; width: 100%; max-width: 480px; min-height: 100vh; background: #11151c; color: #fff; overflow-x: hidden; }
-.bi-frame > .pv-cover, .bi-frame > .pv-content { min-height: 100vh; }
+.bi-frame > .pv-cover, .bi-frame > .pv-content, .bi-frame > .bi-cover-wrap { min-height: 100vh; }
 `;
+const biAllStyles = canvasStyles + biStyles;
 
 function outerBgCss(bg: Background | undefined): React.CSSProperties {
   if (!bg) return { background: "#05070b" };
@@ -30,6 +32,8 @@ function outerBgCss(bg: Background | undefined): React.CSSProperties {
 export function BuilderInvite({ state, guestName }: { state: BuilderState; guestName?: string }) {
   const [opened, setOpened] = useState(false);
   const [contentGuideOff, setContentGuideOff] = useState(false);
+  const coverWrapRef = useRef<HTMLDivElement>(null);
+  const openingRef = useRef(false);
   const [locked, setLocked] = useState(state.coverBg.kind === "video" && state.coverBg.lockUntilEnd);
   const [isPlaying, setIsPlaying] = useState(false);
   const [lang, setLang] = useState<"kh" | "en">("kh");
@@ -76,12 +80,31 @@ export function BuilderInvite({ state, guestName }: { state: BuilderState; guest
   }, [opened, music?.playOnScroll, music?.url]);
 
   function handleOpen() {
-    setOpened(true);
-    if (state.keepCover) {
-      setTimeout(() => window.scrollTo({ top: window.innerHeight, behavior: "smooth" }), 150);
-    }
-    if (music?.playOnLoad && music.url) {
-      setTimeout(() => playMusic(), 300);
+    if (openingRef.current) return;
+    openingRef.current = true;
+
+    const finish = () => {
+      setOpened(true);
+      if (state.keepCover) {
+        setTimeout(() => window.scrollTo({ top: window.innerHeight, behavior: "smooth" }), 150);
+      }
+      if (music?.playOnLoad && music.url) {
+        setTimeout(() => playMusic(), 300);
+      }
+    };
+
+    // When the cover isn't kept, it's about to be replaced by the content —
+    // play a smooth exit (fade + soften + slight zoom) instead of an instant
+    // swap. When kept, the cover stays on screen (just scrolls into place),
+    // so no exit transition is needed.
+    const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const el = coverWrapRef.current;
+    if (!state.keepCover && el && !reduceMotion) {
+      gsap.timeline({ onComplete: finish })
+        .set(el, { pointerEvents: "none" })
+        .to(el, { autoAlpha: 0, scale: 1.045, filter: "blur(10px)", duration: 0.55, ease: "power2.inOut" });
+    } else {
+      finish();
     }
   }
 
@@ -101,7 +124,7 @@ export function BuilderInvite({ state, guestName }: { state: BuilderState; guest
     <div className="bi-outer" style={outerBgCss(outerBg)}>
       {/* dangerouslySetInnerHTML: React HTML-escapes text children of <style>
           on the server, breaking attribute selectors pre-hydration. */}
-      <style dangerouslySetInnerHTML={{ __html: canvasStyles + biStyles }} />
+      <style dangerouslySetInnerHTML={{ __html: biAllStyles }} />
       {/* Outer video background (desktop/laptop only) */}
       {outerBg?.kind === "video" && outerBg.videoUrl && (
         <div className="bi-outer-bg">
@@ -112,7 +135,9 @@ export function BuilderInvite({ state, guestName }: { state: BuilderState; guest
         {!opened ? (
           // The cover shows NO overlaid guide — the animated Open button (below)
           // is the affordance. Any gesture guide appears only after opening.
-          <PvCover st={state} onOpen={handleOpen} locked={locked} onVideoEnded={handleVideoEnded} guestNameValue={guestName} lang={lang} />
+          <div ref={coverWrapRef} className="bi-cover-wrap">
+            <PvCover st={state} onOpen={handleOpen} locked={locked} onVideoEnded={handleVideoEnded} guestNameValue={guestName} lang={lang} />
+          </div>
         ) : (
           <>
             {state.keepCover && <PvCover st={state} guestNameValue={guestName} lang={lang} />}

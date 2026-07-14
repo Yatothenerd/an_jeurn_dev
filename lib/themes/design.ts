@@ -81,6 +81,8 @@ export interface DesignGate {
   /** Play the entrance animation when the cover opens into the sections. */
   animateOpen: boolean;
   keepCoverAfterOpen: boolean;
+  /** Opening the invite by scrolling / swiping up on the cover, in addition to tapping the button. */
+  openOnScroll: boolean;
   /** Color of the gate "Open" button label (text). null = follow theme accent.
    *  Also the fallback for the border color when `openButtonStroke` is unset. */
   openButtonColor: string | null;
@@ -232,6 +234,7 @@ interface LegacyOverlay {
   openButtonFillEnabled?: boolean;
   openButtonFit?: "wrap" | "shrink" | null;
   keepCoverAfterOpen?: boolean;
+  openOnScroll?: boolean;
   scrollGuide?: boolean;
   gatePosition?: DesignGate["position"];
   showGuestName?: boolean;
@@ -305,6 +308,7 @@ export function resolveDesign(input: {
       revealStyle: oc.revealStyle ?? "fade",
       animateOpen: oc.animateOpen ?? true,
       keepCoverAfterOpen: oc.keepCoverAfterOpen ?? true,
+      openOnScroll: oc.openOnScroll ?? false,
       openButtonColor: oc.openButtonColor ?? null,
       openButtonStroke: oc.openButtonStroke ?? null,
       openButtonFill: oc.openButtonFill ?? null,

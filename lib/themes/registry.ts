@@ -10,8 +10,9 @@ import { freeformTheme } from "./themes/freeform";
 import { royalKhmer } from "./themes/royal-khmer";
 import { sweetHearts } from "./themes/sweet-hearts";
 import { lovelyBook } from "./themes/lovely-book";
+import { minimalFloral } from "./themes/minimal-floral";
 
-const MODULES: ThemeModule[] = [standardTheme, freeformTheme, royalKhmer, sweetHearts, lovelyBook];
+const MODULES: ThemeModule[] = [standardTheme, freeformTheme, royalKhmer, sweetHearts, lovelyBook, minimalFloral];
 
 export const THEMES: Record<string, ThemeModule> = Object.fromEntries(
   MODULES.map((m) => [m.id, m])

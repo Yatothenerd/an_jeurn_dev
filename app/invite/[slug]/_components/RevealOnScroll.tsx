@@ -1,38 +1,44 @@
 "use client";
 
 /**
- * Wraps a rendered section so it plays an entrance transition the first time
- * it scrolls into view (see .inv-reveal in standard-css.ts for the actual
- * transform/opacity per effect). Distinct from the gate's .inv-animate
- * cascade, which only plays once when the gate opens.
+ * Wraps a rendered section so it plays a staggered GSAP entrance the first
+ * time it scrolls into view. The pre-JS hidden state (by data-effect) lives
+ * in .inv-reveal CSS (standard-css.ts) so there's no flash of unstyled
+ * content before hydration; GSAP owns the actual reveal. Distinct from the
+ * gate's .inv-animate cascade, which only plays once when the gate opens.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger);
 
 export type SectionEffect = "none" | "fade" | "slide-up" | "slide-down" | "zoom";
 
 export function RevealOnScroll({ effect, children }: { effect: SectionEffect; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [isIn, setIsIn] = useState(effect === "none");
 
   useEffect(() => {
-    if (effect === "none" || !ref.current) return;
     const el = ref.current;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsIn(true);
-          io.disconnect(); // plays once
-        }
+    if (effect === "none" || !el) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    const targets = el.querySelectorAll(":scope > *");
+    const els = targets.length > 0 ? Array.from(targets) : [el];
+    const trigger = ScrollTrigger.create({
+      trigger: el,
+      start: "top 88%",
+      once: true,
+      onEnter: () => {
+        gsap.to(els, { opacity: 1, y: 0, scale: 1, duration: 0.75, ease: "power3.out", stagger: 0.07 });
       },
-      { threshold: 0.15 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
+    });
+    return () => trigger.kill();
   }, [effect]);
 
   return (
-    <div ref={ref} className={`inv-reveal${isIn ? " is-in" : ""}`} data-effect={effect}>
+    <div ref={ref} data-effect={effect}>
       {children}
     </div>
   );

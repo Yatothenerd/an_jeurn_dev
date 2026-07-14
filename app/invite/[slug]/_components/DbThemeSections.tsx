@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCountdown } from "@/lib/themes/shared/use-countdown";
 import { useWishForm } from "@/lib/themes/shared/use-wish-form";
 import { useLangContent } from "./InviteLang";
@@ -680,7 +681,7 @@ export function DbAgendaSection({ content: baseContent, theme: baseTheme }: Agen
               }}
             >
               {row.icon != null && row.icon !== "" && (
-                <img src={`/themes/agenda/${row.icon}.png`} alt="" style={{ width: 30, height: 30, objectFit: "contain" }} />
+                <Image src={`/themes/agenda/${row.icon}.png`} alt="" width={30} height={30} style={{ objectFit: "contain" }} />
               )}
               <span>{row.time || "—"}</span>
             </div>
@@ -724,16 +725,12 @@ export function DbGallerySection({ content: baseContent, photos, theme: baseThem
               boxShadow: "0 2px 10px rgba(0,0,0,0.22)",
             }}
           >
-            <img
+            <Image
               src={p.url}
               alt=""
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
+              fill
+              sizes="(max-width: 400px) 33vw, 133px"
+              style={{ objectFit: "cover" }}
             />
           </div>
         ))}
@@ -1019,7 +1016,7 @@ export function DbKhqrSection({ content: baseContent, theme: baseTheme }: KhqrPr
                 boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
                 border: `2px solid ${tok.header(theme)}22`,
               }}>
-                <img src={item.qrImageUrl} alt={`${item.currency || "Payment"} QR`} width={188} height={188} style={{ display: "block", borderRadius: 8 }} />
+                <Image src={item.qrImageUrl!} alt={`${item.currency || "Payment"} QR`} width={188} height={188} style={{ display: "block", borderRadius: 8 }} />
               </div>
               {/* Currency badge */}
               {item.currency && (

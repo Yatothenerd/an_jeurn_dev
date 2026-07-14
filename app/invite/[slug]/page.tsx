@@ -469,6 +469,7 @@ export default async function InvitePage({
           guideText={gate.guideText}
           hand={gate.hand}
           scrollToContent={gate.keepCoverAfterOpen}
+          openOnScroll={gate.openOnScroll}
           position={gate.position}
           blur={gate.backgroundBlur}
           showGuestName={gate.showGuestName}

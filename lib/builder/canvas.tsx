@@ -7,9 +7,14 @@
  */
 
 import { useRef, useState, useEffect } from "react";
+import Image from "next/image";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useCountdown } from "@/lib/themes/shared/use-countdown";
 import { useRecentColors } from "@/lib/utils/recent-colors";
 import { RecentColorSwatches } from "@/app/admin/_components/RecentColorSwatches";
+
+if (typeof window !== "undefined") gsap.registerPlugin(ScrollTrigger);
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -156,7 +161,7 @@ export function BackgroundLayer({ bg, onVideoEnded }: { bg: Background; onVideoE
 
   return (
     <div className="pv-bg" style={bg.kind === "color" ? { background: bg.color } : undefined}>
-      {isImg && <img className="pv-bg-media" src={bg.imageUrl} alt="" style={{ filter: blur }} />}
+      {isImg && <Image className="pv-bg-media" src={bg.imageUrl} alt="" fill sizes="(min-width: 1000px) 560px, 100vw" style={{ filter: blur }} />}
       {isVid && <video ref={videoRef} className="pv-bg-media" src={bg.videoUrl} style={{ filter: blur }}
         autoPlay={bg.autoplay} loop={!bg.lockUntilEnd} muted playsInline onEnded={onVideoEnded} />}
       {bg.kind !== "color" && <div className="pv-bg-scrim" style={{ background: bg.overlayColor, opacity: bg.opacity }} />}
@@ -167,17 +172,38 @@ export function BackgroundLayer({ bg, onVideoEnded }: { bg: Background; onVideoE
   );
 }
 
-/** Reveals children with an entrance animation when scrolled into view. */
+/** Reveals children with a staggered GSAP entrance animation when scrolled into view. */
 function Reveal({ anim, children }: { anim: SectionAnim; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(anim === "none");
   useEffect(() => {
-    if (anim === "none" || shown || !ref.current) return;
-    const o = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setShown(true); o.disconnect(); } }, { threshold: 0.15 });
-    o.observe(ref.current);
-    return () => o.disconnect();
-  }, [anim, shown]);
-  return <div ref={ref} className={anim === "none" ? undefined : shown ? `anim-sec-${anim}` : "anim-sec-pre"}>{children}</div>;
+    const el = ref.current;
+    if (anim === "none" || !el) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+    // Stagger the section's own top-level pieces (monogram / title / body)
+    // plus any repeating rows inside it (agenda rows, gallery photos, text
+    // blocks, countdown cells) so multi-part sections cascade in piece by
+    // piece instead of popping in as one flat block.
+    const targets = el.querySelectorAll(
+      ':scope > *:not(.pv-secbg), .pv-agendarow, .pv-galimg, .pv-textblock, .pv-countdown-cell'
+    );
+    const els = targets.length > 0 ? Array.from(targets) : [el];
+    const from: gsap.TweenVars =
+      anim === "slideUp" ? { opacity: 0, y: 46 } :
+      anim === "zoom" ? { opacity: 0, scale: 0.86, y: 12 } :
+      { opacity: 0, y: 16 };
+    gsap.set(els, from);
+    const trigger = ScrollTrigger.create({
+      trigger: el,
+      start: "top 88%",
+      once: true,
+      onEnter: () => {
+        gsap.to(els, { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: "power3.out", stagger: 0.075 });
+      },
+    });
+    return () => trigger.kill();
+  }, [anim]);
+  return <div ref={ref}>{children}</div>;
 }
 
 // ── Setup snapshot ──────────────────────────────────────────────────────────────
@@ -620,7 +646,7 @@ export function PvContent({ st, editable = false, onEditBlock, onBlockPatch, onS
             data-edit={editable}>
             {s.bg?.imageUrl && (
               <div className="pv-secbg" aria-hidden>
-                <img src={s.bg.imageUrl} alt="" style={{ filter: s.bg.blur ? `blur(${s.bg.blur}px)` : undefined }} />
+                <Image src={s.bg.imageUrl} alt="" fill sizes="(min-width: 1000px) 560px, 100vw" style={{ filter: s.bg.blur ? `blur(${s.bg.blur}px)` : undefined }} />
                 <div className="pv-secbg-scrim" style={{ background: s.bg.overlayColor, opacity: s.bg.opacity }} />
               </div>
             )}
@@ -746,7 +772,7 @@ function SectionBody({ s, editable, onEditBlock, lang = "kh", edit, eventDate }:
           {s.agenda.map((a) => (
             <div key={a.id} className="pv-agendarow">
               {a.showIcon && (a.iconUrl
-                ? <img src={a.iconUrl} alt="" className="pv-agendaicon-img" />
+                ? <Image src={a.iconUrl} alt="" className="pv-agendaicon-img" width={22} height={22} />
                 : <span className="pv-agendaicon">{a.icon}</span>)}
               <span className="pv-agendatime">{a.time}</span>
               <span className="pv-agendaname">{a.name}</span>
@@ -759,13 +785,21 @@ function SectionBody({ s, editable, onEditBlock, lang = "kh", edit, eventDate }:
     case "memory":
       return s.gallery.length ? (
         <div className="pv-gallery" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${scalePct}%, 1fr))` }}>
-          {s.gallery.map((url, gi) => <img key={gi} src={url} alt="" className="pv-galimg" />)}
+          {s.gallery.map((url, gi) => (
+            <div key={gi} className="pv-galimg" style={{ position: "relative" }}>
+              <Image src={url} alt="" fill sizes="33vw" style={{ objectFit: "cover", borderRadius: "inherit" }} />
+            </div>
+          ))}
         </div>
       ) : <div className="pv-secph">Gallery photos</div>;
     case "aba":
       return (
         <div className="pv-aba">
-          {s.aba.qrUrl ? <img src={s.aba.qrUrl} alt="" className="pv-qr" style={{ width: `${scalePct}%` }} /> : <div className="pv-secph">QR code</div>}
+          {s.aba.qrUrl ? (
+            <div className="pv-qr" style={{ width: `${scalePct}%`, aspectRatio: "1", position: "relative" }}>
+              <Image src={s.aba.qrUrl} alt="" fill sizes="240px" style={{ objectFit: "contain" }} />
+            </div>
+          ) : <div className="pv-secph">QR code</div>}
           {s.aba.name && <div className="pv-aba-name">{s.aba.name}</div>}
           {s.aba.note && <div className="pv-aba-note">{s.aba.note}</div>}
         </div>
@@ -1103,14 +1137,8 @@ export const canvasStyles = `
   .anim-idle-float, .anim-idle-pulse, .anim-idle-sway, .anim-idle-shimmer { animation: none; }
 }
 
-/* Per-section entrance animations (revealed on scroll) */
-.anim-sec-pre { opacity: 0; }
-.anim-sec-fade { animation: secFade .7s ease both; }
-.anim-sec-slideUp { animation: secSlideUp .7s cubic-bezier(.2,.8,.2,1) both; }
-.anim-sec-zoom { animation: secZoom .7s ease both; }
-@keyframes secFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes secSlideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
-@keyframes secZoom { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: none; } }
+/* Per-section entrance animations are now driven by GSAP + ScrollTrigger (see the
+   Reveal() component above) rather than these CSS classes. */
 
 /* Click-to-edit block (active state + toolbar) */
 .pv-coverblock-active { outline: 1.5px solid rgba(255,255,255,0.9) !important; border-radius: 4px; }

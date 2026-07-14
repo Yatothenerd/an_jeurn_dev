@@ -1001,6 +1001,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
   const [coverOpts, setCoverOpts] = useState({
     animateOpen: (oc.animateOpen as boolean | undefined) ?? true,
     keepCoverAfterOpen: (oc.keepCoverAfterOpen as boolean | undefined) ?? true,
+    openOnScroll: (oc.openOnScroll as boolean | undefined) ?? false,
     openButtonColor: (oc.openButtonColor as string | undefined) ?? "",
     openButtonStroke: (oc.openButtonStroke as string | undefined) ?? "",
     openButtonFill: (oc.openButtonFill as string | undefined) ?? "",
@@ -1115,6 +1116,7 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
       actionButton: actionButton ?? undefined,
       animateOpen: coverOpts.animateOpen,
       keepCoverAfterOpen: coverOpts.keepCoverAfterOpen,
+      openOnScroll: coverOpts.openOnScroll,
       openButtonColor: coverOpts.openButtonColor || null,
       openButtonStroke: coverOpts.openButtonStroke || null,
       openButtonFill: coverOpts.openButtonFill || null,
@@ -1623,7 +1625,15 @@ export function ThemeEditor({ event, invitation, themeName, designLocked = false
               onChange={(e) => setCoverOpts((o) => ({ ...o, keepCoverAfterOpen: e.target.checked }))} />
             Keep the cover as the first page after opening
           </label>
-          <p style={s.hint}>Turn off &ldquo;keep cover&rdquo; to land guests straight on the content — the cover then lives only as the opening gate.</p>
+          <p style={s.hint}>Turn off &ldquo;keep cover&rdquo; to land guests straight on the content — the cover then lives only as the opening gate, and closes with a smooth fade/zoom-out when tapped.</p>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={coverOpts.openOnScroll}
+              onChange={(e) => setCoverOpts((o) => ({ ...o, openOnScroll: e.target.checked }))} />
+            Also open by scrolling or swiping up on the cover
+          </label>
+          {!coverOpts.openOnScroll && (
+            <p style={s.hint}>Guests can still tap the &ldquo;Open&rdquo; button — this just adds a scroll/swipe shortcut.</p>
+          )}
         </div>
         </>
         )}

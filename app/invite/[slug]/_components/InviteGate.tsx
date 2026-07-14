@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
+import gsap from "gsap";
 import type { ThemeTokens } from "@/lib/themes/types";
 import { HandPointer } from "./HandPointer";
 
@@ -127,6 +129,8 @@ interface Props {
   /** Hand icon for the open button + guidance overlay (default = drawn hand). */
   hand?: { kind: "default" | "emoji" | "image"; value: string };
   scrollToContent?: boolean;
+  /** Opening the invite by scrolling / swiping up on the cover, in addition to tapping the button (default false). */
+  openOnScroll?: boolean;
   position?: "top" | "center" | "bottom";
   blur?: number;
   showGuestName?: boolean;
@@ -148,6 +152,7 @@ export function InviteGate({
   openButtonFont, openButtonSize, openButtonWeight, openButtonStrokeEnabled = true, openButtonFillEnabled = false,
   scrollGuide = true, guideText, hand,
   scrollToContent = true,
+  openOnScroll = false,
   position = "center", blur = 0,
   showGuestName = true, guestFrameUrl, showMonogram = true,
   elementPositions,
@@ -192,6 +197,10 @@ export function InviteGate({
   // scroll flow (one screen tall), not an overlay. "closed" only means the
   // page is scroll-locked to it; opening unlocks and glides to the content.
   const [phase, setPhase] = useState<"closed" | "open">("closed");
+  // True once the (non-kept) cover has finished its exit animation and is
+  // actually removed from the flow. Kept separate from `phase` so the GSAP
+  // timeline — not a React re-render — controls exactly when that happens.
+  const [collapsed, setCollapsed] = useState(false);
   const [guide, setGuide] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
   const gateRef = useRef<HTMLDivElement>(null);
@@ -201,10 +210,11 @@ export function InviteGate({
     const skip = () => {
       setPhase("open");
       if (animateOpen) shellRef.current?.classList.add("inv-animate");
+      if (!keepCover) setCollapsed(true);
     };
     window.addEventListener("anjeurn:gate-skip", skip);
     return () => window.removeEventListener("anjeurn:gate-skip", skip);
-  }, [animateOpen]);
+  }, [animateOpen, keepCover]);
 
   // Configurable hand icon (drawn hand / emoji / uploaded image).
   const HandIcon = ({ className }: { className: string }) => {
@@ -234,10 +244,25 @@ export function InviteGate({
         setGuide(true);
         sessionStorage.setItem("inv-guide-seen", "1");
       }
+      if (!keepCover) {
+        const el = gateRef.current;
+        const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (el && !reduceMotion) {
+          // Smooth exit — fade/soften/zoom the cover, then collapse its height
+          // so the content glides up to fill the space, instead of an instant
+          // display:none snap.
+          gsap.timeline({ onComplete: () => setCollapsed(true) })
+            .set(el, { pointerEvents: "none" })
+            .to(el, { autoAlpha: 0, scale: 1.04, filter: "blur(8px)", duration: 0.5, ease: "power2.inOut" })
+            .to(el, { height: 0, duration: 0.45, ease: "power2.inOut" }, "-=0.1");
+        } else {
+          setCollapsed(true);
+        }
+      }
     }
     // Glide from the cover page down to the first content page (also works as
     // a "scroll down" button when the guest returns to the cover later).
-    // When the cover isn't kept, it collapses (below) so content is already at
+    // When the cover isn't kept, it collapses (above) so content is already at
     // the top — just glide to 0.
     setTimeout(() => {
       if (!keepCover) { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
@@ -246,6 +271,17 @@ export function InviteGate({
       window.scrollTo({ top, behavior: "smooth" });
     }, 120);
   }
+
+  // Scroll / swipe-up to open — alternative (or complement) to the button.
+  const touchY = useRef<number | null>(null);
+  const scrollOpens = openOnScroll && phase === "closed";
+  const onGateWheel = scrollOpens ? (e: React.WheelEvent) => { if (e.deltaY > 8) open(); } : undefined;
+  const onGateTouchStart = scrollOpens ? (e: React.TouchEvent) => { touchY.current = e.touches[0]?.clientY ?? null; } : undefined;
+  const onGateTouchMove = scrollOpens ? (e: React.TouchEvent) => {
+    if (touchY.current == null) return;
+    const dy = touchY.current - (e.touches[0]?.clientY ?? touchY.current);
+    if (dy > 32) { touchY.current = null; open(); }
+  } : undefined;
 
   const hasCustomPos = !!elementPositions && Object.keys(elementPositions).length > 0;
 
@@ -283,7 +319,7 @@ export function InviteGate({
   // Decorative frame behind the guest name: full screen width, natural height
   // (height auto so the artwork is never stretched). Capped at the gate width.
   const guestFrame = guestFrameUrl ? (
-    <img src={guestFrameUrl} alt="" aria-hidden style={{
+    <Image src={guestFrameUrl} alt="" aria-hidden width={430} height={430} sizes="430px" style={{
       position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
       width: "100vw", maxWidth: 430, height: "auto",
       pointerEvents: "none", zIndex: 0,
@@ -296,13 +332,16 @@ export function InviteGate({
       <div
         ref={gateRef}
         className={`inv-gate${animateOpen ? " inv-animate" : ""}`}
+        onWheel={onGateWheel}
+        onTouchStart={onGateTouchStart}
+        onTouchMove={onGateTouchMove}
         style={{
           fontFamily: theme.font,
           color: theme.text,
           ...(hasCustomPos ? {} : { justifyContent: gateJustify }),
           ...(bgUrl ? {} : { background: theme.coverGradient }),
-          // Cover not kept: remove it from the flow once opened.
-          ...(phase === "open" && !keepCover ? { display: "none" } : {}),
+          // Cover not kept: remove it from the flow once its exit animation finishes.
+          ...(collapsed ? { display: "none" } : {}),
         }}
       >
           {/* Background layer — motion video, or image/GIF with optional blur */}
@@ -343,7 +382,7 @@ export function InviteGate({
               {/* Monogram */}
               {showMonogram && coverUrl && (
                 <div style={ep("monogram")}>
-                  <img src={coverUrl} alt="Monogram"
+                  <Image src={coverUrl} alt="Monogram" width={96} height={96}
                     style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 28px rgba(0,0,0,0.5)" }} />
                 </div>
               )}
@@ -396,7 +435,7 @@ export function InviteGate({
               {/* TOP ZONE: monogram + pretitle */}
               <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem" }}>
                 {showMonogram && coverUrl && (
-                  <img src={coverUrl} alt="Monogram"
+                  <Image src={coverUrl} alt="Monogram" width={96} height={96}
                     style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", boxShadow: "0 4px 28px rgba(0,0,0,0.5)" }} />
                 )}
                 <p className="inv-pretitle" style={{ ...ovStyle("pretitle", theme.accent), margin: 0 }}>{pretitleNode}</p>
