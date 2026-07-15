@@ -9,6 +9,8 @@ import type { InviteWish } from "@/lib/utils/invite-cache";
 import type { ThemeTokens } from "../../types";
 import { useCountdown } from "../../shared/use-countdown";
 import { useWishForm } from "../../shared/use-wish-form";
+import { PhotoLightbox } from "../../shared/PhotoLightbox";
+import { getMonthCalendar } from "../../shared/month-calendar";
 
 // ── Doodle bits ────────────────────────────────────────────────────────────────
 
@@ -204,18 +206,7 @@ export function ShCountdown({
   hideTitle?: boolean;
 }) {
   const time = useCountdown(targetDate, eventDate);
-  const d = new Date(targetDate || eventDate);
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const day = d.getDate();
-
-  const startOffset = (new Date(year, month, 1).getDay() + 6) % 7; // Monday-first
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = d.toLocaleDateString("en-US", { month: "long" });
-  const cells: Array<number | null> = [
-    ...Array.from({ length: startOffset }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
+  const { year, day, monthName, cells } = getMonthCalendar(targetDate, eventDate);
 
   return (
     <div>
@@ -404,11 +395,7 @@ export function ShGallery({
           </div>
         ))}
       </div>
-      {lightbox && (
-        <div style={lightboxBg} onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="" style={lightboxImg} onClick={(e) => e.stopPropagation()} />
-        </div>
-      )}
+      {lightbox && <PhotoLightbox url={lightbox} onClose={() => setLightbox(null)} overlayColor="rgba(60, 10, 25, 0.88)" />}
     </div>
   );
 }
@@ -503,21 +490,3 @@ export function ShFooterHearts() {
   );
 }
 
-const lightboxBg: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(60, 10, 25, 0.88)",
-  zIndex: 1000,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "1rem",
-  cursor: "zoom-out",
-};
-const lightboxImg: React.CSSProperties = {
-  maxWidth: "100%",
-  maxHeight: "90vh",
-  objectFit: "contain",
-  borderRadius: "8px",
-  cursor: "default",
-};

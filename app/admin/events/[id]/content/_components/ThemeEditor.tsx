@@ -180,6 +180,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+/** "Hide title" checkbox — most bespoke theme renderers read `content.hideTitle`
+ *  to suppress the section heading, but had no admin control until now. */
+function HideTitleCheck({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={s.checkRow}>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      Hide section title
+    </label>
+  );
+}
+
 function Txt({ value, onChange, placeholder, type = "text" }: {
   value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
 }) {
@@ -760,6 +771,11 @@ function SectionForm({ sec, onContent, locked, altLang }: {
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="Guess who?" /></Field>
           <Field label="Text"><Area value={str("text")} onChange={set("text")} rows={4} /></Field>
           <Field label="Photo (optional)"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={!!c.grayscale} onChange={(e) => onC({ grayscale: e.target.checked })} />
+            Desaturate photo (black &amp; white) — themes that support this will apply it
+          </label>
+          <HideTitleCheck checked={!!c.hideTitle} onChange={(v) => onC({ hideTitle: v })} />
         </>
       );
     case "countdown": {
@@ -771,6 +787,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
           <Field label="Target date & time">
             <Txt type="datetime-local" value={str("targetDate").slice(0, 16)} onChange={set("targetDate")} />
           </Field>
+          <HideTitleCheck checked={!!c.hideTitle} onChange={(v) => onC({ hideTitle: v })} />
           <div style={s.subHead}>Number colors</div>
           <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap" }}>
             {(["days", "hours", "minutes", "seconds"] as const).map((k) => (
@@ -791,6 +808,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
       return (
         <>
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="What time?" /></Field>
+          <HideTitleCheck checked={!!c.hideTitle} onChange={(v) => onC({ hideTitle: v })} />
           {items.map((it, i) => (
             <div key={i} style={{ display: "flex", flexDirection: "column", gap: "0.4rem", border: "1px solid var(--c-border)", borderRadius: 8, padding: "0.5rem" }}>
               <div style={s.rowGroup}>
@@ -821,6 +839,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
             </div>
           ))}
           <button type="button" style={s.smallBtn} onClick={() => setItems([...items, { time: "", title: "", icon: undefined }])}>+ Add moment</button>
+          <Field label="Note (optional)"><Area value={str("note")} onChange={set("note")} rows={2} placeholder="* Kindly arrive 15 minutes early" /></Field>
         </>
       );
     }
@@ -831,6 +850,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
       return (
         <>
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="Where?" /></Field>
+          <HideTitleCheck checked={!!c.hideTitle} onChange={(v) => onC({ hideTitle: v })} />
           {items.map((it, i) => (
             <div key={i} style={s.rowGroup}>
               <input value={it.label ?? ""} placeholder="Address" style={{ ...s.input, width: 92, flexShrink: 0 }}
@@ -842,9 +862,15 @@ function SectionForm({ sec, onContent, locked, altLang }: {
           ))}
           <button type="button" style={s.smallBtn} onClick={() => onC({ items: [...items, { icon: "📍", label: "", value: "" }] })}>+ Add row</button>
           <Field label="Venue photo"><ImgField value={strBase("imageUrl")} onChange={setBase("imageUrl")} /></Field>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={!!c.grayscale} onChange={(e) => onC({ grayscale: e.target.checked })} />
+            Desaturate photo (black &amp; white) — themes that support this will apply it
+          </label>
+          <Field label="Map URL (optional — overrides the event's venue map link)"><Txt value={str("mapUrl")} onChange={set("mapUrl")} placeholder="https://maps.google.com/…" /></Field>
           <Field label="Map button label"><Txt value={str("mapLabel")} onChange={set("mapLabel")} placeholder="open map" /></Field>
 
           <div style={s.subHead}>Dress code</div>
+          <Field label="Section label"><Txt value={str("dresscodeLabel")} onChange={set("dresscodeLabel")} placeholder="Dress code" /></Field>
           <Field label="Text"><Area value={str("dresscodeText")} onChange={set("dresscodeText")} rows={2} /></Field>
           <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", alignItems: "center" }}>
             {dress.map((col, i) => (
@@ -860,6 +886,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
           <RecentColorSwatches recent={recentColors} onPick={(c) => { onContent({ dresscode: [...dress, c] }); recordRecentColor(c); }} size={16} />
 
           <div style={s.subHead}>Notes</div>
+          <Field label="Section label"><Txt value={str("notesLabel")} onChange={set("notesLabel")} placeholder="Notes" /></Field>
           {notes.map((n, i) => (
             <div key={i} style={s.rowGroup}>
               <textarea value={n} rows={2} style={{ ...s.input, resize: "vertical" as const }}
@@ -873,7 +900,14 @@ function SectionForm({ sec, onContent, locked, altLang }: {
     }
     case "gallery":
       return (
-        <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="Our moments" /></Field>
+        <>
+          <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="Our moments" /></Field>
+          <label style={s.checkRow}>
+            <input type="checkbox" checked={!!c.grayscale} onChange={(e) => onC({ grayscale: e.target.checked })} />
+            Desaturate photos (black &amp; white) — themes that support this will apply it
+          </label>
+          <HideTitleCheck checked={!!c.hideTitle} onChange={(v) => onC({ hideTitle: v })} />
+        </>
       );
     case "khqr":
       return (
@@ -881,6 +915,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="A gift from the heart" /></Field>
           <Field label="Recipient"><Txt value={str("recipientName")} onChange={set("recipientName")} /></Field>
           <Field label="QR image"><ImgField value={strBase("qrImageUrl")} onChange={setBase("qrImageUrl")} /></Field>
+          <HideTitleCheck checked={!!c.hideTitle} onChange={(v) => onC({ hideTitle: v })} />
         </>
       );
     case "wishing":
@@ -888,6 +923,7 @@ function SectionForm({ sec, onContent, locked, altLang }: {
         <>
           <Field label="Title"><Txt value={str("title")} onChange={set("title")} placeholder="Wishing wall" /></Field>
           <Field label="Input placeholder"><Txt value={str("placeholder")} onChange={set("placeholder")} /></Field>
+          <HideTitleCheck checked={!!c.hideTitle} onChange={(v) => onC({ hideTitle: v })} />
         </>
       );
     default:

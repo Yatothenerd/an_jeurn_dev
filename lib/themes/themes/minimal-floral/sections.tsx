@@ -11,6 +11,7 @@ import type { InviteWish } from "@/lib/utils/invite-cache";
 import type { ThemeTokens } from "../../types";
 import { useCountdown } from "../../shared/use-countdown";
 import { useWishForm } from "../../shared/use-wish-form";
+import { getMonthCalendar } from "../../shared/month-calendar";
 
 // ── Hand-drawn floral bits ──────────────────────────────────────────────────────
 
@@ -208,19 +209,8 @@ export function MfCountdown({
   hideTitle?: boolean;
 }) {
   const time = useCountdown(targetDate, eventDate);
-  const d = new Date(targetDate || eventDate);
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const day = d.getDate();
-
-  const startOffset = (new Date(year, month, 1).getDay() + 6) % 7; // Monday-first
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const monthName = d.toLocaleDateString("en-US", { month: "long" });
+  const { year, day, monthName, cells } = getMonthCalendar(targetDate, eventDate);
   const weekdays = ["M", "T", "W", "T", "F", "S", "S"];
-  const cells: Array<number | null> = [
-    ...Array.from({ length: startOffset }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
   const units = [
     { l: "days", v: time.days },
     { l: "hrs", v: time.hours },

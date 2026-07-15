@@ -28,8 +28,8 @@ export function GuestManager({ eventId, slug, initialGuests }: { eventId: string
 
   const stats = {
     total: guests.length,
-    yes: guests.filter((g) => g.rsvpStatus === "accepted" || g.rsvpStatus === "yes").length,
-    no: guests.filter((g) => g.rsvpStatus === "declined" || g.rsvpStatus === "no").length,
+    yes: guests.filter((g) => g.rsvpStatus === "attending").length,
+    no: guests.filter((g) => g.rsvpStatus === "declined").length,
   };
   const pending = stats.total - stats.yes - stats.no;
 
@@ -89,7 +89,12 @@ export function GuestManager({ eventId, slug, initialGuests }: { eventId: string
 
         {/* Guest list */}
         <div style={s.card}>
-          <h2 style={s.h2}>Guest list</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={s.h2}>Guest list</h2>
+            {guests.length > 0 && (
+              <a href={`/api/admin/events/${eventId}/guests/export`} style={s.ghostLink}>Export CSV ↓</a>
+            )}
+          </div>
           {guests.length === 0 ? (
             <p style={s.hint}>No guests yet. Add the first one above — or publish and let guests RSVP themselves.</p>
           ) : (
@@ -100,7 +105,7 @@ export function GuestManager({ eventId, slug, initialGuests }: { eventId: string
                     <div style={s.gName}>{g.name}</div>
                     {g.contact && <div style={s.gContact}>{g.contact}</div>}
                   </div>
-                  <span style={{ ...s.rsvp, ...(g.rsvpStatus ? (g.rsvpStatus === "accepted" || g.rsvpStatus === "yes" ? s.rsvpYes : s.rsvpNo) : {}) }}>
+                  <span style={{ ...s.rsvp, ...(g.rsvpStatus ? (g.rsvpStatus === "attending" ? s.rsvpYes : s.rsvpNo) : {}) }}>
                     {g.rsvpStatus ?? "no reply"}
                   </span>
                   <button type="button" style={s.copyBtn} onClick={() => void copyLink(g)}>

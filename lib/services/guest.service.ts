@@ -141,6 +141,13 @@ export class GuestService {
       });
     }
 
+    if (activePkg) {
+      const count = await prisma.guest.count({ where: { eventId } });
+      if (count >= activePkg.maxGuests) {
+        throw new Error(`Guest limit reached (max ${activePkg.maxGuests})`);
+      }
+    }
+
     return prisma.guest.create({
       data: {
         eventId,

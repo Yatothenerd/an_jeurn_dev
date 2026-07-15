@@ -10,6 +10,7 @@ import type { InviteWish } from "@/lib/utils/invite-cache";
 import type { ThemeTokens } from "../../types";
 import { useCountdown } from "../../shared/use-countdown";
 import { useWishForm } from "../../shared/use-wish-form";
+import { PhotoLightbox } from "../../shared/PhotoLightbox";
 
 // ── Decorative line art ───────────────────────────────────────────────────────
 
@@ -354,11 +355,7 @@ export function LbGallery({
           </div>
         ))}
       </div>
-      {lightbox && (
-        <div style={lightboxBg} onClick={() => setLightbox(null)}>
-          <img src={lightbox} alt="" style={lightboxImg} onClick={(e) => e.stopPropagation()} />
-        </div>
-      )}
+      {lightbox && <PhotoLightbox url={lightbox} onClose={() => setLightbox(null)} overlayColor="rgba(40, 10, 20, 0.88)" />}
     </div>
   );
 }
@@ -423,10 +420,3 @@ export function LbWishing({
   );
 }
 
-const lightboxBg: React.CSSProperties = {
-  position: "fixed", inset: 0, background: "rgba(40, 10, 20, 0.88)", zIndex: 1000,
-  display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", cursor: "zoom-out",
-};
-const lightboxImg: React.CSSProperties = {
-  maxWidth: "100%", maxHeight: "90vh", objectFit: "contain", borderRadius: "8px", cursor: "default",
-};
